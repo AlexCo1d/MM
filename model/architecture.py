@@ -140,7 +140,7 @@ class MM(nn.Module):
 
         return x_masked, mask, ids_restore
 
-    def forward_encoder(self, x, mask_ratio):
+    def forward_vision_encoder(self, x, mask_ratio):
         # embed patches
         x = self.patch_embed(x)
         # add pos embed w/o cls token
@@ -160,6 +160,11 @@ class MM(nn.Module):
         x = self.norm(x)
 
         return x, mask, ids_restore
+
+    ## TODO:  add new text encoder
+
+    ## TODO: add contrastive learning loss
+
 
     def forward_decoder(self, x, ids_restore):
         # embed tokens
@@ -224,7 +229,7 @@ class MM(nn.Module):
         type_ids = type_ids.cuda()
         imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(big_imgs)
 
-        latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
+        latent, mask, ids_restore = self.forward_vision_encoder(imgs, mask_ratio)
         report_loss = self.forward_report_decoder(latent, ids, labels, attention_mask, type_ids)
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         loss = self.forward_loss(big_imgs, pred, mask)
