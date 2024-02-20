@@ -7,11 +7,12 @@ from timm.models.vision_transformer import PatchEmbed, Block
 from utils.pos_embed import get_2d_sincos_pos_embed
 from module.bert.bert_encoder import BertEncoder
 
+
 class MM(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3,
                  embed_dim=1024, depth=24, num_heads=16,
                  decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
-                 mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False):
+                 mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False, mv=False):
         super().__init__()
 
         # --------------------------------------------------------------------------
@@ -51,6 +52,8 @@ class MM(nn.Module):
         self.norm_pix_loss = norm_pix_loss
 
         self.initialize_weights()
+
+        self.mv = mv
 
     def initialize_weights(self):
         # initialization
@@ -161,10 +164,9 @@ class MM(nn.Module):
 
         return x, mask, ids_restore
 
-    ## TODO:  add new text encoder
+    ## TODO: add new text encoder
 
     ## TODO: add contrastive learning loss
-
 
     def forward_decoder(self, x, ids_restore):
         # embed tokens
@@ -217,20 +219,37 @@ class MM(nn.Module):
         return loss
 
     def forward(self, batch, mask_ratio=0.75):
-        big_imgs = batch["image"]
+
+        # TODO: make it supports multiple view
+        # split different views of images
+        imgs_1 = batch["image_1"]
 
         ids, labels, attention_mask, type_ids = batch["ids"], batch["labels"], batch["attention_mask"], batch[
             "type_ids"]
 
-        big_imgs = big_imgs.cuda()
+        imgs_1 = imgs_1.cuda()
+
         ids = ids.cuda()
         labels = labels.cuda()
         attention_mask = attention_mask.cuda()
         type_ids = type_ids.cuda()
-        imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(big_imgs)
 
-        latent, mask, ids_restore = self.forward_vision_encoder(imgs, mask_ratio)
-        report_loss = self.forward_report_decoder(latent, ids, labels, attention_mask, type_ids)
+        _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_1)
+        latent, mask, ids_restore = self.forward_vision_encoder(_imgs, mask_ratio)
+
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
-        loss = self.forward_loss(big_imgs, pred, mask)
-        return (loss, report_loss), pred, mask
+        v_loss = self.forward_loss(imgs_1, pred, mask)
+
+        if self.mv:
+            imgs_2 = batch["image_2"]
+            imgs_2 = imgs_2.cuda()
+            _imgs_2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_2)
+            latent_2, mask_2, ids_restore_2 = self.forward_vision_encoder(_imgs_2, mask_ratio)
+            # TODO: merge latent_2 and latent, need to add mlp or not?
+            latent = torch.cat([latent, latent_2], dim=1)
+            pred_2 = self.forward_decoder(latent_2, ids_restore_2)
+            v_loss = 0.5 * v_loss + 0.5 * self.forward_loss(imgs_2, pred_2, mask_2)
+
+        # the latent language module use is always the merge of vision modality.
+        l_loss = self.forward_report_decoder(latent, ids, labels, attention_mask, type_ids)
+        return (v_loss, l_loss), pred, mask
