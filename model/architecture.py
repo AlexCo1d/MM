@@ -219,7 +219,7 @@ class MM(nn.Module):
         return loss
 
     def forward_contrastive_loss(self, latent, caption_ids, labels, attention_mask, token_type_ids, temp):
-        outputs = self.bert_encoder.bert(None, caption_ids, labels, attention_mask, token_type_ids).hidden_states
+        outputs = self.bert_encoder.bert(None, caption_ids, labels, attention_mask, token_type_ids).last_hidden_state
         latent = F.normalize(latent[:, 0, :], dim=-1)
         outputs = F.normalize(outputs[:, 0, :], dim=-1)
         c_labels = torch.arange(latent.size(0)).type_as(latent).long()
