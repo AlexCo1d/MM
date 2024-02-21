@@ -218,9 +218,8 @@ class MM(nn.Module):
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
         return loss
 
-    ## TODO: add contrastive learning loss
     def forward_contrastive_loss(self, latent, caption_ids, labels, attention_mask, token_type_ids, temp):
-        _, outputs = self.bert_encoder.bert(None, caption_ids, labels, attention_mask, token_type_ids)
+        outputs = self.bert_encoder.bert(None, caption_ids, labels, attention_mask, token_type_ids).hidden_states
         latent = F.normalize(latent[:, 0, :], dim=-1)
         outputs = F.normalize(outputs[:, 0, :], dim=-1)
         c_labels = torch.arange(latent.size(0)).type_as(latent).long()
