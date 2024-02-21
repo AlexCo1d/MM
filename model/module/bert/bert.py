@@ -10,7 +10,7 @@ class MyBertModel(BertModel):
 
     def forward(
         self,
-        latent = None,
+        latent=None,
         input_ids=None,
         attention_mask=None,
         token_type_ids=None,
@@ -109,7 +109,9 @@ class MyBertModel(BertModel):
             inputs_embeds=inputs_embeds,
             past_key_values_length=past_key_values_length,
         )
-        embedding_output = embedding_output + latent.unsqueeze(1)
+        # fusion happened here
+        if latent is not None:
+            embedding_output = embedding_output + latent.unsqueeze(1)
         encoder_outputs = self.encoder(
             embedding_output,
             attention_mask=extended_attention_mask,
@@ -137,6 +139,7 @@ class MyBertModel(BertModel):
             cross_attentions=encoder_outputs.cross_attentions,
         )
 
+# using the Mybertmodel but add latent parameter. The detailed change of bert happened in the MyBertModel.
 class MyBertMaskedLM(BertForMaskedLM):
     def __init__(self, config):
         super().__init__(config)
@@ -168,8 +171,8 @@ class MyBertMaskedLM(BertForMaskedLM):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         outputs = self.bert(
-            latent,
-            input_ids,
+            latent=latent,
+            input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
@@ -199,4 +202,4 @@ class MyBertMaskedLM(BertForMaskedLM):
             logits=prediction_scores,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
-        )
+        ), outputs.last_hidden_state

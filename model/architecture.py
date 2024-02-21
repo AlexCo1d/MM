@@ -1,6 +1,7 @@
 import torch
 import torchvision
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision.transforms.functional import InterpolationMode
 from timm.models.vision_transformer import PatchEmbed, Block
 
@@ -51,9 +52,11 @@ class MM(nn.Module):
         self.bert_mlp = nn.Linear(embed_dim, 384, bias=True)
         self.norm_pix_loss = norm_pix_loss
 
-        self.initialize_weights()
-
         self.mv = mv
+        if self.mv:
+            self.latent_proj = nn.Linear(embed_dim * 2, embed_dim)
+
+        self.initialize_weights()
 
     def initialize_weights(self):
         # initialization
@@ -164,10 +167,6 @@ class MM(nn.Module):
 
         return x, mask, ids_restore
 
-    ## TODO: add new text encoder
-
-    ## TODO: add contrastive learning loss
-
     def forward_decoder(self, x, ids_restore):
         # embed tokens
         x = self.decoder_embed(x)
@@ -196,11 +195,12 @@ class MM(nn.Module):
 
     def forward_report_decoder(self, latent, caption_ids, labels, attention_mask, token_type_ids):
         latent = self.bert_mlp(latent)
+        # GAP
         latent = latent[:, 1:, :].mean(dim=1)
         outputs = self.bert_encoder(latent, caption_ids, labels, attention_mask, token_type_ids)
         return outputs.loss
 
-    def forward_loss(self, imgs, pred, mask):
+    def forward_vision_loss(self, imgs, pred, mask):
         """
         imgs: [N, 3, H, W]
         pred: [N, L, p*p*3]
@@ -218,9 +218,18 @@ class MM(nn.Module):
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
         return loss
 
+    ## TODO: add contrastive learning loss
+    def forward_contrastive_loss(self, latent, caption_ids, labels, attention_mask, token_type_ids, temp):
+        _, outputs = self.bert_encoder.bert(None, caption_ids, labels, attention_mask, token_type_ids)
+        latent = F.normalize(latent[:, 0, :], dim=-1)
+        outputs = F.normalize(outputs[:, 0, :], dim=-1)
+        c_labels = torch.arange(latent.size(0)).type_as(latent).long()
+        scores = latent.mm(outputs.t()) / temp
+        loss = F.cross_entropy(scores, c_labels) + F.cross_entropy(scores.transpose(0, 1), c_labels)
+        return loss
+
     def forward(self, batch, mask_ratio=0.75):
 
-        # TODO: make it supports multiple view
         # split different views of images
         imgs_1 = batch["image_1"]
 
@@ -228,7 +237,6 @@ class MM(nn.Module):
             "type_ids"]
 
         imgs_1 = imgs_1.cuda()
-
         ids = ids.cuda()
         labels = labels.cuda()
         attention_mask = attention_mask.cuda()
@@ -238,18 +246,19 @@ class MM(nn.Module):
         latent, mask, ids_restore = self.forward_vision_encoder(_imgs, mask_ratio)
 
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
-        v_loss = self.forward_loss(imgs_1, pred, mask)
+        v_loss = self.forward_vision_loss(imgs_1, pred, mask)
 
         if self.mv:
             imgs_2 = batch["image_2"]
             imgs_2 = imgs_2.cuda()
             _imgs_2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_2)
             latent_2, mask_2, ids_restore_2 = self.forward_vision_encoder(_imgs_2, mask_ratio)
-            # TODO: merge latent_2 and latent, need to add mlp or not?
             latent = torch.cat([latent, latent_2], dim=1)
+            latent = self.latent_proj(latent)
             pred_2 = self.forward_decoder(latent_2, ids_restore_2)
-            v_loss = 0.5 * v_loss + 0.5 * self.forward_loss(imgs_2, pred_2, mask_2)
-
+            v_loss = 0.5 * v_loss + 0.5 * self.forward_vision_loss(imgs_2, pred_2, mask_2)
+        # TODO: focus temperature hyperparameter
+        contrastive_loss = self.forward_contrastive_loss(latent, mask, ids_restore, temp=0.5)
         # the latent language module use is always the merge of vision modality.
         l_loss = self.forward_report_decoder(latent, ids, labels, attention_mask, type_ids)
-        return (v_loss, l_loss), pred, mask
+        return (v_loss, l_loss, contrastive_loss), pred, mask
