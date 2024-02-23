@@ -3,6 +3,7 @@ import torch.nn as nn
 from .bert import MyBertMaskedLM
 from transformers.configuration_utils import PretrainedConfig
 
+
 class BertConfig(PretrainedConfig):
     r"""
     This is the configuration class to store the configuration of a [`BertModel`] or a [`TFBertModel`]. It is used to
@@ -63,24 +64,24 @@ class BertConfig(PretrainedConfig):
     model_type = "bert"
 
     def __init__(
-        self,
-        vocab_size=30000,
-        hidden_size=384,
-        num_hidden_layers=6,
-        num_attention_heads=6,
-        intermediate_size=1536,
-        hidden_act="gelu",
-        hidden_dropout_prob=0.1,
-        attention_probs_dropout_prob=0.1,
-        max_position_embeddings=100,
-        type_vocab_size=2,
-        initializer_range=0.02,
-        layer_norm_eps=1e-12,
-        pad_token_id=0,
-        position_embedding_type="absolute",
-        use_cache=True,
-        classifier_dropout=None,
-        **kwargs
+            self,
+            vocab_size=30000,
+            hidden_size=768,  # modified from 384 to 768
+            num_hidden_layers=6,
+            num_attention_heads=6,
+            intermediate_size=1536,
+            hidden_act="gelu",
+            hidden_dropout_prob=0.1,
+            attention_probs_dropout_prob=0.1,
+            max_position_embeddings=100,
+            type_vocab_size=2,
+            initializer_range=0.02,
+            layer_norm_eps=1e-12,
+            pad_token_id=0,
+            position_embedding_type="absolute",
+            use_cache=True,
+            classifier_dropout=None,
+            **kwargs
     ):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
 
@@ -100,6 +101,7 @@ class BertConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.classifier_dropout = classifier_dropout
 
+
 class BertEncoder(nn.Module):
     def __init__(self):
         super(BertEncoder, self).__init__()
@@ -112,9 +114,8 @@ class BertEncoder(nn.Module):
         outputs = self.model(latent=latent, input_ids=ids, attention_mask=attn_mask,
                              token_type_ids=token_type, labels=labels,
                              encoder_hidden_states=encoder_hidden_states,
-                             encoder_attention_mask=encoder_attention_mask
-                             )
+                             encoder_attention_mask=encoder_attention_mask)
 
         # option 2: use the cross-attention way to fusion
-        # in this way, need to assign the encoder_hidden_states and encoder_attention_mask in the forward function.
+        # TODO: in this way, need to assign the encoder_hidden_states and encoder_attention_mask in the forward function.
         return outputs

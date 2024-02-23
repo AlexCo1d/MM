@@ -202,4 +202,4 @@ class MyBertMaskedLM(BertForMaskedLM):
             logits=prediction_scores,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
-        )
+        ), outputs

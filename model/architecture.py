@@ -6,7 +6,7 @@ from torchvision.transforms.functional import InterpolationMode
 from timm.models.vision_transformer import PatchEmbed, Block
 
 from utils.pos_embed import get_2d_sincos_pos_embed
-from module.bert.bert_encoder import BertEncoder
+from model.submodule.bert.bert_encoder import BertEncoder
 
 
 class MM(nn.Module):
@@ -26,7 +26,7 @@ class MM(nn.Module):
                                       requires_grad=False)  # fixed sin-cos embedding
 
         self.blocks = nn.ModuleList([
-            Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, qk_scale=None, norm_layer=norm_layer)
+            Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
             for i in range(depth)])
         self.norm = norm_layer(embed_dim)
         # --------------------------------------------------------------------------
@@ -41,7 +41,7 @@ class MM(nn.Module):
                                               requires_grad=False)  # fixed sin-cos embedding
 
         self.decoder_blocks = nn.ModuleList([
-            Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, qk_scale=None, norm_layer=norm_layer)
+            Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
             for i in range(decoder_depth)])
 
         self.decoder_norm = norm_layer(decoder_embed_dim)
@@ -96,7 +96,7 @@ class MM(nn.Module):
         x: (N, L, patch_size**2 *3)
         """
 
-        p = self.patch_embed.patch_size[0] * 2
+        p = self.patch_embed.patch_size[0]*2
         assert imgs.shape[2] == imgs.shape[3] and imgs.shape[2] % p == 0
 
         h = w = imgs.shape[2] // p
@@ -197,7 +197,7 @@ class MM(nn.Module):
         latent = self.bert_mlp(latent)
         # GAP
         latent = latent[:, 1:, :].mean(dim=1)
-        outputs = self.bert_encoder(latent, caption_ids, labels, attention_mask, token_type_ids)
+        outputs,_ = self.bert_encoder(latent, caption_ids, labels, attention_mask, token_type_ids)
         return outputs.loss
 
     def forward_vision_loss(self, imgs, pred, mask):
@@ -218,8 +218,9 @@ class MM(nn.Module):
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
         return loss
 
-    def forward_contrastive_loss(self, latent, caption_ids, labels, attention_mask, token_type_ids, temp):
-        outputs = self.bert_encoder.bert(None, caption_ids, labels, attention_mask, token_type_ids).last_hidden_state
+    def forward_contrastive_loss(self, latent, caption_ids, labels, attention_mask, token_type_ids, temp=0.5):
+        _, outputs = self.bert_encoder(None, caption_ids, labels, attention_mask, token_type_ids)
+        outputs=outputs.last_hidden_state
         latent = F.normalize(latent[:, 0, :], dim=-1)
         outputs = F.normalize(outputs[:, 0, :], dim=-1)
         c_labels = torch.arange(latent.size(0)).type_as(latent).long()
@@ -235,11 +236,11 @@ class MM(nn.Module):
         ids, labels, attention_mask, type_ids = batch["ids"], batch["labels"], batch["attention_mask"], batch[
             "type_ids"]
 
-        imgs_1 = imgs_1.cuda()
-        ids = ids.cuda()
-        labels = labels.cuda()
-        attention_mask = attention_mask.cuda()
-        type_ids = type_ids.cuda()
+        # imgs_1 = imgs_1.cuda()
+        # ids = ids.cuda()
+        # labels = labels.cuda()
+        # attention_mask = attention_mask.cuda()
+        # type_ids = type_ids.cuda()
 
         _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_1)
         latent, mask, ids_restore = self.forward_vision_encoder(_imgs, mask_ratio)
@@ -257,7 +258,7 @@ class MM(nn.Module):
             pred_2 = self.forward_decoder(latent_2, ids_restore_2)
             v_loss = 0.5 * v_loss + 0.5 * self.forward_vision_loss(imgs_2, pred_2, mask_2)
         # TODO: focus temperature hyperparameter
-        contrastive_loss = self.forward_contrastive_loss(latent, mask, ids_restore, temp=0.5)
-        # the latent language module use is always the merge of vision modality.
+        contrastive_loss = self.forward_contrastive_loss(latent, ids, labels, attention_mask, type_ids)
+        # the latent language submodule use is always the merge of vision modality.
         l_loss = self.forward_report_decoder(latent, ids, labels, attention_mask, type_ids)
         return (v_loss, l_loss, contrastive_loss), pred, mask
