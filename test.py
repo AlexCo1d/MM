@@ -50,7 +50,8 @@ with torch.no_grad():  # 不计算梯度，减少内存/计算需求
     output = model(batch)
 
 # 检查输出
-print(output)
+print(output[1].shape)
+print(output[2].shape)
 #
 # path_to_pth = r'C:\Users\Alex\Downloads\MRM.pth'  # 请替换为你的.pth文件的实际路径
 # model_weights = torch.load(path_to_pth,map_location=torch.device('cpu'))

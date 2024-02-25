@@ -49,7 +49,7 @@ class MM(nn.Module):
         # --------------------------------------------------------------------------
         # Bert encoder
         self.bert_encoder = BertEncoder()
-        self.bert_mlp = nn.Linear(embed_dim, 384, bias=True)
+        self.bert_mlp = nn.Linear(embed_dim, embed_dim, bias=True)
         self.norm_pix_loss = norm_pix_loss
 
         self.mv = mv
@@ -197,7 +197,9 @@ class MM(nn.Module):
         latent = self.bert_mlp(latent)
         # GAP
         latent = latent[:, 1:, :].mean(dim=1)
-        outputs,_ = self.bert_encoder(latent, caption_ids, labels, attention_mask, token_type_ids)
+        outputs = self.bert_encoder(latent, caption_ids, labels, attention_mask, token_type_ids)
+        # print(len(outputs.hidden_states), outputs.hidden_states[0].shape)
+        # print(torch.equal(_.last_hidden_state,outputs.hidden_states[-1]))
         return outputs.loss
 
     def forward_vision_loss(self, imgs, pred, mask):
@@ -219,8 +221,8 @@ class MM(nn.Module):
         return loss
 
     def forward_contrastive_loss(self, latent, caption_ids, labels, attention_mask, token_type_ids, temp=0.5):
-        _, outputs = self.bert_encoder(None, caption_ids, labels, attention_mask, token_type_ids)
-        outputs=outputs.last_hidden_state
+        outputs = self.bert_encoder(None, caption_ids, labels, attention_mask, token_type_ids)
+        outputs=outputs.hidden_states[-1]
         latent = F.normalize(latent[:, 0, :], dim=-1)
         outputs = F.normalize(outputs[:, 0, :], dim=-1)
         c_labels = torch.arange(latent.size(0)).type_as(latent).long()
