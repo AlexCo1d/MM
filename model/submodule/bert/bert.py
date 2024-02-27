@@ -154,7 +154,7 @@ class MyBertMaskedLM(BertForMaskedLM):
         position_ids=None,
         head_mask=None,
         inputs_embeds=None,
-        encoder_hidden_states=None,
+        encoder_hidden_states=None,     # for cross-attention
         encoder_attention_mask=None,
         labels=None,
         output_attentions=None,
