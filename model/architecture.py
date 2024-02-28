@@ -235,18 +235,26 @@ class MM(nn.Module):
         return loss, _outputs
 
     def forward_mlm_loss(self, latent, caption_ids, labels, attention_mask, token_type_ids):
-        latent = self.bert_mlp(latent)
-        # GAP
-        latent = latent[:, 1:, :].mean(dim=1)
+        # latent = self.bert_mlp(latent)
+        # # GAP
+        # latent = latent[:, 1:, :].mean(dim=1)
         # TODO: maybe try cross attention here
-        outputs = self.bert_encoder(latent=latent, input_ids=caption_ids, labels=labels, attention_mask=attention_mask,
+        image_atts=torch.ones(latent.size()[:-1], dtype=torch.long).to(latent.device)
+        outputs = self.bert_encoder(latent=None, input_ids=caption_ids, labels=labels, attention_mask=attention_mask,
                                     token_type_ids=token_type_ids)
-        # outputs = self.fusion_encoder(latent=None,
-        #                               inputs_embeds=outputs.hidden_states[-1],
-        #                               attention_mask=attention_mask,
-        #                               token_type_ids=token_type_ids,
-        #                               labels=labels,
-        #                               return_dict=True)
+        outputs = self.fusion_encoder(latent=None,
+                                      inputs_embeds=outputs.hidden_states[-1],
+                                      attention_mask=attention_mask,
+                                      token_type_ids=token_type_ids,
+                                      labels=labels,
+                                      encoder_hidden_states=latent,
+                                      encoder_attention_mask=image_atts,  # all ones
+                                      return_dict=True)
+        # ----------------------------
+        # another option, original one
+        # outputs = self.bert_encoder(latent=latent, input_ids=caption_ids, labels=labels, attention_mask=attention_mask,
+                                    # token_type_ids=token_type_ids)
+
         # print(len(outputs.hidden_states), outputs.hidden_states[0].shape)
         # print(torch.equal(_.last_hidden_state,outputs.hidden_states[-1]))
         return outputs.loss
