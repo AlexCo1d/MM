@@ -66,8 +66,8 @@ class BertConfig(PretrainedConfig):
             vocab_size=30000,
             hidden_size=768,  # modified from 384 to 768
             num_hidden_layers=6,
-            num_attention_heads=6,
-            intermediate_size=1536,
+            num_attention_heads=12,
+            intermediate_size=3072,  # modified from 1536 to 3072
             hidden_act="gelu",
             hidden_dropout_prob=0.1,
             attention_probs_dropout_prob=0.1,
