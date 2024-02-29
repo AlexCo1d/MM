@@ -107,7 +107,6 @@ def get_args_parser():
 
 
 def main(args):
-    print(args.local_rank)
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     shutil.copy('pretrain.sh', args.output_dir)
