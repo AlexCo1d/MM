@@ -337,11 +337,11 @@ class MM(nn.Module):
         ids, labels, attention_mask, type_ids = batch["ids"], batch["labels"], batch["attention_mask"], batch[
             "type_ids"]
 
-        # imgs_1 = imgs_1.cuda()
-        # ids = ids.cuda()
-        # labels = labels.cuda()
-        # attention_mask = attention_mask.cuda()
-        # type_ids = type_ids.cuda()
+        imgs_1 = imgs_1.cuda()
+        ids = ids.cuda()
+        labels = labels.cuda()
+        attention_mask = attention_mask.cuda()
+        type_ids = type_ids.cuda()
 
         _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_1)
         latent, mask, ids_restore = self.forward_vision_encoder(_imgs,
