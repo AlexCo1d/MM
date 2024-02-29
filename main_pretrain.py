@@ -26,7 +26,6 @@ from torchvision.transforms.functional import InterpolationMode
 
 import timm
 
-assert timm.__version__ == "0.3.2"  # version check
 import timm.optim.optim_factory as optim_factory
 
 import utils.misc as misc
