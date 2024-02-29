@@ -18,7 +18,7 @@ from pathlib import Path
 
 import torch
 import torch.distributed as dist
-from torch import inf
+from torch._six import inf
 
 
 class SmoothedValue(object):
@@ -242,13 +242,10 @@ def init_distributed_mode(args):
     args.dist_backend = 'nccl'
     print('| distributed init (rank {}): {}, gpu {}'.format(
         args.rank, args.dist_url, args.gpu), flush=True)
-    print("start!")
     torch.distributed.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                          world_size=args.world_size, rank=args.rank)
-    print('done!')
     torch.distributed.barrier()
     setup_for_distributed(args.rank == 0)
-    print('done!')
 
 
 class NativeScalerWithGradNormCount:
@@ -291,7 +288,8 @@ def get_grad_norm_(parameters, norm_type: float = 2.0) -> torch.Tensor:
     if norm_type == inf:
         total_norm = max(p.grad.detach().abs().max().to(device) for p in parameters)
     else:
-        total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
+        total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]),
+                                norm_type)
     return total_norm
 
 
@@ -326,7 +324,7 @@ def load_model(args, model_without_ddp, optimizer, loss_scaler):
             for i in model_without_ddp.state_dict():
                 if i not in checkpoint['model']:
                     checkpoint['model'][i] = model_without_ddp.state_dict()[i]
-            
+
         model_without_ddp.load_state_dict(checkpoint['model'])
         print("Resume checkpoint %s" % args.resume)
         if 'optimizer' in checkpoint and 'epoch' in checkpoint and not (hasattr(args, 'eval') and args.eval):
