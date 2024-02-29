@@ -107,6 +107,8 @@ def get_args_parser():
 
 
 def main(args):
+    if args.output_dir:
+        Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     shutil.copy('pretrain.sh', args.output_dir)
     misc.init_distributed_mode(args)
 
@@ -224,7 +226,6 @@ def main(args):
 if __name__ == '__main__':
     args = get_args_parser()
     args = args.parse_args()
-    args.local_rank = os.environ['LOCAL_RANK']
-    if args.output_dir:
-        Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    # args.local_rank = os.environ['LOCAL_RANK']
+
     main(args)
