@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch --master_port 12345 --nproc_per_node=2 main_pretrain.py \
+CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.launch --master_port 12345 --nproc_per_node=2 --use_env main_pretrain.py \
     --num_workers 10 \
     --accum_iter 2 \
     --batch_size 32 \
