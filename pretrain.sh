@@ -8,5 +8,5 @@ CUDA_VISIBLE_DEVICES=0,1 OMP_NUM_THREADS=1 python -m torch.distributed.launch --
     --warmup_epochs 40 \
     --blr 1.5e-4 --weight_decay 0.05 \
     --resume /home/data/Jingkai/alex/weight/MM.pth \
-    --data_path /home/Jingkai/alex/MM \
+    --data_path /home/data/Jingkai/alex/mimic \
     --output_dir /home/data/Jingkai/alex/pretrain \
