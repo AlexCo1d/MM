@@ -227,5 +227,5 @@ if __name__ == '__main__':
     args = get_args_parser()
     args = args.parse_args()
     # args.local_rank = os.environ['LOCAL_RANK']
-    print(args.local_rank)
+    print(os.environ['LOCAL_RANK'])
     main(args)
