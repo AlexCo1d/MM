@@ -107,7 +107,7 @@ def get_args_parser():
 
 
 def main(args):
-    shutil.copy('run.sh',args.output_dir)
+    shutil.copy('pretrain.sh',args.output_dir)
     misc.init_distributed_mode(args)
 
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
