@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=0,1 OMP_NUM_THREADS=1 python -m torch.distributed.launch --nproc_per_node=2 --master_port 11451 main_pretrain.py \
+CUDA_VISIBLE_DEVICES=0,1 OMP_NUM_THREADS=1 python -m torch.distributed.launch --nproc_per_node=2 --use_env --master_port 11451 main_pretrain.py \
     --num_workers 10 \
     --accum_iter 2 \
     --batch_size 32 \
