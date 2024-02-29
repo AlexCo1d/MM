@@ -98,7 +98,7 @@ with open(output_csv_path, mode='w', newline='', encoding='utf-8') as file:
                 # Change the extension from .jpg to .txt to find the corresponding report
                 report_filename = os.path.splitext(image_path)[0] + '.txt'
                 report_path = report_filename
-
+                print(report_path)
                 # Read the report content
                 try:
                     with open(report_path, 'r', encoding='utf-8') as report_file:
