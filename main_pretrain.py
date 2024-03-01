@@ -26,6 +26,7 @@ from torchvision.transforms.functional import InterpolationMode
 
 import timm.optim.optim_factory as optim_factory
 
+import utils.lr_decay
 import utils.misc as misc
 from utils.misc import NativeScalerWithGradNormCount as NativeScaler
 
@@ -184,7 +185,7 @@ def main(args):
         model_without_ddp = model.module
 
     # following timm: set wd as 0 for bias and norm layers
-    param_groups = optim_factory.add_weight_decay(model_without_ddp, args.weight_decay)
+    param_groups = utils.lr_decay.add_weight_decay(model_without_ddp, args.weight_decay)
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, 0.95))
     print(optimizer)
     loss_scaler = NativeScaler()
