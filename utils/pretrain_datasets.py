@@ -92,7 +92,7 @@ class MultimodalBertDataset(Dataset):
 
         # sort and add to dictionary
         return_dict = {
-            "image": image_stack,
+            "image_1": image_stack,
             "labels": ids_stack,
             "attention_mask": attention_mask_stack,
             "type_ids": type_ids_stack,
