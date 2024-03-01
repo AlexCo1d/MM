@@ -24,8 +24,6 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from torchvision.transforms.functional import InterpolationMode
 
-import timm
-
 import timm.optim.optim_factory as optim_factory
 
 import utils.misc as misc
