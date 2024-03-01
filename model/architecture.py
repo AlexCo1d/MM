@@ -344,9 +344,7 @@ class MM(nn.Module):
         labels = labels.cuda()
         attention_mask = attention_mask.cuda()
         type_ids = type_ids.cuda()
-        s = time.time()
         _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_1)
-        print('resize:', time.time() - s)
         latent, mask, ids_restore = self.forward_vision_encoder(_imgs,
                                                                 mask_ratio)  # latent: [N, 50, D], 50=maskratio*196
         latent_unmasked = self.forward_vision_encoder(_imgs, 0.0)[0]  # latent_unmasked: [N, 196, D]

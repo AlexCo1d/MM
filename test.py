@@ -62,67 +62,100 @@ import torch
 #     print(model_weights['model'][key].shape)
 #
 # model.load_state_dict(model_weights['model'], strict=False)
-
-import os
-import csv
 #
-# Paths to your directories (adjust as necessary)
-base_dir = '/home/data/Jingkai/alex/mimic/files'
-# Path for the output CSV file
-output_csv_path = '/home/data/Jingkai/alex/mimic/training.csv'
-
-
-def find_final_report(content):
-    # Search for the start of the final report
-    start_index = content.find('FINAL REPORT')
-    if start_index != -1:
-        # Return the content from 'FINAL REPORT' onwards
-        return content[start_index:]
-    else:
-        # If 'FINAL REPORT' not found, return None or empty string
-        return None
-
-
-# Open the CSV file for writing
-with open(output_csv_path, mode='w', newline='', encoding='utf-8') as file:
-    writer = csv.writer(file)
-    # Write the header row
-    writer.writerow(['image_path', 'report_content'])
-
-    # Walk through the directory
-    for root, dirs, files in os.walk(base_dir):
-        for file_name in files:
-            if file_name.endswith('.jpg'):
-                # Construct the full path to the image
-                image_path = os.path.join(root, file_name)
-
-                # Change the extension from .jpg to .txt to find the corresponding report
-                report_filename = os.path.split(image_path)[0] + '.txt'
-                report_path = report_filename
-                # Read the report content
-                try:
-                    with open(report_path, 'r', encoding='utf-8') as report_file:
-                        report_content = report_file.read()
-                        # Find and extract 'FINAL REPORT' content
-                        final_report_content = find_final_report(report_content)
-                        if final_report_content:
-                            # Replace newlines with spaces
-                            final_report_content = final_report_content.replace('\n', ' ').strip()
-                            # Write the image path and processed report content to the CSV
-                            writer.writerow([image_path, final_report_content])
-                        else:
-                            print(f"'FINAL REPORT' not found in: {report_filename}")
-
-                except FileNotFoundError:
-                    print(f"Report file not found for image: {file_name}")
-
-print("CSV file has been created.")
-import pandas as pd
-df = pd.read_csv(output_csv_path)
-row_count = df.shape[0]
-print(f"CSV 文件的行数为：{row_count}")
+# import os
+# import csv
+# #
+# # Paths to your directories (adjust as necessary)
+# base_dir = '/home/data/Jingkai/alex/mimic/files'
+# # Path for the output CSV file
+# output_csv_path = '/home/data/Jingkai/alex/mimic/training.csv'
+#
+#
+# def find_final_report(content):
+#     # Search for the start of the final report
+#     start_index = content.find('FINAL REPORT')
+#     if start_index != -1:
+#         # Return the content from 'FINAL REPORT' onwards
+#         return content[start_index:]
+#     else:
+#         # If 'FINAL REPORT' not found, return None or empty string
+#         return None
+#
+#
+# # Open the CSV file for writing
+# with open(output_csv_path, mode='w', newline='', encoding='utf-8') as file:
+#     writer = csv.writer(file)
+#     # Write the header row
+#     writer.writerow(['image_path', 'report_content'])
+#
+#     # Walk through the directory
+#     for root, dirs, files in os.walk(base_dir):
+#         for file_name in files:
+#             if file_name.endswith('.jpg'):
+#                 # Construct the full path to the image
+#                 image_path = os.path.join(root, file_name)
+#
+#                 # Change the extension from .jpg to .txt to find the corresponding report
+#                 report_filename = os.path.split(image_path)[0] + '.txt'
+#                 report_path = report_filename
+#                 # Read the report content
+#                 try:
+#                     with open(report_path, 'r', encoding='utf-8') as report_file:
+#                         report_content = report_file.read()
+#                         # Find and extract 'FINAL REPORT' content
+#                         final_report_content = find_final_report(report_content)
+#                         if final_report_content:
+#                             # Replace newlines with spaces
+#                             final_report_content = final_report_content.replace('\n', ' ').strip()
+#                             # Write the image path and processed report content to the CSV
+#                             writer.writerow([image_path, final_report_content])
+#                         else:
+#                             print(f"'FINAL REPORT' not found in: {report_filename}")
+#
+#                 except FileNotFoundError:
+#                     print(f"Report file not found for image: {file_name}")
+#
+# print("CSV file has been created.")
+# import pandas as pd
+# df = pd.read_csv(output_csv_path)
+# row_count = df.shape[0]
+# print(f"CSV 文件的行数为：{row_count}")
 
 # t=torch.load('/home/data/Jingkai/alex/weight/MM.pth', map_location='cpu')
 # u={}
 # u['model']=t
 # torch.save(u,'/home/data/Jingkai/alex/weight/MM.pth')
+
+from PIL import Image
+import pathlib
+from concurrent.futures import ProcessPoolExecutor
+import time
+
+def resize_image(image_path):
+    """
+    Resize the given image to 448x448, apply grayscale, and measure the time taken.
+    """
+    start_time = time.time()  # 开始计时
+
+    with Image.open(image_path) as img:
+        # 应用RandomResizedCrop等效操作
+        img = img.resize((448, 448), Image.BICUBIC)  # 等效于RandomResizedCrop
+        img = img.convert('L').convert('RGB')  # 等效于Grayscale(num_output_channels=3)
+        img.save(image_path)
+
+    end_time = time.time()  # 结束计时
+    print(f"Processed {image_path.name} in {end_time - start_time:.4f} seconds.")
+
+def main(directory_path):
+    """
+    Recursively traverse the directory, find all JPG images,
+    and resize them in parallel while measuring time.
+    """
+    path = pathlib.Path(directory_path)
+    jpg_images = list(path.glob('**/*.jpg'))
+
+    with ProcessPoolExecutor() as executor:
+        executor.map(resize_image, jpg_images)
+
+main('/home/data/Jingkai/alex/mimic/files')
