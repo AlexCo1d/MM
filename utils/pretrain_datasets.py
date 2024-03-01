@@ -1,3 +1,4 @@
+import time
 from copy import deepcopy
 import os
 from typing import List, Tuple
@@ -54,7 +55,9 @@ class MultimodalBertDataset(Dataset):
 
     def __getitem__(self, index):
         image = pil_loader(self.images_list[index])
+        s=time.time()
         image = self.transform(image)
+        print('tran:',time.time()-s)
         sent = self.report_list[index]
         sent = '[CLS] '+ sent
         self.tokenizer.enable_truncation(max_length=self.max_caption_length)
