@@ -63,62 +63,66 @@ import torch
 #
 # model.load_state_dict(model_weights['model'], strict=False)
 
-# import os
-# import csv
+import os
+import csv
 #
-# # Paths to your directories (adjust as necessary)
-# base_dir = '/home/data/Jingkai/alex/mimic/files'
-# # Path for the output CSV file
-# output_csv_path = 'training.csv'
-#
-#
-# def find_final_report(content):
-#     # Search for the start of the final report
-#     start_index = content.find('FINAL REPORT')
-#     if start_index != -1:
-#         # Return the content from 'FINAL REPORT' onwards
-#         return content[start_index:]
-#     else:
-#         # If 'FINAL REPORT' not found, return None or empty string
-#         return None
-#
-#
-# # Open the CSV file for writing
-# with open(output_csv_path, mode='w', newline='', encoding='utf-8') as file:
-#     writer = csv.writer(file)
-#     # Write the header row
-#     writer.writerow(['image_path', 'report_content'])
-#
-#     # Walk through the directory
-#     for root, dirs, files in os.walk(base_dir):
-#         for file_name in files:
-#             if file_name.endswith('.jpg'):
-#                 # Construct the full path to the image
-#                 image_path = os.path.join(root, file_name)
-#
-#                 # Change the extension from .jpg to .txt to find the corresponding report
-#                 report_filename = os.path.split(image_path)[0] + '.txt'
-#                 report_path = report_filename
-#                 # Read the report content
-#                 try:
-#                     with open(report_path, 'r', encoding='utf-8') as report_file:
-#                         report_content = report_file.read()
-#                         # Find and extract 'FINAL REPORT' content
-#                         final_report_content = find_final_report(report_content)
-#                         if final_report_content:
-#                             # Replace newlines with spaces
-#                             final_report_content = final_report_content.replace('\n', ' ').strip()
-#                             # Write the image path and processed report content to the CSV
-#                             writer.writerow([image_path, final_report_content])
-#                         else:
-#                             print(f"'FINAL REPORT' not found in: {report_filename}")
-#
-#                 except FileNotFoundError:
-#                     print(f"Report file not found for image: {file_name}")
-#
-# print("CSV file has been created.")
+# Paths to your directories (adjust as necessary)
+base_dir = '/home/data/Jingkai/alex/mimic/files'
+# Path for the output CSV file
+output_csv_path = '/home/data/Jingkai/alex/mimic/training.csv'
 
-t=torch.load('/home/data/Jingkai/alex/weight/MM.pth', map_location='cpu')
-u={}
-u['model']=t
-torch.save(u,'/home/data/Jingkai/alex/weight/MM.pth')
+
+def find_final_report(content):
+    # Search for the start of the final report
+    start_index = content.find('FINAL REPORT')
+    if start_index != -1:
+        # Return the content from 'FINAL REPORT' onwards
+        return content[start_index:]
+    else:
+        # If 'FINAL REPORT' not found, return None or empty string
+        return None
+
+
+# Open the CSV file for writing
+with open(output_csv_path, mode='w', newline='', encoding='utf-8') as file:
+    writer = csv.writer(file)
+    # Write the header row
+    writer.writerow(['image_path', 'report_content'])
+
+    # Walk through the directory
+    for root, dirs, files in os.walk(base_dir):
+        for file_name in files:
+            if file_name.endswith('.jpg'):
+                # Construct the full path to the image
+                image_path = os.path.join(root, file_name)
+
+                # Change the extension from .jpg to .txt to find the corresponding report
+                report_filename = os.path.split(image_path)[0] + '.txt'
+                report_path = report_filename
+                # Read the report content
+                try:
+                    with open(report_path, 'r', encoding='utf-8') as report_file:
+                        report_content = report_file.read()
+                        # Find and extract 'FINAL REPORT' content
+                        final_report_content = find_final_report(report_content)
+                        if final_report_content:
+                            # Replace newlines with spaces
+                            final_report_content = final_report_content.replace('\n', ' ').strip()
+                            # Write the image path and processed report content to the CSV
+                            writer.writerow([image_path, final_report_content])
+                        else:
+                            print(f"'FINAL REPORT' not found in: {report_filename}")
+
+                except FileNotFoundError:
+                    print(f"Report file not found for image: {file_name}")
+
+print("CSV file has been created.")
+import pandas as pd
+df = pd.read_csv(output_csv_path)
+row_count = df.shape[0]
+print(f"CSV 文件的行数为：{row_count}")
+
+# t=torch.load('/home/data/Jingkai/alex/weight/MM.pth', map_location='cpu')
+# u={}
+# u['model']=t
+# torch.save(u,'/home/data/Jingkai/alex/weight/MM.pth')
