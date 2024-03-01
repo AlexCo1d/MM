@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.transforms.functional import InterpolationMode
 from timm.models.vision_transformer import PatchEmbed, Block
-
+from functools import partial
 from model.submodule.bert.bert import MyBertMaskedLM
 from utils.pos_embed import get_2d_sincos_pos_embed
 # from model.submodule.bert.bert_encoder import BertEncoder
@@ -13,9 +13,9 @@ from model.submodule.bert.BertConfig import BertConfig
 
 class MM(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3,
-                 embed_dim=768, depth=24, num_heads=16,
-                 decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
-                 mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False, mv=False, temp=0.5, c_embed_dim=256):
+                 embed_dim=768, depth=12, num_heads=12,
+                 decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
+                 mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False, temp=0.5, c_embed_dim=256):
         super().__init__()
 
         # --------------------------------------------------------------------------
