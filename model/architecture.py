@@ -17,7 +17,7 @@ class MM(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3,
                  embed_dim=768, depth=12, num_heads=12,
                  decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
-                 mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False, temp=0.5, c_embed_dim=256):
+                 mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False, temp=0.07, c_embed_dim=256):
         super().__init__()
 
         # --------------------------------------------------------------------------
