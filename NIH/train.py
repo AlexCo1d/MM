@@ -30,12 +30,13 @@ from timm.models.layers import trunc_normal_
 
 logger = logging.getLogger(__name__)
 
+CLASS_NAMES = ['Atelectasis', 'Cardiomegaly', 'Effusion', 'Infiltration', 'Mass', 'Nodule', 'Pneumonia',
+               'Pneumothorax', 'Consolidation', 'Edema', 'Emphysema', 'Fibrosis', 'Pleural_Thickening', 'Hernia']
 
-CLASS_NAMES = [ 'Atelectasis', 'Cardiomegaly', 'Effusion', 'Infiltration', 'Mass', 'Nodule', 'Pneumonia',
-        'Pneumothorax', 'Consolidation', 'Edema', 'Emphysema', 'Fibrosis', 'Pleural_Thickening', 'Hernia']
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -51,6 +52,7 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
+
 def auc(pred_property_array, one_hot_labels, num_classes):
     AUROCs = []
     # pdb.set_trace()
@@ -59,13 +61,16 @@ def auc(pred_property_array, one_hot_labels, num_classes):
     # print(AUROCs)
     return AUROCs
 
+
 def simple_accuracy(preds, labels):
     # print(preds)
     # print(labels)
     return ((preds == labels) * 1).mean()
 
+
 def classification_report(preds, labels):
-    return metrics.classification_report(labels,preds)
+    return metrics.classification_report(labels, preds)
+
 
 def save_model_auc(args, model):
     model_to_save = model.module if hasattr(model, 'module') else model
@@ -80,9 +85,10 @@ def save_model_loss(args, model):
     torch.save(model_to_save.state_dict(), model_checkpoint)
     logger.info("Saved model checkpoint to [DIR: %s]", args.output_dir)
 
+
 def load_weights(model, weight_path, args):
     pretrained_weights = torch.load(weight_path, map_location=torch.device('cpu'))
-    if args.stage=='train':
+    if args.stage == 'train':
         pretrained_weights = pretrained_weights['model']
     model_weights = model.state_dict()
 
@@ -98,7 +104,6 @@ def load_weights(model, weight_path, args):
 
 
 def setup(args):
-    
     # Prepare model
     num_classes = args.num_classes
 
@@ -107,7 +112,7 @@ def setup(args):
         drop_path_rate=0.1,
         global_pool=True,
     )
-    if args.stage=='train':
+    if args.stage == 'train':
         checkpoint = torch.load(args.pretrained_path, map_location=torch.device('cpu'))
         checkpoint_model = checkpoint['model']
         state_dict = model.state_dict()
@@ -134,11 +139,11 @@ def setup(args):
     logger.info("Total Parameter: \t%2.1fM" % num_params)
     print(num_params)
     return args, model
-    
+
 
 def count_parameters(model):
     params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    return params/1000000
+    return params / 1000000
 
 
 def set_seed(args):
@@ -167,7 +172,7 @@ def valid(args, model, writer, test_loader, global_step):
                           disable=args.local_rank not in [-1, 0])
     # loss_fct = torch.nn.CrossEntropyLoss()
     loss_fct = torch.nn.BCEWithLogitsLoss()
-    
+
     for step, batch in enumerate(epoch_iterator):
         # if step > 10:  # debug code 
         #     break
@@ -209,6 +214,7 @@ def valid(args, model, writer, test_loader, global_step):
     writer.add_scalar("valid/loss", scalar_value=eval_losses.avg, global_step=global_step)
     return auroc_avg, eval_losses.avg
 
+
 def test(args, model, test_loader):
     # Test!
     eval_losses = AverageMeter()
@@ -238,14 +244,16 @@ def test(args, model, test_loader):
             #     logits = model(x)#[0]
             # else :
             #     logits = model(x)[0]
-            logits = model(x)
+            logits = model(x)  # (batch_size, num_classes)
             # print(logits.size())
             eval_loss = loss_fct(logits, y.float())
             eval_losses.update(eval_loss.item())
-
+            sig = logits.sigmoid()
+            if args.ZS:
+                sig = logits
             # preds = torch.argmax(logits, dim=-1)
-            preds = (logits.sigmoid() > 0.5) * 1
-            
+            preds = (sig > 0.5) * 1
+
         if len(all_preds) == 0:
             all_preds.append(preds.detach().cpu().numpy())
             all_label.append(y.detach().cpu().numpy())
@@ -258,11 +266,12 @@ def test(args, model, test_loader):
                 all_label[0], y.detach().cpu().numpy(), axis=0
             )
             all_property[0] = np.append(
-                all_property[0], logits.sigmoid().detach().cpu().numpy(), axis=0
+                all_property[0], sig.detach().cpu().numpy(), axis=0
             )
         epoch_iterator.set_description("Validating... (loss=%2.5f)" % eval_losses.val)
 
-    all_preds, all_label, all_property = all_preds[0], all_label[0], all_property[0]
+    all_preds, all_label, all_property = all_preds[0], all_label[0], all_property[
+        0]  # shape of (NUM_sample, NUM_classes)
 
     accuracy = simple_accuracy(all_preds, all_label)
     aurocs = auc(all_property, all_label, args.num_classes)
@@ -276,17 +285,18 @@ def test(args, model, test_loader):
     for i in range(len(CLASS_NAMES)):
         print('The AUROC of {} is {}'.format(CLASS_NAMES[i], aurocs[i]))
 
+
 def train(args, model):
     """ Train the model """
     if args.local_rank in [-1, 0]:
         os.makedirs(args.output_dir, exist_ok=True)
-        writer = SummaryWriter(log_dir=os.path.join(args.output_dir, "logs"))  #  tensorboard Supporting documents, in logs/name/
+        writer = SummaryWriter(
+            log_dir=os.path.join(args.output_dir, "logs"))  # tensorboard Supporting documents, in logs/name/
 
     args.train_batch_size = args.train_batch_size // args.gradient_accumulation_steps
 
     # Prepare dataset
     train_loader, test_loader = get_loader(args)
-    
 
     # Prepare optimizer and scheduler
     if args.model_type == "ViT-B_16":
@@ -295,9 +305,9 @@ def train(args, model):
                                     momentum=0.9,
                                     weight_decay=args.weight_decay)
         optimizer_head = torch.optim.SGD(model.head.parameters(),
-                                    lr=args.learning_rate,
-                                    momentum=0.9,
-                                    weight_decay=args.weight_decay)
+                                         lr=args.learning_rate,
+                                         momentum=0.9,
+                                         weight_decay=args.weight_decay)
     else:
         optimizer = optim.Adam(model.parameters(), lr=0.0001, betas=(0.9, 0.999), eps=1e-08, weight_decay=1e-5)
     t_total = args.num_steps
@@ -308,10 +318,10 @@ def train(args, model):
 
     if args.fp16:
         model, optimizers = amp.initialize(models=model,
-                                          optimizers=[optimizer,optimizer_head],
-                                          opt_level=args.fp16_opt_level)
+                                           optimizers=[optimizer, optimizer_head],
+                                           opt_level=args.fp16_opt_level)
         optimizer, optimizer_head = optimizers
-        amp._amp_state.loss_scalers[0]._loss_scale = 2**20
+        amp._amp_state.loss_scalers[0]._loss_scale = 2 ** 20
 
     # Distributed training
     if args.local_rank != -1:
@@ -343,7 +353,6 @@ def train(args, model):
                               dynamic_ncols=True,
                               disable=args.local_rank not in [-1, 0])
         for step, batch in enumerate(epoch_iterator):
-            
 
             batch = tuple(t.to(args.device) for t in batch)
             x, y = batch
@@ -358,7 +367,7 @@ def train(args, model):
                 loss.backward()
 
             if (step + 1) % args.gradient_accumulation_steps == 0:
-                losses.update(loss.item()*args.gradient_accumulation_steps)
+                losses.update(loss.item() * args.gradient_accumulation_steps)
                 if args.fp16:
                     torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
                 else:
@@ -374,16 +383,16 @@ def train(args, model):
                 if args.local_rank in [-1, 0]:
                     writer.add_scalar("train/loss", scalar_value=losses.val, global_step=global_step)
                     writer.add_scalar("train/lr", scalar_value=scheduler.get_lr()[0], global_step=global_step)
-                
+
                 len_train = len(train_loader)
                 if global_step % len_train == 0 and args.local_rank in [-1, 0]:
-                    
+
                     auroc_avg, val_loss = valid(args, model, writer, test_loader, global_step)
                     writer.add_scalar("auroc", scalar_value=auroc_avg, global_step=global_step)
                     if best_auc > auroc_avg:
                         down = down + 1
-                    
-                    else :
+
+                    else:
                         down = 0
                     print(down)
 
@@ -399,7 +408,7 @@ def train(args, model):
 
     if args.local_rank in [-1, 0]:
         writer.close()
-    
+
     logger.info("min_Loss: \t%f" % min_loss)
     logger.info("End Training!")
 
@@ -413,11 +422,11 @@ def main():
                         help="Name of this run. Used for monitoring.")
 
     parser.add_argument("--stage", type=str, default="train", help="train or test?")
-    
-    parser.add_argument("--model_type", choices=["ViT-B_16", "Resnet50", "Resnet18","Resnet101","Densenet121"],
+
+    parser.add_argument("--model_type", choices=["ViT-B_16", "Resnet50", "Resnet18", "Resnet101", "Densenet121"],
                         default="ViT-B_16",
                         help="Which variant to use.")
-    parser.add_argument("--num_classes",default = 14,type=int,help="the number of class")                    
+    parser.add_argument("--num_classes", default=14, type=int, help="the number of class")
     parser.add_argument("--pretrained_path", type=str, default="checkpoint/ViT-B_16.npz",
                         help="Where to search for pretrained ViT models.")
     parser.add_argument("--output_dir", default="output", type=str,
@@ -434,7 +443,7 @@ def main():
                              "Will always run one evaluation at the end of training.")
 
     parser.add_argument("--learning_rate", default=3e-2, type=float,
-                        help="The initial learning rate for SGD.")               
+                        help="The initial learning rate for SGD.")
     parser.add_argument("--weight_decay", default=0, type=float,
                         help="Weight deay if we apply some.")
     parser.add_argument("--num_steps", default=10000, type=int,
@@ -453,6 +462,7 @@ def main():
                         help="local_rank for distributed training on gpus")
     parser.add_argument('--seed', type=int, default=42,
                         help="random seed for initialization")
+    parser.add_argument('--ZS', '-z', action='store_true', help='zero-shot prediction')
     parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
                         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument('--fp16', action='store_true',
@@ -472,15 +482,15 @@ def main():
 
     # Setup CUDA, GPU & distributed training
     if args.local_rank == -1:
-        print('##############################')   
+        print('##############################')
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         args.n_gpu = torch.cuda.device_count()
     else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
         torch.cuda.set_device(args.local_rank)
         device = torch.device("cuda", args.local_rank)
         torch.distributed.init_process_group(backend='nccl',
-                                            timeout=timedelta(minutes=60)
-                                            )
+                                             timeout=timedelta(minutes=60)
+                                             )
         args.n_gpu = 1
     args.device = device
 
@@ -500,7 +510,7 @@ def main():
     if args.stage == "train":
         # Training
         train(args, model)
-    else :
+    else:
         test_loader = get_loader(args)
         test(args, model, test_loader)
 

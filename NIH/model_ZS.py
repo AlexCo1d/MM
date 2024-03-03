@@ -11,7 +11,7 @@ class MyZSModel(MM):
         self.tokenizer = tokenizers.Tokenizer.from_file("../mimic_wordpiece.json")
         self.tokenizer.enable_truncation(max_length=100)
         self.tokenizer.enable_padding(length=100)
-        ids_list, attention_mask_list, type_ids_list, masked_ids_list = [], [], [], [], []
+        ids_list, attention_mask_list, type_ids_list, masked_ids_list = [], [], [], []
         for prompt in prompts:
             sent='[CLS] '+prompt
             encoded = self.tokenizer.encode(sent)
@@ -25,7 +25,7 @@ class MyZSModel(MM):
         caption_ids = torch.stack(ids_list).squeeze().cuda()
         attention_mask = torch.stack(attention_mask_list).squeeze().cuda()
         token_type_ids = torch.stack(type_ids_list).squeeze().cuda()
-
+        # save the text embeddings for reuse
         outputs = self.bert_encoder(latent=None, input_ids=caption_ids, attention_mask=attention_mask,
                                     token_type_ids=token_type_ids)
         self.text_embeds = F.normalize(self.text_proj(outputs[:, 0, :]), dim=-1)
