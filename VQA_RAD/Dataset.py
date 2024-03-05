@@ -1,0 +1,151 @@
+import os
+import re
+
+import tokenizers
+import torch
+from torch.utils.data import Dataset
+from torchvision import transforms
+import json
+import PIL
+import numpy as np
+import torch.nn.functional as F
+import transformers
+import random
+import copy
+from .randaugment import RandomAugment
+from PIL import Image
+
+
+class VQA_Dataset(Dataset):
+    def __init__(self, data_path, transform, img_tokens=32, img_root='',
+                 seq_length=512, voc_size=32000, mode='train', text_type='blank'):
+        max_caption_length = 100
+        with open(os.path.join(data_path, f'{mode}.json')) as f:
+            self.data = json.load(f)
+        self.tokenizer = tokenizers.Tokenizer.from_file("../mimic_wordpiece.json")
+        self.mode = mode
+        self.img_padding = [-100 for i in range(img_tokens)]
+        self.attn_padding = [1 for i in range(img_tokens)]
+        self.text_type = text_type
+        self.transform = transform
+        self.data_path = data_path
+        self.voc_size = voc_size
+        self.img_root = img_root
+        self.tokenizer.enable_truncation(max_length=max_caption_length)
+        self.tokenizer.enable_padding(length=max_caption_length)
+
+    def __len__(self):
+        return len(self.data)
+
+    def random_answer(self, Question, Answer):
+        Answer = str(Answer)
+        pre_text = 'Question: ' + Question + 'The Answer is:'
+        final_o = 'Question: ' + Question + 'The Answer is:' + Answer
+        return pre_text, final_o
+
+    def __getitem__(self, idx):
+        sample = self.data[idx]
+        Question = sample['question']
+        Question = pre_question(Question)
+        Anwser = sample['answer']
+        Anwser = pre_answer(Anwser)
+
+        ##### read image pathes #####
+        img_path = os.path.join(self.data_path, self.img_root, sample['img_name'])
+        img = PIL.Image.open(img_path).convert('RGB')
+        image = self.transform(img)
+
+        pre_text, final_o = self.random_answer(Question, Anwser)
+        final_o = self.tokenizer.encode(final_o)
+        input_ids = final_o.ids
+        input_ids = torch.tensor(input_ids.ids).unsqueeze(0)
+
+        label = self.tokenizer.encode(Anwser)
+        label = torch.tensor(label.ids).unsqueeze(0)
+
+        if self.mode == 'train':
+            item = {
+                'input_ids': input_ids,
+                'images': image,
+                'labels': label,
+            }
+
+        if self.mode == 'test':
+            item = {
+                'input_ids': input_ids,
+                'q_id': sample['qid'],
+                'images': image,
+                'labels': label,
+                'answer_type': sample['answer_type']
+            }
+
+        return item
+
+    def collate_fn(self, batch):
+        input_ids = torch.stack([item['input_ids'] for item in batch])
+        images = torch.stack([item['images'] for item in batch])
+        labels = torch.stack([item['labels'] for item in batch])
+        return input_ids, images, labels
+
+
+def create_dataset(dataset, data_path):
+    normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+    img_size = 448
+    train_transform = transforms.Compose([
+        transforms.RandomResizedCrop(img_size, scale=(0.5, 1.0), interpolation=Image.BICUBIC),
+        transforms.RandomHorizontalFlip(),
+        RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
+                                              'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
+        transforms.ToTensor(),
+        normalize,
+    ])
+    test_transform = transforms.Compose([
+        transforms.Resize((img_size, img_size), interpolation=Image.BICUBIC),
+        transforms.ToTensor(),
+        normalize,
+    ])
+
+    # vqa_rad
+    if dataset == 'radvqa':
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='VQA_RAD Image Folder')
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='VQA_RAD Image Folder')
+        return train_dataset, test_dataset
+
+    # pathvqa
+    elif dataset == 'pathvqa':
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train')
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test')
+        return train_dataset, test_dataset
+    # slake
+    elif dataset == 'slake':
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='imgs')
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='imgs')
+        return train_dataset, test_dataset
+
+    elif dataset == 'pmcvqa':
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train')
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test')
+        return train_dataset, test_dataset
+
+
+def pre_question(question):
+    question = re.sub(
+        r"([,.'!?\"()*#:;~])",
+        '',
+        question.lower(),
+    ).replace(' \t', ' ').replace('is/are', 'is').replace('near/in', 'in')
+    question = question.replace('>', 'more than ').replace('-yes/no', '')
+    question = question.replace('x ray', 'xray').replace('x-ray', 'xray')
+    question = question.rstrip(' ')
+    return question
+
+def pre_answer(answer):
+    answer = str(answer)
+    answer = re.sub(
+        r"([,.'!?\"()*#:;~])",
+        '',
+        answer.lower(),
+    ).replace(' \t', ' ')
+    answer = answer.replace('x ray', 'xray').replace('x-ray', 'xray')
+    answer = answer.replace(' - ', '-')
+    return answer

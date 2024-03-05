@@ -22,7 +22,7 @@ class MultimodalBertDataset(Dataset):
         self,
         data_root,
         transform,
-        max_caption_length: int = 100
+        max_caption_length: int = 200
     ):
         self.max_caption_length = max_caption_length
         self.data_root = data_root
@@ -30,6 +30,8 @@ class MultimodalBertDataset(Dataset):
         self.images_list, self.report_list = self.read_csv()
         self.tokenizer = tokenizers.Tokenizer.from_file("mimic_wordpiece.json")
         self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
+        self.tokenizer.enable_truncation(max_length=self.max_caption_length)
+        self.tokenizer.enable_padding(length=self.max_caption_length)
 
     def __len__(self):
         return len(self.images_list)
@@ -58,8 +60,6 @@ class MultimodalBertDataset(Dataset):
         image = self.transform(image)
         sent = self.report_list[index]
         sent = '[CLS] '+ sent
-        self.tokenizer.enable_truncation(max_length=self.max_caption_length)
-        self.tokenizer.enable_padding(length=self.max_caption_length)
 
         encoded = self.tokenizer.encode(sent)
         ids = torch.tensor(encoded.ids).unsqueeze(0)

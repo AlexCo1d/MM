@@ -1,5 +1,5 @@
 """
-Model for NIH dataset
+Model for classification dataset
 mainly designed for classification task, extendable
 
 alexyhzou
