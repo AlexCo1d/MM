@@ -39,7 +39,7 @@ class VQA_Dataset(Dataset):
         self.tokenizer.enable_padding(length=max_answer_length)
         self.tokenizer.enable_truncation(max_length=max_answer_length)
         self.answer_list_ids=torch.stack([torch.tensor(self.tokenizer.encode(item).ids) for item in answer_list])
-
+        self.answer_list_att=torch.stack([torch.tensor(self.tokenizer.encode(item).attention_mask) for item in answer_list])
         self.tokenizer.enable_truncation(max_length=max_caption_length)
         self.tokenizer.enable_padding(length=max_caption_length)
 
@@ -71,23 +71,28 @@ class VQA_Dataset(Dataset):
         pre_text, final_o = self.random_answer(Question, Anwser)
         final_o = self.tokenizer.encode(final_o)
         input_ids = final_o.ids
-        input_ids = torch.tensor(input_ids.ids).unsqueeze(0)
+        attention_mask=final_o.attention_mask
+        input_ids = torch.tensor(input_ids).unsqueeze(0)
+        attention_mask=torch.tensor(attention_mask).unsqueeze(0)
 
         label = self.tokenizer.encode(Anwser)
+        labels_att=torch.tensor(label.attention_mask).unsqueeze(0)
         label = torch.tensor(label.ids).unsqueeze(0)
 
         if self.mode == 'train':
             item = {
                 'input_ids': input_ids,
+                'attention_mask': attention_mask,
                 'images': image,
                 'labels': label,
+                'label_att': labels_att
             }
         # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
             if self.json_trivial:
                 item = {
                     'input_ids': input_ids,
-
+                    'attention_mask':attention_mask,
                     'images': image,
                     'question': Question,
                     'answer': Anwser,
@@ -97,7 +102,7 @@ class VQA_Dataset(Dataset):
             else:
                 item = {
                     'input_ids': input_ids,
-
+                    'attention_mask':attention_mask,
                     'images': image,
                     'question': Question,
                     'answer': Anwser,
@@ -111,10 +116,14 @@ class VQA_Dataset(Dataset):
         input_ids = torch.stack([item['input_ids'] for item in batch])
         images = torch.stack([item['images'] for item in batch])
         labels = torch.stack([item['labels'] for item in batch])
+        labels_att = torch.stack([item['label_att'] for item in batch])
+        attention_mask = torch.stack([item['attention_mask'] for item in batch])
         return {
             'input_ids': input_ids,
             'images': images,
             'labels': labels,
+            'label_att': labels_att,
+            'attention_mask': attention_mask
         }
     def collate_fn_test(self, batch):
         # ids,images,names,question, answer type, answer.
@@ -124,9 +133,10 @@ class VQA_Dataset(Dataset):
         answer_types= [item['answer_type'] for item in batch]
         questions= [item['question'] for item in batch]
         answers= [item['answer'] for item in batch]
+        attention_mask = torch.stack([item['attention_mask'] for item in batch])
         return {
             'input_ids': input_ids,
-
+            'attention_mask': attention_mask,
             'images': images,
             'images_name': image_names,
             'answer_type':  answer_types,

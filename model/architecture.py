@@ -17,7 +17,8 @@ class MM(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3,
                  embed_dim=768, depth=12, num_heads=12,
                  decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
-                 mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False, temp=0.07, c_embed_dim=256):
+                 mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False, temp=0.07,
+                 c_embed_dim=256):
         super().__init__()
 
         # --------------------------------------------------------------------------
@@ -31,12 +32,13 @@ class MM(nn.Module):
 
         self.vision_proj = nn.Linear(embed_dim, c_embed_dim)
         self.text_proj = nn.Linear(embed_dim, c_embed_dim)
-        self.itm_head = nn.Sequential(
-            nn.Linear(embed_dim, embed_dim * 2),
-            nn.LayerNorm(embed_dim * 2),
-            nn.GELU(),
-            nn.Linear(embed_dim * 2, 2)
-        )   # self.itm_head = nn.Linear(text_width, 2)
+        # self.itm_head = nn.Sequential(
+        #     nn.Linear(embed_dim, embed_dim * 2),
+        #     nn.LayerNorm(embed_dim * 2),
+        #     nn.GELU(),
+        #     nn.Linear(embed_dim * 2, 2)
+        # )
+        self.itm_head = nn.Linear(embed_dim, 2)
         # ViT blocks
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
@@ -61,10 +63,10 @@ class MM(nn.Module):
         self.decoder_pred = nn.Linear(decoder_embed_dim, (patch_size * 2) ** 2 * in_chans, bias=True)
         # --------------------------------------------------------------------------
         # Bert encoder
-        self.bert_encoder, _ = build_text_encoder()
+        self.bert_encoder, _ = build_bert()
         # self.bert_mlp = nn.Linear(embed_dim, embed_dim, bias=True)
         self.norm_pix_loss = norm_pix_loss
-        self.fusion_encoder, _ = build_text_encoder()
+        self.fusion_encoder, _ = build_bert()
 
         self.mv = mv
         if self.mv:
@@ -167,7 +169,8 @@ class MM(nn.Module):
         x = x + self.pos_embed[:, 1:, :]
 
         # masking: length -> length * mask_ratio
-        x, mask, ids_restore = self.random_masking(x, mask_ratio)
+        if mask_ratio>0:
+            x, mask, ids_restore = self.random_masking(x, mask_ratio)
 
         # append cls token
         cls_token = self.cls_token + self.pos_embed[:, :1, :]
@@ -178,8 +181,10 @@ class MM(nn.Module):
         for blk in self.blocks:
             x = blk(x)
         x = self.norm(x)
-
-        return x, mask, ids_restore
+        if mask_ratio>0:
+            return x, mask, ids_restore
+        else:
+            return x
 
     def forward_decoder(self, x, ids_restore):
         # embed tokens
@@ -240,7 +245,7 @@ class MM(nn.Module):
         # latent = self.bert_mlp(latent)
         # # GAP
         # latent = latent[:, 1:, :].mean(dim=1)
-        image_atts=torch.ones(latent.size()[:-1], dtype=torch.long).to(latent.device)
+        image_atts = torch.ones(latent.size()[:-1], dtype=torch.long).to(latent.device)
         outputs = self.bert_encoder(latent=None, input_ids=caption_ids, labels=labels, attention_mask=attention_mask,
                                     token_type_ids=token_type_ids)
         outputs = self.fusion_encoder(latent=None,
@@ -254,7 +259,7 @@ class MM(nn.Module):
         # ----------------------------
         # another option, original one
         # outputs = self.bert_encoder(latent=latent, input_ids=caption_ids, labels=labels, attention_mask=attention_mask,
-                                    # token_type_ids=token_type_ids)
+        # token_type_ids=token_type_ids)
 
         # print(len(outputs.hidden_states), outputs.hidden_states[0].shape)
         # print(torch.equal(_.last_hidden_state,outputs.hidden_states[-1]))
@@ -346,7 +351,7 @@ class MM(nn.Module):
         _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_1)
         latent, mask, ids_restore = self.forward_vision_encoder(_imgs,
                                                                 mask_ratio)  # latent: [N, 50, D], 50=maskratio*196
-        latent_unmasked = self.forward_vision_encoder(_imgs, 0.0)[0]  # latent_unmasked: [N, 196, D]
+        latent_unmasked = self.forward_vision_encoder(_imgs, 0.0)  # latent_unmasked: [N, 196, D]
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         v_loss = self.forward_vision_loss(imgs_1, pred, mask)
 
@@ -355,7 +360,7 @@ class MM(nn.Module):
             imgs_2 = imgs_2.cuda()
             _imgs_2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_2)
             latent_2, mask_2, ids_restore_2 = self.forward_vision_encoder(_imgs_2, mask_ratio)
-            latent_unmasked_2 = self.forward_vision_encoder(_imgs_2, 0.0)[0]
+            latent_unmasked_2 = self.forward_vision_encoder(_imgs_2, 0.0)
 
             latent_unmasked = torch.cat((latent_unmasked, latent_unmasked_2), dim=-1)
             latent_unmasked = self.latent_proj(latent_unmasked)
@@ -374,8 +379,8 @@ class MM(nn.Module):
         return (v_loss, mlm_loss, itm_loss, contrastive_loss), pred, mask
 
 
-def build_text_encoder():
-    bert_config = BertConfig()
-    text_encoder = MyBertMaskedLM(bert_config)
-    text_width = text_encoder.config.hidden_size
-    return text_encoder, text_width
+def build_bert():
+        bert_config = BertConfig()
+        text_encoder = MyBertMaskedLM(bert_config)
+        text_width = text_encoder.config.hidden_size
+        return text_encoder, text_width

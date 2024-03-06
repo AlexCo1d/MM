@@ -1,3 +1,8 @@
+"""
+VQA task training script
+alexyhzou
+"""
+
 import argparse
 import os
 import sys
@@ -26,7 +31,9 @@ def train(model, data_loader, optimizer, epoch, device, args):
         images = b['image'].to(device)
         input_ids = b['input_ids'].to(device)
         labels = b['labels'].to(device)
-        loss = model(images, input_ids, labels, train=True)
+        attention_mask = b['attention_mask'].to(device)
+        labels_att = b['labels_att'].to(device)
+        loss = model(images, input_ids,attention_mask, labels,labels_att, train=True)
 
         optimizer.zero_grad()
         loss.backward()
@@ -65,8 +72,9 @@ def evaluation(model, data_loader, device, args):
         answers = b['answer']  # 获取答案
         answer_types = b['answer_type']  # 获取答案类型
         image_names=b['image_name']
+        attention_mask=b['attention_mask'].to(device)
 
-        topk_ids, topk_probs = model(images, input_ids, data_loader.dataset.answer_list_ids, train=False)
+        topk_ids, topk_probs = model(images, input_ids,attention_mask, data_loader.dataset.answer_list_ids.to(device),data_loader.dataset.answer_list_att.to(device), train=False)
         for idx, (ques_id, topk_id, topk_prob) in enumerate(zip(topk_ids, topk_probs)):
             _, pred_idx = topk_prob.max(dim=0)  # 获取概率最大值的索引，即预测的答案索引
             pred_answer= data_loader.dataset.answer_list[topk_id[pred_idx]]  # 假设pred_answer是预测的答案，这里简化处理，直接使用索引作为答案，根据实际情况调整
@@ -133,6 +141,7 @@ def main(args):
     if args.checkpoint:
         checkpoint = torch.load(args.checkpoint, map_location='cpu')
         state_dict = checkpoint['model']
+        # TODO: load the pretrain weights from MM.pth.
         msg = model.load_state_dict(state_dict, strict=False)
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
@@ -159,7 +168,6 @@ def main(args):
             save_obj = {
                 'model': model_without_ddp.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                # 'config': config,
                 # 'epoch': epoch,
             }
             prefix = args.checkpoint.split('/')[-1].split('.')[0]
@@ -169,8 +177,9 @@ def main(args):
                 vqa_result = evaluation(model, test_loader, device, args)
                 json.dump(vqa_result,
                           open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                acc = compute_vqa_acc(vqa_result, args=args)
-                acc_list.append((epoch, acc))
+                acc = compute_vqa_acc(vqa_result, epoch, args=args)
+                acc_list.append(acc)
+
         if args.distributed:
             dist.barrier()
 
@@ -178,7 +187,9 @@ def main(args):
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
     # print the epoch with best acc in acc_list
-    print("Best acc: ", max(acc_list, key=lambda x: x[1]))
+    json.dump(acc_list,
+              open(os.path.join(args.result_dir, 'vqa_metric.json'), 'w'))
+    # print("Best acc: ", max(acc_list, key=lambda x: x[1][0]))
 
 
 if __name__ == '__main__':
