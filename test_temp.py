@@ -122,40 +122,40 @@ import torch
 # row_count = df.shape[0]
 # print(f"CSV 文件的行数为：{row_count}")
 
-# t=torch.load('/home/data/Jingkai/alex/weight/MM.pth', map_location='cpu')
-# u={}
-# u['model']=t
-# torch.save(u,'/home/data/Jingkai/alex/weight/MM.pth')
+t=torch.load('/home/data/Jingkai/alex/weight/MM.pth', map_location='cpu')
+u={}
+u['model']=t
+torch.save(u,'/home/data/Jingkai/alex/weight/MM.pth')
 
-from PIL import Image
-import pathlib
-from concurrent.futures import ProcessPoolExecutor
-import time
-
-def resize_image(image_path):
-    """
-    Resize the given image to 448x448, apply grayscale, and measure the time taken.
-    """
-    start_time = time.time()  # 开始计时
-
-    with Image.open(image_path) as img:
-        # 应用RandomResizedCrop等效操作
-        img = img.resize((448, 448), Image.BICUBIC)  # 等效于RandomResizedCrop
-        img = img.convert('L').convert('RGB')  # 等效于Grayscale(num_output_channels=3)
-        img.save(image_path)
-
-    end_time = time.time()  # 结束计时
-    print(f"Processed {image_path.name} in {end_time - start_time:.4f} seconds.")
-
-def main(directory_path):
-    """
-    Recursively traverse the directory, find all JPG images,
-    and resize them in parallel while measuring time.
-    """
-    path = pathlib.Path(directory_path)
-    jpg_images = list(path.glob('**/*.jpg'))
-
-    with ProcessPoolExecutor() as executor:
-        executor.map(resize_image, jpg_images)
-
-main('/home/data/Jingkai/alex/mimic/files')
+# from PIL import Image
+# import pathlib
+# from concurrent.futures import ProcessPoolExecutor
+# import time
+#
+# def resize_image(image_path):
+#     """
+#     Resize the given image to 448x448, apply grayscale, and measure the time taken.
+#     """
+#     start_time = time.time()  # 开始计时
+#
+#     with Image.open(image_path) as img:
+#         # 应用RandomResizedCrop等效操作
+#         img = img.resize((448, 448), Image.BICUBIC)  # 等效于RandomResizedCrop
+#         img = img.convert('L').convert('RGB')  # 等效于Grayscale(num_output_channels=3)
+#         img.save(image_path)
+#
+#     end_time = time.time()  # 结束计时
+#     print(f"Processed {image_path.name} in {end_time - start_time:.4f} seconds.")
+#
+# def main(directory_path):
+#     """
+#     Recursively traverse the directory, find all JPG images,
+#     and resize them in parallel while measuring time.
+#     """
+#     path = pathlib.Path(directory_path)
+#     jpg_images = list(path.glob('**/*.jpg'))
+#
+#     with ProcessPoolExecutor() as executor:
+#         executor.map(resize_image, jpg_images)
+#
+# main('/home/data/Jingkai/alex/mimic/files')
