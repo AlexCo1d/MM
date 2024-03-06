@@ -18,21 +18,32 @@ from PIL import Image
 
 class VQA_Dataset(Dataset):
     def __init__(self, data_path, transform, img_tokens=32, img_root='',
-                 seq_length=512, voc_size=32000, mode='train', text_type='blank'):
+                 seq_length=512, voc_size=32000, mode='train', json_trivial=True):
         max_caption_length = 100
+        max_answer_length=50
         with open(os.path.join(data_path, f'{mode}.json')) as f:
             self.data = json.load(f)
         self.tokenizer = tokenizers.Tokenizer.from_file("../mimic_wordpiece.json")
         self.mode = mode
         self.img_padding = [-100 for i in range(img_tokens)]
         self.attn_padding = [1 for i in range(img_tokens)]
-        self.text_type = text_type
+        self.json_trivial = json_trivial
         self.transform = transform
         self.data_path = data_path
         self.voc_size = voc_size
         self.img_root = img_root
+
+        answer_list = [item['answer'] for item in self.data]
+        # make it unique.
+        self.answer_list=list(dict.fromkeys(answer_list))
+        self.tokenizer.enable_padding(length=max_answer_length)
+        self.tokenizer.enable_truncation(max_length=max_answer_length)
+        self.answer_list_ids=torch.stack([torch.tensor(self.tokenizer.encode(item).ids) for item in answer_list])
+
         self.tokenizer.enable_truncation(max_length=max_caption_length)
         self.tokenizer.enable_padding(length=max_caption_length)
+
+
 
     def __len__(self):
         return len(self.data)
@@ -46,8 +57,10 @@ class VQA_Dataset(Dataset):
     def __getitem__(self, idx):
         sample = self.data[idx]
         Question = sample['question']
-        Question = pre_question(Question)
+        if not self.json_trivial:
+            at = 'CLOSED' if (sample['answer_type'] == 'yes' or sample['answer_type'] == 'no') else 'OPEN'
         Anwser = sample['answer']
+        Question = pre_question(Question)
         Anwser = pre_answer(Anwser)
 
         ##### read image pathes #####
@@ -69,23 +82,57 @@ class VQA_Dataset(Dataset):
                 'images': image,
                 'labels': label,
             }
-
+        # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
-            item = {
-                'input_ids': input_ids,
-                'q_id': sample['qid'],
-                'images': image,
-                'labels': label,
-                'answer_type': sample['answer_type']
-            }
+            if self.json_trivial:
+                item = {
+                    'input_ids': input_ids,
+
+                    'images': image,
+                    'question': Question,
+                    'answer': Anwser,
+                    'answer_type': sample['answer_type'],
+                    'image_name': sample['image_name']
+                }
+            else:
+                item = {
+                    'input_ids': input_ids,
+
+                    'images': image,
+                    'question': Question,
+                    'answer': Anwser,
+                    'answer_type': at,
+                    'image_name': sample['image_name']
+                }
 
         return item
 
-    def collate_fn(self, batch):
+    def collate_fn_train(self, batch):
         input_ids = torch.stack([item['input_ids'] for item in batch])
         images = torch.stack([item['images'] for item in batch])
         labels = torch.stack([item['labels'] for item in batch])
-        return input_ids, images, labels
+        return {
+            'input_ids': input_ids,
+            'images': images,
+            'labels': labels,
+        }
+    def collate_fn_test(self, batch):
+        # ids,images,names,question, answer type, answer.
+        input_ids = torch.stack([item['input_ids'] for item in batch])
+        images = torch.stack([item['images'] for item in batch])
+        image_names= [item['image_name'] for item in batch]
+        answer_types= [item['answer_type'] for item in batch]
+        questions= [item['question'] for item in batch]
+        answers= [item['answer'] for item in batch]
+        return {
+            'input_ids': input_ids,
+
+            'images': images,
+            'images_name': image_names,
+            'answer_type':  answer_types,
+            'question': questions,
+            'answer': answers
+        }
 
 
 def create_dataset(dataset, data_path):
@@ -138,6 +185,7 @@ def pre_question(question):
     question = question.replace('x ray', 'xray').replace('x-ray', 'xray')
     question = question.rstrip(' ')
     return question
+
 
 def pre_answer(answer):
     answer = str(answer)

@@ -36,7 +36,7 @@ class MM(nn.Module):
             nn.LayerNorm(embed_dim * 2),
             nn.GELU(),
             nn.Linear(embed_dim * 2, 2)
-        )
+        )   # self.itm_head = nn.Linear(text_width, 2)
         # ViT blocks
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
@@ -240,7 +240,6 @@ class MM(nn.Module):
         # latent = self.bert_mlp(latent)
         # # GAP
         # latent = latent[:, 1:, :].mean(dim=1)
-        # TODO: maybe try cross attention here
         image_atts=torch.ones(latent.size()[:-1], dtype=torch.long).to(latent.device)
         outputs = self.bert_encoder(latent=None, input_ids=caption_ids, labels=labels, attention_mask=attention_mask,
                                     token_type_ids=token_type_ids)
