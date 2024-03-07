@@ -22,7 +22,7 @@ class MultimodalBertDataset(Dataset):
         self,
         data_root,
         transform,
-        max_caption_length: int = 200
+        max_caption_length: int = 100
     ):
         self.max_caption_length = max_caption_length
         self.data_root = data_root
