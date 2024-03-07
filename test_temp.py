@@ -121,10 +121,13 @@ only for testing
 # row_count = df.shape[0]
 # print(f"CSV 文件的行数为：{row_count}")
 import torch
-t=torch.load('/home/data/Jingkai/alex/pretrain0/checkpoint-40.pth', map_location='cpu')
-u={}
-u['model']=t['model']
-torch.save(u,'/home/data/Jingkai/alex/weight/MM1.pth')
+
+from VQA_RAD.model_VQA import MyVQAModel
+
+# t=torch.load('/home/data/Jingkai/alex/pretrain0/checkpoint-40.pth', map_location='cpu')
+# u={}
+# u['model']=t['model']
+# torch.save(u,'/home/data/Jingkai/alex/weight/MM1.pth')
 
 # from PIL import Image
 # import pathlib
@@ -158,3 +161,26 @@ torch.save(u,'/home/data/Jingkai/alex/weight/MM1.pth')
 #         executor.map(resize_image, jpg_images)
 #
 # main('/home/data/Jingkai/alex/mimic/files')
+
+batch_size = 2
+seq_length = 100
+vocab_size = 1000
+hidden_dim = 768
+# 生成随机的问题和答案的ids和attention mask
+images=torch.rand(batch_size, 3, 448, 448)
+input_ids = torch.randint(low=1, high=vocab_size, size=(batch_size, seq_length))
+attention_mask = torch.ones(batch_size, seq_length, dtype=torch.long)
+answer_ids = torch.randint(low=1, high=vocab_size, size=(100, seq_length))  # +1是为了bos token
+answer_attention = torch.ones(100, seq_length, dtype=torch.long)
+
+# 由于`rank_answer`函数需要模型的一些内部状态，我们在这里不直接调用它。
+# 下面是如何在一个假设的模型中使用这些输入的示例。
+model=MyVQAModel()
+topk_ids, topk_probs = model(images, input_ids, attention_mask, answer_ids, answer_attention, train=False)
+
+print(f"Topk IDs shape: {topk_ids.shape}, Topk Probs shape: {topk_probs.shape}")
+print   (topk_ids)
+print(topk_probs)
+_, pred_idx = topk_probs[0].max(dim=0)
+i=topk_ids[0][pred_idx]
+print(i)

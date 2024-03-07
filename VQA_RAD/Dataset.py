@@ -38,8 +38,8 @@ class VQA_Dataset(Dataset):
         self.answer_list=list(dict.fromkeys(answer_list))
         self.tokenizer.enable_padding(length=max_answer_length)
         self.tokenizer.enable_truncation(max_length=max_answer_length)
-        self.answer_list_ids=torch.stack([torch.tensor(self.tokenizer.encode(item).ids) for item in answer_list])
-        self.answer_list_att=torch.stack([torch.tensor(self.tokenizer.encode(item).attention_mask) for item in answer_list])
+        self.answer_list_ids=torch.stack([torch.tensor(self.tokenizer.encode('[CLS] '+item+' sep').ids) for item in answer_list])
+        self.answer_list_att=torch.stack([torch.tensor(self.tokenizer.encode('[CLS] '+item+' sep').attention_mask) for item in answer_list])
         self.tokenizer.enable_truncation(max_length=max_caption_length)
         self.tokenizer.enable_padding(length=max_caption_length)
 
@@ -75,7 +75,7 @@ class VQA_Dataset(Dataset):
         input_ids = torch.tensor(input_ids).unsqueeze(0)
         attention_mask=torch.tensor(attention_mask).unsqueeze(0)
 
-        label = self.tokenizer.encode(Anwser)
+        label = self.tokenizer.encode('[CLS] '+Anwser+' sep')
         labels_att=torch.tensor(label.attention_mask).unsqueeze(0)
         label = torch.tensor(label.ids).unsqueeze(0)
 

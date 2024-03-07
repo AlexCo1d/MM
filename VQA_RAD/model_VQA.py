@@ -2,16 +2,17 @@ import numpy as np
 import torch
 import torchvision
 from torchvision.transforms import InterpolationMode
-from transformers import BertLMHeadModel
 import torch.nn.functional as F
 from model.architecture import MM
 from model.submodule.bert.BertConfig import BertConfig
+from model.submodule.bert.bert import BertLMHeadModel
 
 
 class MyVQAModel(MM):
     def __init__(self):
-        self.bert_decoder = BertLMHeadModel(config=BertConfig())
         super(MyVQAModel, self).__init__()
+        self.bert_decoder = BertLMHeadModel(config=BertConfig(is_decoder=True,add_cross_attention=True))
+        self.initialize_weights()
     def forward(self, images, input_ids, attention_mask, answer, answer_attention, train:bool=True):
         """
         :param images:
@@ -22,7 +23,8 @@ class MyVQAModel(MM):
         :param train: bool
         :return: loss/ topk_ids, topk_probs depends on train
         """
-        image_embeds=torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(images)
+        image=torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(images)
+        image_embeds = self.forward_vision_encoder(image,0.0)
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image_embeds.device)
 
         if train:
@@ -32,8 +34,8 @@ class MyVQAModel(MM):
                                                 encoder_hidden_states=image_embeds,
                                                 encoder_attention_mask=image_atts,
                                                 return_dict=True)
-            answer_output = self.bert_decoder(answer.input_ids,
-                                              attention_mask=answer.attention_mask,
+            answer_output = self.bert_decoder(answer,
+                                              attention_mask=answer_attention,
                                               encoder_hidden_states=question_output.last_hidden_state,
                                               encoder_attention_mask=attention_mask,
                                               labels=answer_targets,
@@ -46,27 +48,37 @@ class MyVQAModel(MM):
 
         # test
         else:
-            question_output = self.bert_encoder(input_ids,
+            question_output = self.bert_encoder(input_ids=input_ids,
                                                 attention_mask=attention_mask,
                                                 encoder_hidden_states=image_embeds,
                                                 encoder_attention_mask=image_atts,
                                                 return_dict=True)
-            topk_ids, topk_probs = self.rank_answer(question_output.last_hidden_state, attention_mask,
+            topk_ids, topk_probs = self.rank_answer(question_output.hidden_states[-1], attention_mask,
                                                     answer, answer_attention)
 
             return topk_ids, topk_probs
 
-    def rank_answer(self, question_states, question_atts, answer_ids, answer_atts, k=128):
-        num_ques = question_states.size(0)  # num_ques = batch_size_test
+    def rank_answer(self, question_states, question_atts, answer_ids, answer_atts, k=64):
+        def tile(x, dim, n_tile):
+            init_dim = x.size(dim)
+            repeat_idx = [1] * x.dim()
+            repeat_idx[dim] = n_tile
+            x = x.repeat(*(repeat_idx))
+            order_index = torch.LongTensor(np.concatenate([init_dim * np.arange(n_tile) + i for i in range(init_dim)]))
+            return torch.index_select(x, dim, order_index.to(x.device))
+
+        num_ques = question_states.size(0)  # num_question = batch_size_test
         start_ids = answer_ids[0, 0].repeat(num_ques, 1)  # bos token
 
-        start_output = self.bert_encoder(start_ids,
+        start_output = self.bert_decoder(start_ids,
                                          encoder_hidden_states=question_states,
                                          encoder_attention_mask=question_atts,
                                          return_dict=True,
                                          reduction='none')
         logits = start_output.logits[:, 0, :]
 
+        # topk_probs: top-k probability
+        # topk_ids: [num_question, k]
         answer_first_token = answer_ids[:, 1]
         prob_first_token = F.softmax(logits, dim=1).index_select(dim=1, index=answer_first_token)
 
@@ -81,9 +93,8 @@ class MyVQAModel(MM):
         input_ids = torch.cat(input_ids, dim=0)
         input_atts = torch.cat(input_atts, dim=0)
 
-        targets_ids = input_ids.masked_fill(input_ids == 0,
-                                            -100)
-
+        targets_ids = input_ids.masked_fill(input_ids == 0, -100)
+        # repeat encoder's output for top-k answers
         question_states = tile(question_states, 0, k)
         question_atts = tile(question_atts, 0, k)
 
@@ -111,10 +122,3 @@ class MyVQAModel(MM):
         topk_ids = torch.gather(topk_ids, 1, rerank_id)
         return topk_ids, topk_probs
 
-def tile(x, dim, n_tile):
-    init_dim = x.size(dim)
-    repeat_idx = [1] * x.dim()
-    repeat_idx[dim] = n_tile
-    x = x.repeat(*(repeat_idx))
-    order_index = torch.LongTensor(np.concatenate([init_dim * np.arange(n_tile) + i for i in range(init_dim)]))
-    return torch.index_select(x, dim, order_index.to(x.device))
