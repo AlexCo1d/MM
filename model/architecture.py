@@ -169,8 +169,8 @@ class MM(nn.Module):
         x = x + self.pos_embed[:, 1:, :]
 
         # masking: length -> length * mask_ratio
-        # if mask_ratio>0:
-        x, mask, ids_restore = self.random_masking(x, mask_ratio)
+        if mask_ratio>0:
+            x, mask, ids_restore = self.random_masking(x, mask_ratio)
 
         # append cls token
         cls_token = self.cls_token + self.pos_embed[:, :1, :]
