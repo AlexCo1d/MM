@@ -10,9 +10,8 @@ from model.submodule.bert.BertConfig import BertConfig
 
 class MyVQAModel(MM):
     def __init__(self):
+        self.bert_decoder = BertLMHeadModel(config=BertConfig())
         super(MyVQAModel, self).__init__()
-        self.bert_decoder= BertLMHeadModel(config=BertConfig())
-
     def forward(self, images, input_ids, attention_mask, answer, answer_attention, train:bool=True):
         """
         :param images:
@@ -82,7 +81,7 @@ class MyVQAModel(MM):
         input_ids = torch.cat(input_ids, dim=0)
         input_atts = torch.cat(input_atts, dim=0)
 
-        targets_ids = input_ids.masked_fill(input_ids == self.tokenizer.pad_token_id,
+        targets_ids = input_ids.masked_fill(input_ids == 0,
                                             -100)
 
         question_states = tile(question_states, 0, k)

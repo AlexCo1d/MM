@@ -141,7 +141,14 @@ def main(args):
     if args.checkpoint:
         checkpoint = torch.load(args.checkpoint, map_location='cpu')
         state_dict = checkpoint['model']
-        # TODO: load the pretrain weights from MM.pth.
+        for key in state_dict.keys():
+            if key == 'fusion_encoder':
+                state_dict[key.replace('fusion_encoder', 'bert_decoder')] = state_dict.pop(key)
+            if 'bert' in key and 'embeddings' in key:
+                t=state_dict.pop(key)
+                if 'word_embeddings' in key or 'LayerNorm' in key:
+                    state_dict[key]=t
+
         msg = model.load_state_dict(state_dict, strict=False)
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
