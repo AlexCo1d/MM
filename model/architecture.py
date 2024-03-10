@@ -32,13 +32,13 @@ class MM(nn.Module):
 
         self.vision_proj = nn.Linear(embed_dim, c_embed_dim)
         self.text_proj = nn.Linear(embed_dim, c_embed_dim)
-        # self.itm_head = nn.Sequential(
-        #     nn.Linear(embed_dim, embed_dim * 2),
-        #     nn.LayerNorm(embed_dim * 2),
-        #     nn.GELU(),
-        #     nn.Linear(embed_dim * 2, 2)
-        # )
-        self.itm_head = nn.Linear(embed_dim, 2)
+        self.itm_head = nn.Sequential(
+            nn.Linear(embed_dim, embed_dim * 2),
+            nn.LayerNorm(embed_dim * 2),
+            nn.GELU(),
+            nn.Linear(embed_dim * 2, 2)
+        )
+        # self.itm_head = nn.Linear(embed_dim, 2)
         # ViT blocks
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)

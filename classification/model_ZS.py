@@ -32,14 +32,10 @@ class MyZSModel(MM):
     def forward(self, image):
         """
         :param image: [B, C, H, W]
-        :return:
+        :return: [B, Classes]
         """
         image=image.cuda()
         vision_embeds=self.forward_vision_encoder(image,0.0)
         vision_embeds=F.normalize(self.vision_proj(vision_embeds[:, 0, :]), dim=-1)
         # calculate similarity and return the logits
         return torch.matmul(vision_embeds, self.text_embeds.t())
-
-    def load_pretrained_weights(self, path):
-        state_dict = torch.load(path, 'cpu')
-        self.load_state_dict(state_dict, strict=False)

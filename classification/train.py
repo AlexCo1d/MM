@@ -17,6 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 from apex import amp
 from apex.parallel import DistributedDataParallel as DDP
 
+from classification import model_ZS
 from utils.scheduler import WarmupLinearSchedule, WarmupCosineSchedule
 from utils.data_utils import get_loader
 from utils.dist_util import get_world_size
@@ -30,8 +31,21 @@ from timm.models.layers import trunc_normal_
 
 logger = logging.getLogger(__name__)
 
+# -----------------------------------------------------------
+# Need to defined firstly!!!
 CLASS_NAMES = ['Atelectasis', 'Cardiomegaly', 'Effusion', 'Infiltration', 'Mass', 'Nodule', 'Pneumonia',
                'Pneumothorax', 'Consolidation', 'Edema', 'Emphysema', 'Fibrosis', 'Pleural_Thickening', 'Hernia']
+
+# class names for zero shot learning chexpert
+# atelectasis, cardiomegaly, consolidation, edema, and pleural effusion
+
+prompts_words = 'According to published literature, what are useful medical visual features for distinguishing {Diagnostic Category} in a photo?'
+prompts= ['Atelectasis: Increased Radiopacity, Volume Loss in the Affected Lung, Displacement of Fissures, compensatory hyperinflation, Air Bronchograms and shift of mediastinal structures.',
+          'Cardiomegaly: Enlarged cardiac silhouette and Contours, Increased cardiothoracic ratio, Increased Vascular Pedicle Width, Displacement of adjacent structures, Altered Cardiac Shadow',
+          'Consolidation: Increased Opacity, Air Bronchograms, Sharp Borders, Slight Volume Loss, Silhouette Sign, Elevation of Hemidiaphragm, Displacement of Adjacent Structures',
+          'Edema: Kerley B Lines at the edge of lung, Peribronchial Cuffing, Batwing or Butterfly Pattern, Ground-Glass Opacity, Airspace Consolidation',
+          'Pleural Effusion: Blunting of Costophrenic Angle, Meniscus Sign a curved upper edge, Opacity, Mediastinal Shift, Compensatory Expansion']
+# -----------------------------------------------------------
 
 
 class AverageMeter(object):
@@ -106,12 +120,15 @@ def load_weights(model, weight_path, args):
 def setup(args):
     # Prepare model
     num_classes = args.num_classes
-
-    model = model_ViT.MyViTClassifier(
-        num_classes=14,
-        drop_path_rate=0.1,
-        global_pool=True,
-    )
+    if args.ZS:
+        # TODO: add init parameters: prompts, pretrained_weight
+        model = model_ZS.MyZSModel(prompts=prompts, pretrained_path=args.pretrained_path)
+    else:
+        model = model_ViT.MyViTClassifier(
+            num_classes=num_classes,
+            drop_path_rate=0.1,
+            global_pool=True,
+        )
     if args.stage == 'train':
         checkpoint = torch.load(args.pretrained_path, map_location=torch.device('cpu'))
         checkpoint_model = checkpoint['model']
@@ -129,7 +146,7 @@ def setup(args):
 
         # manually initialize fc layer
         trunc_normal_(model.head.weight, std=2e-5)
-    else:
+    elif not args.ZS:
         model = load_weights(model, args.pretrained_path, args)
 
     model.to(args.device)
@@ -249,10 +266,14 @@ def test(args, model, test_loader):
             eval_loss = loss_fct(logits, y.float())
             eval_losses.update(eval_loss.item())
             sig = logits.sigmoid()
-            if args.ZS:
-                sig = logits
-            # preds = torch.argmax(logits, dim=-1)
             preds = (sig > 0.5) * 1
+            if args.ZS:
+                _, indices = torch.max(logits, dim=1)
+                # make it one hot
+                preds = torch.nn.functional.one_hot(indices, num_classes=logits.size(1))
+
+            # preds = torch.argmax(logits, dim=-1)
+
 
         if len(all_preds) == 0:
             all_preds.append(preds.detach().cpu().numpy())
