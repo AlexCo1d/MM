@@ -9,7 +9,7 @@ from PIL import Image
 
 class XRAY(data.Dataset):
     
-    def __init__(self, root, data_volume, split="train", transform=None):
+    def __init__(self, root, data_volume, split="train", transform=None, ZS=False):
         super(XRAY, self)
         if data_volume == '1':
             train_label_data = "train_1.txt"
@@ -17,7 +17,10 @@ class XRAY(data.Dataset):
             train_label_data = "train_10.txt"
         if data_volume == '100':
             train_label_data = "train_list.txt"
+
         test_label_data = "test_list.txt"
+        if ZS and os.path.exists(os.path.join(root, 'zero_shot.txt')):
+            test_label_data = "zero_shot.txt"
         val_label_data = "val_list.txt"
         
         self.split = split
