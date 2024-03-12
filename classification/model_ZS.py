@@ -1,7 +1,11 @@
+import sys
+
 import torch
 import tokenizers
-from model.architecture import MM
 import torch.nn.functional as F
+sys.path.append("..")
+from model.architecture import MM
+
 
 class MyZSModel(MM):
     def __init__(self, prompts:[], pretrained_path=''):
