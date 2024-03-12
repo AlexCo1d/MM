@@ -37,6 +37,7 @@ class MyViTClassifier(timm.models.vision_transformer.VisionTransformer):
             del self.norm  # remove the original norm
 
     def forward_features(self, x):
+        print(x.shape)
         B = x.shape[0]
         x = self.patch_embed(x)
 
