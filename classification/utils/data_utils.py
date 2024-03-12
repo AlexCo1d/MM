@@ -5,7 +5,7 @@ import torch
 from torchvision import transforms, datasets
 from torch.utils.data import DataLoader, RandomSampler, DistributedSampler, SequentialSampler
 
-from dist_util import get_world_size
+from .dist_util import get_world_size
 from my_dataset import XRAY
 
 logger = logging.getLogger(__name__)
