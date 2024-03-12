@@ -121,7 +121,6 @@ def setup(args):
     # Prepare model
     num_classes = args.num_classes
     if args.ZS:
-        # TODO: add init parameters: prompts, pretrained_weight
         model = model_ZS.MyZSModel(prompts=prompts, pretrained_path=args.pretrained_path)
     else:
         model = model_ViT.MyViTClassifier(
