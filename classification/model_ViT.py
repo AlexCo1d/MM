@@ -50,7 +50,7 @@ class MyViTClassifier(timm.models.vision_transformer.VisionTransformer):
             x = blk(x)
 
         if self.global_pool:
-            x = x[:, 1:, :].mean(dim=1)  # global pool without cls token
+            x = x[:, 1:, :].mean(dim=1).unsqueeze(1)  # global pool without cls token
             outcome = self.fc_norm(x)
         else:
             x = self.norm(x)
@@ -65,7 +65,6 @@ class MyViTClassifier(timm.models.vision_transformer.VisionTransformer):
             x = x[:, self.num_prefix_tokens:].mean(dim=1)
         elif self.global_pool:
             x = x[:, 0]  # class token
-        print(x.shape)
         x = self.fc_norm(x)
         x = self.head_drop(x)
         return x if pre_logits else self.head(x)
