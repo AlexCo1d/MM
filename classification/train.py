@@ -88,14 +88,14 @@ def classification_report(preds, labels):
 
 def save_model_auc(args, model):
     model_to_save = model.module if hasattr(model, 'module') else model
-    model_checkpoint = os.path.join(args.output_dir, "%s_bestauc_checkpoint.bin" % args.name)
+    model_checkpoint = os.path.join(args.output_dir, "%s_bestauc_checkpoint.pth" % args.name)
     torch.save(model_to_save.state_dict(), model_checkpoint)
     logger.info("Saved model checkpoint to [DIR: %s]", args.output_dir)
 
 
 def save_model_loss(args, model):
     model_to_save = model.module if hasattr(model, 'module') else model
-    model_checkpoint = os.path.join(args.output_dir, "%s_bestloss_checkpoint.bin" % args.name)
+    model_checkpoint = os.path.join(args.output_dir, "%s_bestloss_checkpoint.pth" % args.name)
     torch.save(model_to_save.state_dict(), model_checkpoint)
     logger.info("Saved model checkpoint to [DIR: %s]", args.output_dir)
 
