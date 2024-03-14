@@ -256,10 +256,6 @@ def test(args, model, test_loader):
         batch = tuple(t.to(args.device) for t in batch)
         x, y = batch
         with torch.no_grad():
-            # if "net" in args.model_type:
-            #     logits = model(x)#[0]
-            # else :
-            #     logits = model(x)[0]
             logits = model(x)  # (batch_size, num_classes)
             # print(logits.size())
             eval_loss = loss_fct(logits, y.float())
@@ -267,6 +263,8 @@ def test(args, model, test_loader):
             sig = logits.sigmoid()
             preds = (sig > 0.5) * 1
             if args.ZS:
+                # zero-shot prediction
+                # TODO： make it supports multi-label and single label.
                 _, indices = torch.max(logits, dim=1)
                 # make it one hot
                 preds = torch.nn.functional.one_hot(indices, num_classes=logits.size(1))

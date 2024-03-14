@@ -18,15 +18,20 @@ class MM(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3,
                  embed_dim=768, depth=12, num_heads=12,
                  decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
-                 mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False, temp=0.07,
-                 c_embed_dim=256):
+                 mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False,
+                 temp=0.07, temp1=4.0, temp2=5.0, temp3=10.0,
+                 local_contrastive_loss=False,
+                 c_embed_dim=1006):
         super().__init__()
-
+        self.local_contrastive_loss = local_contrastive_loss
         # --------------------------------------------------------------------------
         # image encoder specifics
         self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
         num_patches = self.patch_embed.num_patches
         self.temp = nn.Parameter(torch.ones([]) * temp)
+        self.temp1 = nn.Parameter(torch.ones([]) * temp1)
+        self.temp2 = nn.Parameter(torch.ones([]) * temp2)
+        self.temp3 = nn.Parameter(torch.ones([]) * temp3)
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim),
                                       requires_grad=False)  # fixed sin-cos embedding
@@ -338,75 +343,76 @@ class MM(nn.Module):
 
         return loss_itm
 
-    # def forward_local_contrastive_loss(self, img_features, words_emb, temp1=4.0, temp2=5.0, temp3=10.0):
-    #     """
-    #     :param img_features: [layer_num, b, patch_num, embed]
-    #     :param words_emb: bert output
-    #     :param temp1:
-    #     :param temp2:
-    #     :param temp3:
-    #     :return: loss, attn_maps
-    #     """
-    #     local_layer_num = 3
-    #     # words_emb is the local feature's summation from hidden states layer
-    #     words_emb = torch.stack(words_emb.hidden_states[-local_layer_num:], dim=1)  # [b, layer, words_length, embed]
-    #     words_emb = words_emb.sum(axis=1)
-    #     words_emb = words_emb.permute(0, 2, 1)
-    #     words_emb = words_emb / torch.norm(
-    #         words_emb, 2, dim=1, keepdim=True
-    #     ).expand_as(words_emb)
-    #     # words_emb: [b, embed, words_length]
-    #
-    #     # same to the image features because they are all transformer based
-    #     img_features = img_features[-local_layer_num - 1:].permute(1, 0, 2, 3)  # [b, layer, patch_num, embed]
-    #     img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
-    #     img_features = img_features.permute(0, 2, 1)
-    #     img_features = img_features / torch.norm(
-    #         img_features, 2, dim=1, keepdim=True
-    #     ).expand_as(img_features)
-    #
-    #     batch_size = img_features.shape[0]
-    #
-    #     att_maps = []
-    #     similarities = []
-    #     # cap_lens = cap_lens.data.tolist()
-    #     for i in range(words_emb.shape[0]):
-    #         # Get the i-th text description
-    #         words_num = cap_lens[i]  # 25
-    #         word = word.repeat(batch_size, 1, 1)  # [48, 768, 25]
-    #         context = img_features  # [48, 768, 19, 19]
-    #
-    #         weiContext, attn = attention_fn(
-    #             word, context, temp1
-    #         )  # [48, 768, 25], [48, 25, 19, 19]
-    #
-    #         att_maps.append(
-    #             attn[i].unsqueeze(0).contiguous()
-    #         )  # add attention for curr index  [25, 19, 19]
-    #         word = word.transpose(1, 2).contiguous()  # [48, 25, 768]
-    #         weiContext = weiContext.transpose(1, 2).contiguous()  # [48, 25, 768]
-    #
-    #         word = word.view(batch_size * words_num, -1)  # [1200, 768]
-    #         weiContext = weiContext.view(batch_size * words_num, -1)  # [1200, 768]
-    #
-    #         row_sim = cosine_similarity(word, weiContext)
-    #         row_sim = row_sim.view(batch_size, words_num)  # [48, 25]
-    #
-    #         row_sim.mul_(temp2).exp_()
-    #         row_sim = row_sim.sum(dim=1, keepdim=True)  # [48, 1]
-    #         row_sim = torch.log(row_sim)
-    #
-    #         similarities.append(row_sim)
-    #
-    #     similarities = torch.cat(similarities, 1)  #
-    #     similarities = similarities * temp3
-    #     similarities1 = similarities.transpose(0, 1)  # [48, 48]
-    #
-    #     labels = Variable(torch.LongTensor(range(batch_size))).to(similarities.device)
-    #
-    #     loss0 = nn.CrossEntropyLoss()(similarities, labels)  # labels: arange(batch_size)
-    #     loss1 = nn.CrossEntropyLoss()(similarities1, labels)
-    #     return loss0, loss1, att_maps
+    def forward_local_contrastive_loss(self, img_features, words_emb, temp1=4.0, temp2=5.0, temp3=10.0):
+        """
+        :param img_features: [layer_num, b, patch_num, embed]
+        :param words_emb: bert output
+        :param temp1:
+        :param temp2:
+        :param temp3:
+        :return: loss, attn_maps
+        """
+        local_layer_num = 3
+        # words_emb is the local feature's summation from hidden states layer
+        words_emb = torch.stack(words_emb.hidden_states[-local_layer_num:], dim=1)  # [b, layer, words_length, embed]
+        words_emb = words_emb.sum(axis=1)
+        words_emb = words_emb.permute(0, 2, 1)
+        words_emb = words_emb / torch.norm(
+            words_emb, 2, dim=1, keepdim=True
+        ).expand_as(words_emb)
+        # words_emb: [b, embed, words_length]
+
+        # same to the image features because they are all transformer based
+        img_features = img_features[-local_layer_num - 1:].permute(1, 0, 2, 3)  # [b, layer, patch_num, embed]
+        img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
+        img_features = img_features.permute(0, 2, 1)
+        img_features = img_features / torch.norm(
+            img_features, 2, dim=1, keepdim=True
+        ).expand_as(img_features)
+        # img_features: [b, embed, patch_num]
+
+        batch_size = img_features.shape[0]  # eg. 48
+        words_num = words_emb.shape[2]
+        att_maps = []
+        similarities = []
+        # cap_lens = cap_lens.data.tolist()
+        for i in range(batch_size):
+            # Get the i-th text description
+            word = words_emb[i, :, :].unsqueeze(0).contiguous()
+            word = word.repeat(batch_size, 1, 1)  # [48, 768, 100]
+            context = img_features  # [48, 768, 196]
+
+            weiContext, attn = attention_fn(
+                word, context, temp1
+            )  # [48, 768, 100], [48, 100, 196]
+
+            att_maps.append(
+                attn[i].unsqueeze(0).contiguous()
+            )  # add attention for curr index  [100, 196]
+            word = word.transpose(1, 2).contiguous()  # [48, 100, 768]
+            weiContext = weiContext.transpose(1, 2).contiguous()  # [48, 100, 768]
+
+            word = word.view(batch_size * words_num, -1)  # [4800, 768]
+            weiContext = weiContext.view(batch_size * words_num, -1)  # [4800, 768]
+
+            row_sim = cosine_similarity(word, weiContext)
+            row_sim = row_sim.view(batch_size, words_num)  # [48, 100]
+
+            row_sim.mul_(temp2).exp_()
+            row_sim = row_sim.sum(dim=1, keepdim=True)  # [48, 1]
+            row_sim = torch.log(row_sim)
+
+            similarities.append(row_sim)
+
+        similarities = torch.cat(similarities, 1)  #
+        similarities = similarities * temp3
+        similarities1 = similarities.transpose(0, 1).contiguous()  # [48, 48]
+
+        labels = Variable(torch.LongTensor(range(batch_size))).to(similarities.device)
+
+        loss0 = nn.CrossEntropyLoss()(similarities, labels)  # labels: arange(batch_size)
+        loss1 = nn.CrossEntropyLoss()(similarities1, labels)
+        return loss0 + loss1, att_maps
 
     def forward(self, batch, mask_ratio=0.75):
 
@@ -445,17 +451,21 @@ class MM(nn.Module):
 
             pred_2 = self.forward_decoder(latent_2, ids_restore_2)
             v_loss = 0.5 * v_loss + 0.5 * self.forward_vision_loss(imgs_2, pred_2, mask_2)
-
+        loss=[]
         global_contrastive_loss, outputs_unmasked = self.forward_global_contrastive_loss(latent_unmasked, ids, labels,
                                                                                          attention_mask,
-                                                                                         type_ids,
-                                                                                         self.temp)
-        # TODO: add forward_local_contrastive_loss function
-        # local_contrastive_loss = self.forward_local_contrastive_loss(hidden_features, outputs_unmasked)
+                                                                                         type_ids,self.temp)
+        loss.append(v_loss)
+        loss.append(global_contrastive_loss)
+        if self.local_contrastive_loss:
+            local_contrastive_loss = self.forward_local_contrastive_loss(hidden_features, outputs_unmasked,
+                                                                         temp1=self.temp1, temp2=self.temp2, temp3=self.temp3)
+            loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, ids, labels, attention_mask, type_ids)
         itm_loss = self.forward_matching_loss(latent_unmasked, outputs_unmasked, attention_mask, type_ids)
-
-        return (v_loss, mlm_loss, itm_loss, global_contrastive_loss), pred, mask
+        loss.append(mlm_loss)
+        loss.append(itm_loss)
+        return loss, pred, mask
 
 
 def build_bert():
@@ -466,42 +476,41 @@ def build_bert():
 
 
 def attention_fn(query, context, temp1):
-    # TODO: misunderstand, ndf is the hidden embed size
     """
-    query: batch x ndf x lembed_size
-    context: batch x ndf x vembed_size
+    query: batch x ndf x sequence_length (ndf is the hidden_embed_size)
+    context: batch x ndf x patch_num
     :returns
-    weightedContext: batch x ndf x lembed_size
-    attn: batch x lembed_size x vembed_size
+    weightedContext: batch x ndf x sequence_length
+    attn: batch x sequence_length x patch_num
     """
-    batch_size, lembed_size = query.size(0), query.size(2)
-    vembed_size = context.size(2)
+    batch_size, sequence_length = query.size(0), query.size(2)
+    patch_num = context.size(2)
 
-    # --> batch x vembed_size x ndf
+    # --> batch x patch_num x ndf
     contextT = torch.transpose(context, 1, 2).contiguous()
 
     # Get attention
-    # (batch x vembed_size x ndf)(batch x ndf x lembed_size)
-    # -->batch x vembed_size x lembed_size
+    # (batch x patch_num x ndf)(batch x ndf x sequence_length)
+    # -->batch x patch_num x sequence_length
     attn = torch.bmm(contextT, query)
-    # --> batch*vembed_size x lembed_size
-    attn = attn.view(batch_size * vembed_size, lembed_size)
+    # --> batch*patch_num x sequence_length
+    attn = attn.view(batch_size * patch_num, sequence_length)
     attn = nn.Softmax(dim=-1)(attn)
 
-    # --> batch x vembed_size x lembed_size
-    attn = attn.view(batch_size, vembed_size, lembed_size)
-    # --> batch*lembed_size x vembed_size
+    # --> batch x patch_num x sequence_length
+    attn = attn.view(batch_size, patch_num, sequence_length)
+    # --> batch*sequence_length x patch_num
     attn = torch.transpose(attn, 1, 2).contiguous()
-    attn = attn.view(batch_size * lembed_size, vembed_size)
+    attn = attn.view(batch_size * sequence_length, patch_num)
 
     attn = attn * temp1
     attn = nn.Softmax(dim=-1)(attn)
-    attn = attn.view(batch_size, lembed_size, vembed_size)
-    # --> batch x vembed_size x lembed_size
+    attn = attn.view(batch_size, sequence_length, patch_num)
+    # --> batch x patch_num x sequence_length
     attnT = torch.transpose(attn, 1, 2).contiguous()
 
-    # (batch x ndf x vembed_size)(batch x vembed_size x lembed_size)
-    # --> batch x ndf x lembed_size
+    # (batch x ndf x patch_num)(batch x patch_num x sequence_length)
+    # --> batch x ndf x sequence_length
     weightedContext = torch.bmm(context, attnT)
 
     return weightedContext, attn
