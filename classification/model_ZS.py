@@ -8,10 +8,10 @@ from model.architecture import MM
 
 
 class MyZSModel(MM):
-    def __init__(self, prompts:[], pretrained_path=''):
+    def __init__(self, prompts:[], pretrained_path='', device='cuda'):
         super(MyZSModel, self).__init__()
         # load weights from pretrained_path
-        self.load_pretrained_weights(pretrained_path)
+        self.load_pretrained_weights(pretrained_path, device)
         self.tokenizer = tokenizers.Tokenizer.from_file("../mimic_wordpiece.json")
         self.tokenizer.enable_truncation(max_length=100)
         self.tokenizer.enable_padding(length=100)
@@ -44,6 +44,7 @@ class MyZSModel(MM):
         # calculate similarity and return the logits
         return torch.matmul(vision_embeds, self.text_embeds.t())
 
-    def load_pretrained_weights(self, path):
+    def load_pretrained_weights(self, path, device='cuda'):
         state_dict = torch.load(path, 'cpu')
         self.load_state_dict(state_dict['model'], strict=False)
+        self.to(device)

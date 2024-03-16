@@ -121,7 +121,7 @@ def setup(args):
     # Prepare model
     num_classes = args.num_classes
     if args.ZS:
-        model = model_ZS.MyZSModel(prompts=prompts, pretrained_path=args.pretrained_path)
+        model = model_ZS.MyZSModel(prompts=prompts, pretrained_path=args.pretrained_path, device=args.device)
     else:
         model = model_ViT.MyViTClassifier(
             num_classes=num_classes,
