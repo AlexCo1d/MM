@@ -184,3 +184,7 @@ from VQA_RAD.model_VQA import MyVQAModel
 # _, pred_idx = topk_probs[0].max(dim=0)
 # i=topk_ids[0][pred_idx]
 # print(i)
+t=torch.load('/home/data/Jingkai/alex/pretrain/checkpoint-99.pth','cpu')
+u={}
+u['model']=t['model']
+torch.save(u,'/home/data/Jingkai/alex/pretrain/MM1.pth')
