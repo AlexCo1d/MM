@@ -438,7 +438,7 @@ class MM(nn.Module):
             imgs_2 = batch["image_2"]
             imgs_2 = imgs_2.cuda()
             _imgs_2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_2)
-            latent_2, mask_2, ids_restore_2 = self.forward_vision_encoder(_imgs_2, mask_ratio)
+            latent_2, mask_2, ids_restore_2, _ = self.forward_vision_encoder(_imgs_2, mask_ratio)
             latent_unmasked_2, hidden_features_2 = self.forward_vision_encoder(_imgs_2, 0.0)
 
             latent_unmasked = torch.cat((latent_unmasked, latent_unmasked_2), dim=-1)

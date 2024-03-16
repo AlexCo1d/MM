@@ -24,7 +24,7 @@ class MyVQAModel(MM):
         :return: loss/ topk_ids, topk_probs depends on train
         """
         image=torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(images)
-        image_embeds = self.forward_vision_encoder(image,0.0)
+        image_embeds, _ = self.forward_vision_encoder(image,0.0)
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image_embeds.device)
 
         if train:
