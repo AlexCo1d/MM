@@ -21,7 +21,7 @@ class MM(nn.Module):
                  mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False,
                  temp=0.07, temp1=4.0, temp2=5.0, temp3=10.0,
                  local_contrastive_loss=False,
-                 c_embed_dim=1006):
+                 c_embed_dim=256):
         super().__init__()
         self.local_contrastive_loss = local_contrastive_loss
         # --------------------------------------------------------------------------
