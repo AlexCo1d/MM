@@ -452,7 +452,7 @@ class MM(nn.Module):
 
             pred_2 = self.forward_decoder(latent_2, ids_restore_2)
             v_loss = 0.5 * v_loss + 0.5 * self.forward_vision_loss(imgs_2, pred_2, mask_2)
-        loss=[]
+        loss=()
         global_contrastive_loss, outputs_unmasked = self.forward_global_contrastive_loss(latent_unmasked, ids, labels,
                                                                                          attention_mask,
                                                                                          type_ids,self.temp)
