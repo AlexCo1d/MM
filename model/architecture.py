@@ -24,14 +24,15 @@ class MM(nn.Module):
                  c_embed_dim=256):
         super().__init__()
         self.local_contrastive_loss = local_contrastive_loss
+        if self.local_contrastive_loss:
+            self.temp1 = nn.Parameter(torch.ones([]) * temp1)
+            self.temp2 = nn.Parameter(torch.ones([]) * temp2)
+            self.temp3 = nn.Parameter(torch.ones([]) * temp3)
         # --------------------------------------------------------------------------
         # image encoder specifics
         self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
         num_patches = self.patch_embed.num_patches
         self.temp = nn.Parameter(torch.ones([]) * temp)
-        self.temp1 = nn.Parameter(torch.ones([]) * temp1)
-        self.temp2 = nn.Parameter(torch.ones([]) * temp2)
-        self.temp3 = nn.Parameter(torch.ones([]) * temp3)
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim),
                                       requires_grad=False)  # fixed sin-cos embedding
