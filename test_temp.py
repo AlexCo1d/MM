@@ -187,4 +187,4 @@ from VQA_RAD.model_VQA import MyVQAModel
 t=torch.load('/home/data/Jingkai/alex/pretrain/checkpoint-99.pth','cpu')
 u={}
 u['model']=t['model']
-torch.save(u,'/home/data/Jingkai/alex/pretrain/MM1.pth')
+torch.save(u,'/home/data/Jingkai/alex/weight/MM1.pth')
