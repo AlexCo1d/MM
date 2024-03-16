@@ -57,7 +57,7 @@ def train_one_epoch(model: torch.nn.Module,
 
             torch.cuda.synchronize()
             for i, l in enumerate(loss_values):
-                loss_dict = {'loss' + str(i + 1): l}
+                loss_dict.update({'loss' + str(i + 1): l})
             metric_logger.update(**loss_dict)
 
             lr = optimizer.param_groups[0]["lr"]
