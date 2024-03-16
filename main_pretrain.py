@@ -186,6 +186,7 @@ def main(args):
 
     # following timm: set wd as 0 for bias and norm layers
     param_groups = utils.lr_decay.add_weight_decay(model_without_ddp, args.weight_decay)
+    print(param_groups)
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, 0.95))
     print(optimizer)
     loss_scaler = NativeScaler()
