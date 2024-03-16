@@ -32,7 +32,7 @@ class MyZSModel(MM):
         # save the text embeddings for reuse
         outputs = self.bert_encoder(latent=None, input_ids=caption_ids, attention_mask=attention_mask,
                                     token_type_ids=token_type_ids)
-        self.text_embeds = F.normalize(self.text_proj(outputs[:, 0, :]), dim=-1)
+        self.text_embeds = F.normalize(self.text_proj(outputs.hidden_states[-1][:, 0, :]), dim=-1)
     def forward(self, image):
         """
         :param image: [B, C, H, W]
