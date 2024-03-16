@@ -46,4 +46,4 @@ class MyZSModel(MM):
 
     def load_pretrained_weights(self, path):
         state_dict = torch.load(path, 'cpu')
-        self.load_state_dict(state_dict, strict=False)
+        self.load_state_dict(state_dict['model'], strict=False)
