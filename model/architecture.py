@@ -448,7 +448,8 @@ class MM(nn.Module):
         loss1 = nn.CrossEntropyLoss()(similarities1, labels)
         return loss0 + loss1, att_maps
 
-    def forward(self, text, imgs, imgs2=None, mask_ratio=0.75):
+    def forward(self, batch, mask_ratio=0.75):
+        imgs, text = batch[:2]
         with torch.no_grad():
             self.temp.clamp_(0.001, 0.5)
         # split different views of images
@@ -463,7 +464,7 @@ class MM(nn.Module):
         v_loss = self.forward_vision_loss(imgs_1, pred, mask)
 
         if self.mv:
-            imgs_2 = imgs2
+            imgs_2 = batch[2]
             imgs_2 = imgs_2.cuda()
             _imgs_2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_2)
             latent_2, mask_2, ids_restore_2, _ = self.forward_vision_encoder(_imgs_2, mask_ratio)
