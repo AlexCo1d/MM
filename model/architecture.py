@@ -27,8 +27,7 @@ class MM(nn.Module):
                  local_contrastive_loss=False,
                  c_embed_dim=256):
         super().__init__()
-        self.tokenizer = BertTokenizer.from_pretrained('./model/submodule/bert/bert-base-uncased')
-        print('Using BERT tokenizer')
+        self.tokenizer = BertTokenizer.from_pretrained('./model/submodule/bert/bert-base-uncased')  #Using BERT tokenizer
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
             self.temp1 = temp1
@@ -245,8 +244,9 @@ class MM(nn.Module):
             mean = target.mean(dim=-1, keepdim=True)
             var = target.var(dim=-1, keepdim=True)
             target = (target - mean) / (var + 1.e-6) ** .5
-
+        # print(target.shape, pred.shape)
         loss = (pred - target) ** 2
+
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
 
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
@@ -449,9 +449,7 @@ class MM(nn.Module):
         return loss0 + loss1, att_maps
 
     def forward(self, batch, mask_ratio=0.75):
-        imgs_1, text = batch[:2]
-        print(imgs_1.shape)
-        print(text.shape)
+        imgs_1, text = batch['image1'], batch['text']
         with torch.no_grad():
             self.temp.clamp_(0.001, 0.5)
         # split different views of images
@@ -466,7 +464,7 @@ class MM(nn.Module):
         v_loss = self.forward_vision_loss(imgs_1, pred, mask)
 
         if self.mv:
-            imgs_2 = batch[2]
+            imgs_2 = batch['image2']
             imgs_2 = imgs_2.cuda()
             _imgs_2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_2)
             latent_2, mask_2, ids_restore_2, _ = self.forward_vision_encoder(_imgs_2, mask_ratio)

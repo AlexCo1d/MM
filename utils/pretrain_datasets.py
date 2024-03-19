@@ -35,7 +35,7 @@ class MultimodalBertDataset(Dataset):
         self.data_root = data_root
         normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
         self.transform = transforms.Compose([
-            transforms.RandomResizedCrop(224, scale=(0.2, 1.0), interpolation=Image.BICUBIC),
+            transforms.RandomResizedCrop(448, scale=(0.2, 1.0), interpolation=Image.BICUBIC),
             transforms.RandomHorizontalFlip(),
             RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
                                                   'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
@@ -78,7 +78,10 @@ class MultimodalBertDataset(Dataset):
             image = self.transform(image)
             sent = self.report_list[index]
             text = pre_caption(sent, self.max_caption_length)
-            return image, text
+            return {
+                "image1": image,
+                "text": text
+            }
 
     def read_csv(self):
         csv_path = os.path.join(self.data_root, 'training.csv')
