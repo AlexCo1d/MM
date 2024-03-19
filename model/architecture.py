@@ -27,7 +27,7 @@ class MM(nn.Module):
                  local_contrastive_loss=False,
                  c_embed_dim=256):
         super().__init__()
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('./submodule/bert/bert-base-uncased')
         print('Using BERT tokenizer')
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
