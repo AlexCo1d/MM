@@ -63,7 +63,7 @@ class BertConfig(PretrainedConfig):
 
     def __init__(
             self,
-            vocab_size=30000,
+            vocab_size=30522,
             hidden_size=768,  # modified from 384 to 768
             num_hidden_layers=6,
             num_attention_heads=12,
@@ -71,7 +71,7 @@ class BertConfig(PretrainedConfig):
             hidden_act="gelu",
             hidden_dropout_prob=0.1,
             attention_probs_dropout_prob=0.1,
-            max_position_embeddings=100,
+            max_position_embeddings=512,
             type_vocab_size=2,
             initializer_range=0.02,
             layer_norm_eps=1e-12,

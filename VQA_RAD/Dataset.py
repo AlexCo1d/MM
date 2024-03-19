@@ -7,12 +7,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 import json
 import PIL
-import numpy as np
-import torch.nn.functional as F
-import transformers
-import random
-import copy
-from .randaugment import RandomAugment
+from utils.randaugment import RandomAugment
 from PIL import Image
 
 

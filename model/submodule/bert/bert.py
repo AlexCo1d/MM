@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 class MyBertModel(BertModel):
     def __init__(self, config, add_pooling_layer=True):
-        super().__init__(config)
+        super().__init__(config, add_pooling_layer=add_pooling_layer)
 
     def forward(
         self,
@@ -20,6 +20,7 @@ class MyBertModel(BertModel):
         position_ids=None,
         head_mask=None,
         inputs_embeds=None,
+        encoder_embeds=None,
         encoder_hidden_states=None,
         encoder_attention_mask=None,
         past_key_values=None,
@@ -61,13 +62,20 @@ class MyBertModel(BertModel):
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
             input_shape = input_ids.size()
+            device = input_ids.device
         elif inputs_embeds is not None:
             input_shape = inputs_embeds.size()[:-1]
+            device = inputs_embeds.device
+
+        elif encoder_embeds is not None:
+            input_shape = encoder_embeds.size()[:-1]
+            device = encoder_embeds.device
+
         else:
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
         batch_size, seq_length = input_shape
-        device = input_ids.device if input_ids is not None else inputs_embeds.device
+        # device = input_ids.device if input_ids is not None else inputs_embeds.device
 
         # past_key_values_length
         past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
@@ -105,16 +113,21 @@ class MyBertModel(BertModel):
         # and head_mask is converted to shape [num_hidden_layers x batch x num_heads x seq_length x seq_length]
         head_mask = self.get_head_mask(head_mask, self.config.num_hidden_layers)
 
-        embedding_output = self.embeddings(
-            input_ids=input_ids,
-            position_ids=position_ids,
-            token_type_ids=token_type_ids,
-            inputs_embeds=inputs_embeds,
-            past_key_values_length=past_key_values_length,
-        )
+        if encoder_embeds is None:
+            embedding_output = self.embeddings(
+                input_ids=input_ids,
+                position_ids=position_ids,
+                token_type_ids=token_type_ids,
+                inputs_embeds=inputs_embeds,
+                past_key_values_length=past_key_values_length,
+            )
+        else:
+            embedding_output = encoder_embeds
+
         # fusion happened here
         if latent is not None:
             embedding_output = embedding_output + latent.unsqueeze(1)
+
         encoder_outputs = self.encoder(
             embedding_output,
             attention_mask=extended_attention_mask,
@@ -157,6 +170,7 @@ class MyBertMaskedLM(BertForMaskedLM):
         position_ids=None,
         head_mask=None,
         inputs_embeds=None,
+        encoder_embeds=None,
         encoder_hidden_states=None,     # for cross-attention
         encoder_attention_mask=None,
         labels=None,
@@ -181,6 +195,7 @@ class MyBertMaskedLM(BertForMaskedLM):
             position_ids=position_ids,
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
+            encoder_embeds=encoder_embeds,
             encoder_hidden_states=encoder_hidden_states,
             encoder_attention_mask=encoder_attention_mask,
             output_attentions=output_attentions,

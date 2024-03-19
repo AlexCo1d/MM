@@ -123,14 +123,8 @@ def main(args):
 
     cudnn.benchmark = True
 
-    # simple augmentation
-    transform_train = transforms.Compose([
-        # transforms.RandomResizedCrop(448, scale=(0.2, 1.0), interpolation=InterpolationMode.BICUBIC),  # 3 is bicubic
-        # transforms.RandomHorizontalFlip(),
-        # transforms.Grayscale(num_output_channels=3),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.4978], std=[0.2449])])
-    dataset_train = MultimodalBertDataset(os.path.join(args.data_path), transform=transform_train)
+
+    dataset_train = MultimodalBertDataset(os.path.join(args.data_path))
 
     print(dataset_train)
 
@@ -157,7 +151,6 @@ def main(args):
         num_workers=args.num_workers,
         pin_memory=args.pin_mem,
         drop_last=True,
-        collate_fn=dataset_train.collate_fn
     )
 
     # define the model
