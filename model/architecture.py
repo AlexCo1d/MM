@@ -450,6 +450,8 @@ class MM(nn.Module):
 
     def forward(self, batch, mask_ratio=0.75):
         imgs_1, text = batch[:2]
+        print(imgs_1.shape)
+        print(text.shape)
         with torch.no_grad():
             self.temp.clamp_(0.001, 0.5)
         # split different views of images
