@@ -449,11 +449,11 @@ class MM(nn.Module):
         return loss0 + loss1, att_maps
 
     def forward(self, batch, mask_ratio=0.75):
-        imgs, text = batch[:2]
+        imgs_1, text = batch[:2]
         with torch.no_grad():
             self.temp.clamp_(0.001, 0.5)
         # split different views of images
-        imgs_1 = imgs.cuda()
+        imgs_1 = imgs_1.cuda()
         _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_1)
         text = self.tokenizer(text, padding='longest', truncation=True, max_length=100, return_tensors="pt").to(imgs_1.device)
         text_embeds, text_feat, text_output = self.get_text_embeds(text)
