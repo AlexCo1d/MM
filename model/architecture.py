@@ -28,11 +28,28 @@ class MM(nn.Module):
                  c_embed_dim=256):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained('./model/submodule/bert/bert-base-uncased')  #Using BERT tokenizer
+        self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
             self.temp1 = temp1
             self.temp2 = temp2
             self.temp3 = temp3
+            self.vision_local_embedding= nn.Conv1d(
+                embed_dim,
+                embed_dim,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            )
+            self.text_local_embedding = nn.Conv1d(
+                embed_dim,
+                embed_dim,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            )
         # --------------------------------------------------------------------------
         # image encoder specifics
         self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
@@ -181,6 +198,77 @@ class MM(nn.Module):
 
         return x_masked, mask, ids_restore
 
+    def aggregate_tokens(self, embeddings, caption_ids, last_layer_attn):
+        '''
+        :param embeddings: bz, 1, 112, 768
+        :param caption_ids: bz, 112
+        :param last_layer_attn: bz, 111
+        '''
+        _, num_layers, num_words, dim = embeddings.shape
+        embeddings = embeddings.permute(0, 2, 1, 3)
+        agg_embs_batch = []
+        sentences = []
+        last_attns = []
+
+        # loop over batch
+        for embs, caption_id, last_attn in zip(embeddings, caption_ids, last_layer_attn):
+            agg_embs = []
+            token_bank = []
+            words = []
+            word_bank = []
+            attns = []
+            attn_bank = []
+
+            # loop over sentence
+            for word_emb, word_id, attn in zip(embs, caption_id, last_attn):
+                word = self.idxtoword[word_id.item()]
+                if word == "[SEP]":
+                    new_emb = torch.stack(token_bank)
+                    new_emb = new_emb.sum(axis=0)
+                    agg_embs.append(new_emb)
+                    words.append("".join(word_bank))
+                    attns.append(sum(attn_bank))
+                    agg_embs.append(word_emb)
+                    words.append(word)
+                    attns.append(attn)
+                    break
+                # This is because some words are divided into two words.
+                if not word.startswith("##"):
+                    if len(word_bank) == 0:
+                        token_bank.append(word_emb)
+                        word_bank.append(word)
+                        attn_bank.append(attn)
+                    else:
+                        new_emb = torch.stack(token_bank)
+                        new_emb = new_emb.sum(axis=0)
+                        agg_embs.append(new_emb)
+                        words.append("".join(word_bank))
+                        attns.append(sum(attn_bank))
+
+                        token_bank = [word_emb]
+                        word_bank = [word]
+                        attn_bank = [attn]
+                else:
+                    token_bank.append(word_emb)
+                    word_bank.append(word[2:])
+                    attn_bank.append(attn)
+            agg_embs = torch.stack(agg_embs)
+            padding_size = num_words - len(agg_embs)
+            paddings = torch.zeros(padding_size, num_layers, dim)
+            paddings = paddings.type_as(agg_embs)
+            words = words + ["[PAD]"] * padding_size
+            last_attns.append(
+                torch.cat([torch.tensor(attns), torch.zeros(padding_size)], dim=0))
+            agg_embs_batch.append(torch.cat([agg_embs, paddings]))
+            sentences.append(words)
+
+        agg_embs_batch = torch.stack(agg_embs_batch)
+        agg_embs_batch = agg_embs_batch.permute(0, 2, 1, 3)
+        last_atten_pt = torch.stack(last_attns)
+        last_atten_pt = last_atten_pt.type_as(agg_embs_batch)
+
+        return agg_embs_batch, sentences, last_atten_pt
+
     def forward_vision_encoder(self, x, mask_ratio):
         # embed patches
         x = self.patch_embed(x)
@@ -303,7 +391,7 @@ class MM(nn.Module):
         # ----------------------------
         # another option, original one
         # outputs = self.bert_encoder(latent=latent, input_ids=caption_ids, labels=labels, attention_mask=attention_mask,
-        # token_type_ids=token_type_ids)
+        #                           token_type_ids=token_type_ids)
 
         # print(len(outputs.hidden_states), outputs.hidden_states[0].shape)
         # print(torch.equal(_.last_hidden_state,outputs.hidden_states[-1]))
@@ -377,8 +465,9 @@ class MM(nn.Module):
 
         return loss_itm
 
-    def forward_local_contrastive_loss(self, img_features, words_emb, temp1=4.0, temp2=5.0, temp3=10.0):
+    def forward_local_contrastive_loss(self, img_features, ids, words_emb, temp1=4.0, temp2=5.0, temp3=10.0):
         """
+        :param ids: caption_ids from tokenizer
         :param img_features: [layer_num, b, patch_num, embed]
         :param words_emb: bert output
         :param temp1:
@@ -386,23 +475,35 @@ class MM(nn.Module):
         :param temp3:
         :return: loss, attn_maps
         """
-        local_layer_num = 3
-        # words_emb is the local feature's summation from hidden states layer
-        words_emb = torch.stack(words_emb.hidden_states[-local_layer_num:], dim=1)  # [b, layer, words_length, embed]
-        words_emb = words_emb.sum(axis=1)
-        words_emb = words_emb.permute(0, 2, 1)
-        words_emb = words_emb / torch.norm(
-            words_emb, 2, dim=1, keepdim=True
-        ).expand_as(words_emb)
+        # get the local word embed
+        all_feat = torch.stack(words_emb.hidden_states[-1], dim=1)  # [b, layer, words_length, embed]
+        last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
+        all_feat, sents, last_atten_pt = self.aggregate_tokens(
+            all_feat, ids, last_layer_attn)
+        last_atten_pt = last_atten_pt[:, 1:].contiguous()
+        all_feat=all_feat[:,0]
+        report_feat = all_feat[:, 0].contiguous()
+        word_feat = all_feat[:, 1:].contiguous()    # [b, words_length, embed]
+        # we get report_feat, word_feat, last_atten_pt, sents now
+        word_emb = self.text_local_embedding(word_feat.permute(0, 2, 1)).permute(0, 2, 1)
+        word_emb = F.normalize(word_emb, dim=-1)
         # words_emb: [b, embed, words_length]
 
+        # TODO: adjust to MGCA's method
         # same to the image features because they are all transformer based
-        img_features = img_features[-local_layer_num - 1:].permute(1, 0, 2, 3)  # [b, layer, patch_num, embed]
-        img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
-        img_features = img_features.permute(0, 2, 1)
-        img_features = img_features / torch.norm(
-            img_features, 2, dim=1, keepdim=True
-        ).expand_as(img_features)
+        img_feat=img_features[-1, :, 0].contiguous()  # [b, embed]
+        patch_feat=img_features[-1, :, 1:].contiguous()  # [b, patch_num, embed]
+
+        # we get img_feat and patch_feat now
+
+        # img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
+        # img_features = img_features.permute(0, 2, 1)
+        # img_features = img_features / torch.norm(
+        #     img_features, 2, dim=1, keepdim=True
+        # ).expand_as(img_features)
+
+        patch_emd = self.vision_local_embedding(patch_feat.permute(0, 2, 1)).permute(0, 2, 1)
+        patch_emd = F.normalize(patch_emd, dim=-1)
         # img_features: [b, embed, patch_num]
 
         batch_size = img_features.shape[0]  # eg. 48
@@ -485,7 +586,7 @@ class MM(nn.Module):
         loss.append(v_loss)
         loss.append(global_contrastive_loss)
         if self.local_contrastive_loss:
-            local_contrastive_loss = self.forward_local_contrastive_loss(hidden_features, text_output,
+            local_contrastive_loss = self.forward_local_contrastive_loss(hidden_features, text.input_ids, text_output,
                                                                          temp1=self.temp1, temp2=self.temp2,
                                                                          temp3=self.temp3)
             loss.append(local_contrastive_loss)
