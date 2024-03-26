@@ -1,12 +1,15 @@
 import time
 
+import numpy as np
 import torch
 import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
+from functorch.einops import rearrange
 from torch import Tensor
 from torchvision.transforms.functional import InterpolationMode
-from timm.models.vision_transformer import PatchEmbed, Block
+from timm.models.vision_transformer import PatchEmbed
+from .submodule.vit.vit import Block
 from functools import partial
 
 from transformers import BertTokenizer
@@ -285,8 +288,8 @@ class MM(nn.Module):
         x = torch.cat((cls_tokens, x), dim=1)
         hidden_features = []
         # apply Transformer blocks
-        for blk in self.blocks:
-            x = blk(x)
+        for i, blk in enumerate(self.blocks):
+            x = blk(x, i==11)
             hidden_features.append(x)
         x = self.norm(x)
         hidden_features = torch.stack(hidden_features, dim=0)
@@ -475,12 +478,14 @@ class MM(nn.Module):
         :param temp3:
         :return: loss, attn_maps
         """
+        temperature=0.1
         # get the local word embed
-        all_feat = torch.stack(words_emb.hidden_states[-1], dim=1)  # [b, layer, words_length, embed]
+        bz=img_features[-1].size(0)
+        all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]
         last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
-        all_feat, sents, last_atten_pt = self.aggregate_tokens(
+        all_feat, sents, word_atten = self.aggregate_tokens(
             all_feat, ids, last_layer_attn)
-        last_atten_pt = last_atten_pt[:, 1:].contiguous()
+        word_atten = word_atten[:, 1:].contiguous()
         all_feat=all_feat[:,0]
         report_feat = all_feat[:, 0].contiguous()
         word_feat = all_feat[:, 1:].contiguous()    # [b, words_length, embed]
@@ -489,12 +494,9 @@ class MM(nn.Module):
         word_emb = F.normalize(word_emb, dim=-1)
         # words_emb: [b, embed, words_length]
 
-        # TODO: adjust to MGCA's method
         # same to the image features because they are all transformer based
-        img_feat=img_features[-1, :, 0].contiguous()  # [b, embed]
+        # img_feat=img_features[-1, :, 0].contiguous()  # [b, embed]
         patch_feat=img_features[-1, :, 1:].contiguous()  # [b, patch_num, embed]
-
-        # we get img_feat and patch_feat now
 
         # img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
         # img_features = img_features.permute(0, 2, 1)
@@ -502,52 +504,130 @@ class MM(nn.Module):
         #     img_features, 2, dim=1, keepdim=True
         # ).expand_as(img_features)
 
-        patch_emd = self.vision_local_embedding(patch_feat.permute(0, 2, 1)).permute(0, 2, 1)
-        patch_emd = F.normalize(patch_emd, dim=-1)
-        # img_features: [b, embed, patch_num]
+        # we get img_feat and patch_feat now
+        patch_emb = self.vision_local_embedding(patch_feat.permute(0, 2, 1)).permute(0, 2, 1)
+        patch_emb = F.normalize(patch_emb, dim=-1)  # [b, patch_num, embed]
 
-        batch_size = img_features.shape[0]  # eg. 48
-        words_num = words_emb.shape[2]
-        att_maps = []
-        similarities = []
-        # cap_lens = cap_lens.data.tolist()
-        for i in range(batch_size):
-            # Get the i-th text description
-            word = words_emb[i, :, :].unsqueeze(0).contiguous()
-            word = word.repeat(batch_size, 1, 1)  # [48, 768, 100]
-            context = img_features  # [48, 768, 196]
+        atten_sim = torch.bmm(word_emb, patch_emb.permute(0, 2, 1)) # [b, words_length, patch_num]
+        atten_scores = F.softmax(atten_sim / temperature, dim=-1)  # [b, words_length, patch_num]
+        word_atten_output = torch.bmm(atten_scores, patch_emb)  # [b, words_length, embed]
+        word_atten_output = F.normalize(word_atten_output, dim=-1)
 
-            weiContext, attn = attention_fn(
-                word, context, temp1
-            )  # [48, 768, 100], [48, 100, 196]
+        with torch.no_grad():
+            atten_weights = word_atten.detach()
+            word_atten_weights = []
+            for i in range(bz):
+                atten_weight = atten_weights[i]
+                nonzero = atten_weight.nonzero().squeeze()
+                low = torch.quantile(atten_weight[nonzero], 0.1)
+                high = torch.quantile(atten_weight[nonzero], 0.9)
+                atten_weight[nonzero] = atten_weight[nonzero].clip(low, high)
+                word_atten_weights.append(atten_weight.clone())
+            word_atten_weights = torch.stack(word_atten_weights)
 
-            att_maps.append(
-                attn[i].unsqueeze(0).contiguous()
-            )  # add attention for curr index  [100, 196]
-            word = word.transpose(1, 2).contiguous()  # [48, 100, 768]
-            weiContext = weiContext.transpose(1, 2).contiguous()  # [48, 100, 768]
+        word_atten_weights /= word_atten_weights.sum(dim=1, keepdims=True)
 
-            word = word.view(batch_size * words_num, -1)  # [4800, 768]
-            weiContext = weiContext.view(batch_size * words_num, -1)  # [4800, 768]
+        word_sim = torch.bmm(word_emb, word_atten_output.permute(
+            0, 2, 1)) / temperature
+        word_num = word_sim.size(1)
+        word_sim_1 = rearrange(word_sim, "b n1 n2 -> (b n1) n2")
+        targets = torch.arange(word_num).type_as(
+            word_emb).long().repeat(bz)
+        loss_word_1 = torch.sum(F.cross_entropy(
+            word_sim_1, targets, reduction="none") * word_atten_weights.view(-1)) / bz
 
-            row_sim = cosine_similarity(word, weiContext)
-            row_sim = row_sim.view(batch_size, words_num)  # [48, 100]
+        word_sim_2 = rearrange(word_sim, "b n1 n2 -> (b n2) n1")
+        loss_word_2 = torch.sum(F.cross_entropy(
+            word_sim_2, targets, reduction="none") * word_atten_weights.view(-1)) / bz
 
-            row_sim.mul_(temp2).exp_()
-            row_sim = row_sim.sum(dim=1, keepdim=True)  # [48, 1]
-            row_sim = torch.log(row_sim)
+        loss_word = (loss_word_1 + loss_word_2) / 2.
 
-            similarities.append(row_sim)
+        # -------------------------------------------------------------
+        # Do the same thing to word, and sum up at last as local loss!
+        atten_sim = torch.bmm(patch_emb, word_emb.permute(0, 2, 1))
+        patch_num = patch_emb.size(1)
+        mask = torch.from_numpy(np.array(sents)[:, 1:] == "[PAD]").type_as(patch_emb).bool()
+        atten_sim[mask.unsqueeze(1).repeat(
+            1, patch_num, 1)] = float("-inf")
+        atten_scores = F.softmax(
+            atten_sim / temperature, dim=-1)  # bz, 196, 111
+        patch_atten_output = torch.bmm(atten_scores, word_emb)
 
-        similarities = torch.cat(similarities, 1)  #
-        similarities = similarities * temp3
-        similarities1 = similarities.transpose(0, 1).contiguous()  # [48, 48]
+        with torch.no_grad():
+            img_attn_map = self.blocks[-1].attn.attention_map.detach(
+            )
+            atten_weights = img_attn_map[:, :, 0, 1:].mean(dim=1)
+            patch_atten_weights = []
+            for i in range(bz):
+                atten_weight = atten_weights[i]
+                atten_weight = atten_weight.clip(torch.quantile(
+                    atten_weight, 0.1), torch.quantile(atten_weight, 0.9))
+                patch_atten_weights.append(atten_weight.clone())
+            patch_atten_weights = torch.stack(patch_atten_weights)
 
-        labels = Variable(torch.LongTensor(range(batch_size))).to(similarities.device)
+        patch_atten_weights /= patch_atten_weights.sum(
+            dim=1, keepdims=True)
 
-        loss0 = nn.CrossEntropyLoss()(similarities, labels)  # labels: arange(batch_size)
-        loss1 = nn.CrossEntropyLoss()(similarities1, labels)
-        return loss0 + loss1, att_maps
+        patch_sim = torch.bmm(patch_emb, patch_atten_output.permute(
+            0, 2, 1)) / temperature
+        patch_num = patch_sim.size(1)
+        patch_sim_1 = rearrange(patch_sim, "b n1 n2 -> (b n1) n2")
+        targets = torch.arange(patch_num).type_as(
+            patch_emb).long().repeat(bz)
+        # loss_patch_1 = F.cross_entropy(patch_sim_1, targets)
+        loss_patch_1 = torch.sum(F.cross_entropy(
+            patch_sim_1, targets, reduction="none") * patch_atten_weights.view(-1)) / bz
+
+        patch_sim_2 = rearrange(patch_sim, "b n1 n2 -> (b n2) n1")
+        loss_patch_2 = torch.sum(F.cross_entropy(
+            patch_sim_2, targets, reduction="none") * patch_atten_weights.view(-1)) / bz
+
+        loss_patch = (loss_patch_1 + loss_patch_2) / 2.
+
+        loss_local = loss_patch + loss_word
+
+        # batch_size = img_features.shape[0]  # eg. 48
+        # words_num = words_emb.shape[2]
+        # att_maps = []
+        # similarities = []
+        # # cap_lens = cap_lens.data.tolist()
+        # for i in range(batch_size):
+        #     # Get the i-th text description
+        #     word = words_emb[i, :, :].unsqueeze(0).contiguous()
+        #     word = word.repeat(batch_size, 1, 1)  # [48, 768, 100]
+        #     context = img_features  # [48, 768, 196]
+        #
+        #     weiContext, attn = attention_fn(
+        #         word, context, temp1
+        #     )  # [48, 768, 100], [48, 100, 196]
+        #
+        #     att_maps.append(
+        #         attn[i].unsqueeze(0).contiguous()
+        #     )  # add attention for curr index  [100, 196]
+        #     word = word.transpose(1, 2).contiguous()  # [48, 100, 768]
+        #     weiContext = weiContext.transpose(1, 2).contiguous()  # [48, 100, 768]
+        #
+        #     word = word.view(batch_size * words_num, -1)  # [4800, 768]
+        #     weiContext = weiContext.view(batch_size * words_num, -1)  # [4800, 768]
+        #
+        #     row_sim = cosine_similarity(word, weiContext)
+        #     row_sim = row_sim.view(batch_size, words_num)  # [48, 100]
+        #
+        #     row_sim.mul_(temp2).exp_()
+        #     row_sim = row_sim.sum(dim=1, keepdim=True)  # [48, 1]
+        #     row_sim = torch.log(row_sim)
+        #
+        #     similarities.append(row_sim)
+        #
+        # similarities = torch.cat(similarities, 1)  #
+        # similarities = similarities * temp3
+        # similarities1 = similarities.transpose(0, 1).contiguous()  # [48, 48]
+        #
+        # labels = Variable(torch.LongTensor(range(batch_size))).to(similarities.device)
+        #
+        # loss0 = nn.CrossEntropyLoss()(similarities, labels)  # labels: arange(batch_size)
+        # loss1 = nn.CrossEntropyLoss()(similarities1, labels)
+        return loss_local
 
     def forward(self, batch, mask_ratio=0.75):
         imgs_1, text = batch['image1'], batch['text']

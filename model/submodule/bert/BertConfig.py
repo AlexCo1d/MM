@@ -80,6 +80,7 @@ class BertConfig(PretrainedConfig):
             use_cache=True,
             classifier_dropout=None,
             output_hidden_states=True,
+            output_attentions=True,
             **kwargs
     ):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
@@ -100,3 +101,4 @@ class BertConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.classifier_dropout = classifier_dropout
         self.output_hidden_states = output_hidden_states
+        self.output_attentions=output_attentions
