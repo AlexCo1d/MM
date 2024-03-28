@@ -154,7 +154,7 @@ def main(args):
     )
 
     # define the model
-    model = MM(norm_pix_loss=args.norm_pix_loss)
+    model = MM(norm_pix_loss=args.norm_pix_loss, local_contrastive_loss=True)
 
     model.to(device)
 
