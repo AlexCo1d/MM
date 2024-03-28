@@ -465,7 +465,7 @@ class MM(nn.Module):
 
         return loss_itm
 
-    def forward_local_contrastive_loss(self, img_features, ids, words_emb, temp1=4.0, temp2=5.0, temp3=10.0):
+    def forward_local_contrastive_loss(self, img_features, ids, words_emb):
         """
         :param ids: caption_ids from tokenizer
         :param img_features: [layer_num, b, patch_num, embed]
@@ -663,9 +663,7 @@ class MM(nn.Module):
         loss.append(v_loss)
         loss.append(global_contrastive_loss)
         if self.local_contrastive_loss:
-            local_contrastive_loss = self.forward_local_contrastive_loss(hidden_features, text.input_ids, text_output,
-                                                                         temp1=self.temp1, temp2=self.temp2,
-                                                                         temp3=self.temp3)
+            local_contrastive_loss = self.forward_local_contrastive_loss(hidden_features, text.input_ids, text_output)
             loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, text)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)
