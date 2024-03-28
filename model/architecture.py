@@ -34,9 +34,6 @@ class MM(nn.Module):
         self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
-            self.temp1 = temp1
-            self.temp2 = temp2
-            self.temp3 = temp3
             self.vision_local_embedding= nn.Conv1d(
                 embed_dim,
                 embed_dim,
