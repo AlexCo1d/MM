@@ -34,7 +34,7 @@ class MM(nn.Module):
         self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
-            self.vision_local_embedding= nn.Conv1d(
+            self.vision_local_embedding = nn.Conv1d(
                 embed_dim,
                 embed_dim,
                 kernel_size=1,
@@ -221,7 +221,9 @@ class MM(nn.Module):
 
             # loop over sentence
             for word_emb, word_id, attn in zip(embs, caption_id, last_attn):
+                t=time.time()
                 word = self.idxtoword[word_id.item()]
+                print('idextoword:',time.time()-t)
                 if word == "[SEP]":
                     new_emb = torch.stack(token_bank)
                     new_emb = new_emb.sum(axis=0)
@@ -468,7 +470,7 @@ class MM(nn.Module):
     def forward_local_contrastive_loss(self, img_features, ids, words_emb):
         """
         :param ids: caption_ids from tokenizer
-        :param img_features: [layer_num, b, patch_num, embed]
+        :param img_features: [b, patch_num, embed]
         :param words_emb: bert output
         :param temp1:
         :param temp2:
@@ -477,11 +479,13 @@ class MM(nn.Module):
         """
         temperature=0.1
         # get the local word embed
-        bz=img_features[-1].size(0)
+        bz=img_features.size(0)
         all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]
         last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
+        t=time.time()
         all_feat, sents, word_atten = self.aggregate_tokens(
             all_feat, ids, last_layer_attn)
+        print('aggregate_tokens:',time.time()-t)
         word_atten = word_atten[:, 1:].contiguous()
         all_feat=all_feat[:,0]
         report_feat = all_feat[:, 0].contiguous()
@@ -493,7 +497,7 @@ class MM(nn.Module):
 
         # same to the image features because they are all transformer based
         # img_feat=img_features[-1, :, 0].contiguous()  # [b, embed]
-        patch_feat=img_features[-1, :, 1:].contiguous()  # [b, patch_num, embed]
+        patch_feat=img_features[:, 1:].contiguous()  # [b, patch_num, embed]
 
         # img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
         # img_features = img_features.permute(0, 2, 1)
@@ -663,7 +667,7 @@ class MM(nn.Module):
         loss.append(v_loss)
         loss.append(global_contrastive_loss)
         if self.local_contrastive_loss:
-            local_contrastive_loss = self.forward_local_contrastive_loss(hidden_features, text.input_ids, text_output)
+            local_contrastive_loss = self.forward_local_contrastive_loss(latent_unmasked, text.input_ids, text_output)
             loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, text)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)
