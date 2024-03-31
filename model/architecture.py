@@ -221,9 +221,7 @@ class MM(nn.Module):
 
             # loop over sentence
             for word_emb, word_id, attn in zip(embs, caption_id, last_attn):
-                t=time.time()
                 word = self.idxtoword[word_id.item()]
-                print('idextoword:',time.time()-t)
                 if word == "[SEP]":
                     new_emb = torch.stack(token_bank)
                     new_emb = new_emb.sum(axis=0)
@@ -482,10 +480,8 @@ class MM(nn.Module):
         bz=img_features.size(0)
         all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]
         last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
-        t=time.time()
         all_feat, sents, word_atten = self.aggregate_tokens(
             all_feat, ids, last_layer_attn)
-        print('aggregate_tokens:',time.time()-t)
         word_atten = word_atten[:, 1:].contiguous()
         all_feat=all_feat[:,0]
         report_feat = all_feat[:, 0].contiguous()
