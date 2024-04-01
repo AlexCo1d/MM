@@ -666,6 +666,7 @@ class MM(nn.Module):
         global_contrastive_loss = self.forward_global_contrastive_loss(latent_unmasked, text_feat, self.temp)
         loss.append(v_loss)
         loss.append(global_contrastive_loss)
+        t = 0
         if self.local_contrastive_loss:
             t = time.time()
             local_contrastive_loss = self.forward_local_contrastive_loss(latent_unmasked, text.input_ids, text_output)
@@ -674,6 +675,7 @@ class MM(nn.Module):
         mlm_loss = self.forward_mlm_loss(latent, text)
         print('mlm:', time.time() - t)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)
+        print('itm:', time.time() - t)
         loss.append(mlm_loss)
         loss.append(itm_loss)
         return loss, pred, mask

@@ -210,10 +210,8 @@ class MyBertMaskedLM(BertForMaskedLM):
 
         masked_lm_loss = None
         if labels is not None:
-            t=time.time()
             loss_fct = CrossEntropyLoss()  # -100 index = padding token
             masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
-            print('loss time:', time.time()-t)
 
         if not return_dict:
             output = (prediction_scores,) + outputs[2:]
