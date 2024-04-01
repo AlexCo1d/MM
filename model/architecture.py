@@ -667,6 +667,7 @@ class MM(nn.Module):
             print('local:', t:=time.time()-t)
             loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, text)
+        print('mlm:',t:=time.time()-t)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)
         print('matching,mlm',time.time()-t)
         loss.append(mlm_loss)
