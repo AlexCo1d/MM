@@ -377,13 +377,15 @@ class MM(nn.Module):
         input_ids = text.input_ids.clone()
         labels = input_ids.clone()
         probability_matrix = torch.full(labels.shape, 0.15)
-        t=time.time()
+
         input_ids, labels = self.mask(input_ids, self.bert_encoder.config.vocab_size, latent.device,
                                       targets=labels,
                                       probability_matrix=probability_matrix)
-        print("masking time:", time.time()-t)
+
         image_atts = torch.ones(latent.size()[:-1], dtype=torch.long).to(latent.device)
+        t = time.time()
         outputs = self.bert_encoder(latent=None, input_ids=input_ids, attention_mask=text.attention_mask)
+        print("bert time:", t:=time.time() - t)
         outputs = self.fusion_encoder(latent=None,
                                       encoder_embeds=outputs.hidden_states[-1],
                                       attention_mask=text.attention_mask,
@@ -391,6 +393,7 @@ class MM(nn.Module):
                                       encoder_hidden_states=latent,
                                       encoder_attention_mask=image_atts,  # all ones
                                       return_dict=True)
+        print("fusion time:", time.time() - t)
         # ----------------------------
         # another option, original one
         # outputs = self.bert_encoder(latent=latent, input_ids=caption_ids, labels=labels, attention_mask=attention_mask,
