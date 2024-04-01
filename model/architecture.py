@@ -377,9 +377,11 @@ class MM(nn.Module):
         input_ids = text.input_ids.clone()
         labels = input_ids.clone()
         probability_matrix = torch.full(labels.shape, 0.15)
+        t=time.time()
         input_ids, labels = self.mask(input_ids, self.bert_encoder.config.vocab_size, latent.device,
                                       targets=labels,
                                       probability_matrix=probability_matrix)
+        print("masking time:", time.time()-t)
         image_atts = torch.ones(latent.size()[:-1], dtype=torch.long).to(latent.device)
         outputs = self.bert_encoder(latent=None, input_ids=input_ids, attention_mask=text.attention_mask)
         outputs = self.fusion_encoder(latent=None,
@@ -636,10 +638,8 @@ class MM(nn.Module):
         text_embeds, text_feat, text_output = self.get_text_embeds(text)
         latent, mask, ids_restore, _ = self.forward_vision_encoder(_imgs, mask_ratio)  # latent: [N, 50, D], 50=maskratio*196
         latent_unmasked, hidden_features = self.forward_vision_encoder(_imgs, 0.0)  # latent_unmasked: [N, 196, D]
-        t=time.time()
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         v_loss = self.forward_vision_loss(imgs_1, pred, mask)
-        print('vloss:',time.time()-t)
         if self.mv:
             imgs_2 = batch['image2']
             imgs_2 = imgs_2.cuda()
@@ -667,9 +667,8 @@ class MM(nn.Module):
             print('local:', t:=time.time()-t)
             loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, text)
-        print('mlm:',t:=time.time()-t)
+        print('mlm:',time.time()-t)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)
-        print('matching,mlm',time.time()-t)
         loss.append(mlm_loss)
         loss.append(itm_loss)
         return loss, pred, mask
