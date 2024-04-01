@@ -385,7 +385,8 @@ class MM(nn.Module):
         image_atts = torch.ones(latent.size()[:-1], dtype=torch.long).to(latent.device)
         t = time.time()
         outputs = self.bert_encoder(latent=None, input_ids=input_ids, attention_mask=text.attention_mask)
-        print("bert time:", t:=time.time() - t)
+        print("bert time:", time.time() - t)
+        t = time.time()
         outputs = self.fusion_encoder(latent=None,
                                       encoder_embeds=outputs.hidden_states[-1],
                                       attention_mask=text.attention_mask,
@@ -639,7 +640,8 @@ class MM(nn.Module):
         text = self.tokenizer(text, padding='longest', truncation=True, max_length=100, return_tensors="pt").to(
             imgs_1.device)
         text_embeds, text_feat, text_output = self.get_text_embeds(text)
-        latent, mask, ids_restore, _ = self.forward_vision_encoder(_imgs, mask_ratio)  # latent: [N, 50, D], 50=maskratio*196
+        latent, mask, ids_restore, _ = self.forward_vision_encoder(_imgs,
+                                                                   mask_ratio)  # latent: [N, 50, D], 50=maskratio*196
         latent_unmasked, hidden_features = self.forward_vision_encoder(_imgs, 0.0)  # latent_unmasked: [N, 196, D]
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         v_loss = self.forward_vision_loss(imgs_1, pred, mask)
@@ -667,10 +669,10 @@ class MM(nn.Module):
         if self.local_contrastive_loss:
             t = time.time()
             local_contrastive_loss = self.forward_local_contrastive_loss(latent_unmasked, text.input_ids, text_output)
-            print('local:', t:=time.time()-t)
+            print('local:', t := time.time() - t)
             loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, text)
-        print('mlm:',time.time()-t)
+        print('mlm:', time.time() - t)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)
         loss.append(mlm_loss)
         loss.append(itm_loss)
