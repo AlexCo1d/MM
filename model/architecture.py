@@ -30,7 +30,8 @@ class MM(nn.Module):
                  local_contrastive_loss=False,
                  c_embed_dim=256):
         super().__init__()
-        self.tokenizer = BertTokenizer.from_pretrained('./model/submodule/bert/bert-base-uncased')  #Using BERT tokenizer
+        self.tokenizer = BertTokenizer.from_pretrained(
+            './model/submodule/bert/bert-base-uncased')  # Using BERT tokenizer
         self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
@@ -286,7 +287,7 @@ class MM(nn.Module):
         hidden_features = []
         # apply Transformer blocks
         for i, blk in enumerate(self.blocks):
-            x = blk(x, i==11)
+            x = blk(x, i == 11)
             hidden_features.append(x)
         x = self.norm(x)
         hidden_features = torch.stack(hidden_features, dim=0)
@@ -470,22 +471,19 @@ class MM(nn.Module):
         :param ids: caption_ids from tokenizer
         :param img_features: [b, patch_num, embed]
         :param words_emb: bert output
-        :param temp1:
-        :param temp2:
-        :param temp3:
         :return: loss, attn_maps
         """
-        temperature=0.1
+        temperature = 0.1
         # get the local word embed
-        bz=img_features.size(0)
+        bz = img_features.size(0)
         all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]
         last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
         all_feat, sents, word_atten = self.aggregate_tokens(
             all_feat, ids, last_layer_attn)
         word_atten = word_atten[:, 1:].contiguous()
-        all_feat=all_feat[:,0]
+        all_feat = all_feat[:, 0]
         report_feat = all_feat[:, 0].contiguous()
-        word_feat = all_feat[:, 1:].contiguous()    # [b, words_length, embed]
+        word_feat = all_feat[:, 1:].contiguous()  # [b, words_length, embed]
         # we get report_feat, word_feat, last_atten_pt, sents now
         word_emb = self.text_local_embedding(word_feat.permute(0, 2, 1)).permute(0, 2, 1)
         word_emb = F.normalize(word_emb, dim=-1)
@@ -493,7 +491,7 @@ class MM(nn.Module):
 
         # same to the image features because they are all transformer based
         # img_feat=img_features[-1, :, 0].contiguous()  # [b, embed]
-        patch_feat=img_features[:, 1:].contiguous()  # [b, patch_num, embed]
+        patch_feat = img_features[:, 1:].contiguous()  # [b, patch_num, embed]
 
         # img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
         # img_features = img_features.permute(0, 2, 1)
@@ -505,7 +503,7 @@ class MM(nn.Module):
         patch_emb = self.vision_local_embedding(patch_feat.permute(0, 2, 1)).permute(0, 2, 1)
         patch_emb = F.normalize(patch_emb, dim=-1)  # [b, patch_num, embed]
 
-        atten_sim = torch.bmm(word_emb, patch_emb.permute(0, 2, 1)) # [b, words_length, patch_num]
+        atten_sim = torch.bmm(word_emb, patch_emb.permute(0, 2, 1))  # [b, words_length, patch_num]
         atten_scores = F.softmax(atten_sim / temperature, dim=-1)  # [b, words_length, patch_num]
         word_atten_output = torch.bmm(atten_scores, patch_emb)  # [b, words_length, embed]
         word_atten_output = F.normalize(word_atten_output, dim=-1)
@@ -633,14 +631,15 @@ class MM(nn.Module):
         # split different views of images
         imgs_1 = imgs_1.cuda()
         _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(imgs_1)
-        text = self.tokenizer(text, padding='longest', truncation=True, max_length=100, return_tensors="pt").to(imgs_1.device)
+        text = self.tokenizer(text, padding='longest', truncation=True, max_length=100, return_tensors="pt").to(
+            imgs_1.device)
         text_embeds, text_feat, text_output = self.get_text_embeds(text)
-        latent, mask, ids_restore, _ = self.forward_vision_encoder(_imgs,
-                                                                   mask_ratio)  # latent: [N, 50, D], 50=maskratio*196
+        latent, mask, ids_restore, _ = self.forward_vision_encoder(_imgs, mask_ratio)  # latent: [N, 50, D], 50=maskratio*196
         latent_unmasked, hidden_features = self.forward_vision_encoder(_imgs, 0.0)  # latent_unmasked: [N, 196, D]
+        t=time.time()
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         v_loss = self.forward_vision_loss(imgs_1, pred, mask)
-
+        print('vloss:',time.time()-t)
         if self.mv:
             imgs_2 = batch['image2']
             imgs_2 = imgs_2.cuda()
@@ -663,10 +662,13 @@ class MM(nn.Module):
         loss.append(v_loss)
         loss.append(global_contrastive_loss)
         if self.local_contrastive_loss:
+            t = time.time()
             local_contrastive_loss = self.forward_local_contrastive_loss(latent_unmasked, text.input_ids, text_output)
+            print('local:', t:=time.time()-t)
             loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, text)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)
+        print('matching,mlm',time.time()-t)
         loss.append(mlm_loss)
         loss.append(itm_loss)
         return loss, pred, mask
