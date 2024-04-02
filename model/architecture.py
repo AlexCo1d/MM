@@ -221,7 +221,7 @@ class MM(nn.Module):
             attns = []
             attn_bank = []
             t = time.time()
-            caption_id = self.tokenizer.convert_tokens_to_string(caption_id)
+            caption_id = self.tokenizer.convert_ids_to_tokens(caption_id)
             temp_t += time.time() - t
             # loop over sentence
             for word_emb, word, attn in zip(embs, caption_id, last_attn):
