@@ -219,13 +219,9 @@ class MM(nn.Module):
             word_bank = []
             attns = []
             attn_bank = []
-            print("caption_id", caption_id.shape)
             # loop over sentence
             for word_emb, word_id, attn in zip(embs, caption_id, last_attn):
-                print("word", word_id)
-                print(word_id.item())
                 word = self.idxtoword[word_id.item()]
-
                 if word == "[SEP]":
                     new_emb = torch.stack(token_bank)
                     new_emb = new_emb.sum(axis=0)
@@ -487,7 +483,7 @@ class MM(nn.Module):
             all_feat, ids, last_layer_attn)
         word_atten = word_atten[:, 1:].contiguous()
         all_feat = all_feat[:, 0]
-        report_feat = all_feat[:, 0].contiguous()
+        # report_feat = all_feat[:, 0].contiguous()
         word_feat = all_feat[:, 1:].contiguous()  # [b, words_length, embed]
         # we get report_feat, word_feat, last_atten_pt, sents now
         word_emb = self.text_local_embedding(word_feat.permute(0, 2, 1)).permute(0, 2, 1)
@@ -512,7 +508,7 @@ class MM(nn.Module):
         atten_scores = F.softmax(atten_sim / temperature, dim=-1)  # [b, words_length, patch_num]
         word_atten_output = torch.bmm(atten_scores, patch_emb)  # [b, words_length, embed]
         word_atten_output = F.normalize(word_atten_output, dim=-1)
-
+        t= time.time()
         with torch.no_grad():
             atten_weights = word_atten.detach()
             word_atten_weights = []
@@ -524,7 +520,7 @@ class MM(nn.Module):
                 atten_weight[nonzero] = atten_weight[nonzero].clip(low, high)
                 word_atten_weights.append(atten_weight.clone())
             word_atten_weights = torch.stack(word_atten_weights)
-
+            print("time for loop1", time.time()-t)
         word_atten_weights /= word_atten_weights.sum(dim=1, keepdims=True)
 
         word_sim = torch.bmm(word_emb, word_atten_output.permute(
@@ -552,7 +548,7 @@ class MM(nn.Module):
         atten_scores = F.softmax(
             atten_sim / temperature, dim=-1)  # bz, 196, 111
         patch_atten_output = torch.bmm(atten_scores, word_emb)
-
+        t= time.time()
         with torch.no_grad():
             img_attn_map = self.blocks[-1].attn.attention_map.detach(
             )
@@ -564,7 +560,7 @@ class MM(nn.Module):
                     atten_weight, 0.1), torch.quantile(atten_weight, 0.9))
                 patch_atten_weights.append(atten_weight.clone())
             patch_atten_weights = torch.stack(patch_atten_weights)
-
+        print("time for loop2", time.time() - t)
         patch_atten_weights /= patch_atten_weights.sum(
             dim=1, keepdims=True)
 
