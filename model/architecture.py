@@ -211,7 +211,6 @@ class MM(nn.Module):
         agg_embs_batch = []
         sentences = []
         last_attns = []
-        temp_t = 0
         # loop over batch
         for embs, caption_id, last_attn in zip(embeddings, caption_ids, last_layer_attn):
             agg_embs = []
@@ -220,16 +219,9 @@ class MM(nn.Module):
             word_bank = []
             attns = []
             attn_bank = []
-            t = time.time()
             caption_id = self.tokenizer.convert_ids_to_tokens(caption_id)
-            temp_t += time.time() - t
             # loop over sentence
             for word_emb, word, attn in zip(embs, caption_id, last_attn):
-                # TODO: solve this problem!
-                # word = self.idxtoword[word_id.item()]
-                # t = time.time()
-                # word = word_id
-                # temp_t += time.time() - t
                 if word == "[SEP]":
                     new_emb = torch.stack(token_bank)
                     new_emb = new_emb.sum(axis=0)
@@ -274,7 +266,6 @@ class MM(nn.Module):
         agg_embs_batch = agg_embs_batch.permute(0, 2, 1, 3)
         last_atten_pt = torch.stack(last_attns)
         last_atten_pt = last_atten_pt.type_as(agg_embs_batch)
-        print('time for idx:', temp_t)
         return agg_embs_batch, sentences, last_atten_pt
 
     def forward_vision_encoder(self, x, mask_ratio):
@@ -487,10 +478,10 @@ class MM(nn.Module):
         bz = img_features.size(0)
         all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]
         last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
-        t = time.time()
+        # t = time.time()
         all_feat, sents, word_atten = self.aggregate_tokens(
             all_feat, ids, last_layer_attn)
-        print("time for aggregate_tokens", time.time() - t)
+        # print("time for aggregate_tokens", time.time() - t)
         word_atten = word_atten[:, 1:].contiguous()
         all_feat = all_feat[:, 0]
         # report_feat = all_feat[:, 0].contiguous()
@@ -670,9 +661,9 @@ class MM(nn.Module):
         loss.append(v_loss)
         loss.append(global_contrastive_loss)
         if self.local_contrastive_loss:
-            t = time.time()
+            # t = time.time()
             local_contrastive_loss = self.forward_local_contrastive_loss(latent_unmasked, text.input_ids, text_output)
-            print('local:', time.time() - t)
+            # print('local:', time.time() - t)
             loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, text)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)
