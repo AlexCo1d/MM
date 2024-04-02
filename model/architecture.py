@@ -170,7 +170,7 @@ class MM(nn.Module):
                                         return_dict=True)
         text_embeds = text_output.hidden_states[-1]
         text_feat = F.normalize(self.text_proj(text_embeds[:, 0, :]), dim=-1)
-        return text_embeds, text_feat, text_output
+        return text_embeds.cuda(), text_feat.cuda(), text_output
 
     def random_masking(self, x, mask_ratio):
         """
@@ -200,11 +200,11 @@ class MM(nn.Module):
         return x_masked, mask, ids_restore
 
     def aggregate_tokens(self, embeddings, caption_ids, last_layer_attn):
-        '''
-        :param embeddings: bz, 1, 112, 768
+        """
+        :param embeddings: bz, layer, num_words, 768
         :param caption_ids: bz, 112
         :param last_layer_attn: bz, 111
-        '''
+        """
         _, num_layers, num_words, dim = embeddings.shape
         embeddings = embeddings.permute(0, 2, 1, 3)
         agg_embs_batch = []
@@ -219,10 +219,13 @@ class MM(nn.Module):
             word_bank = []
             attns = []
             attn_bank = []
-
+            print("caption_id", caption_id.shape)
             # loop over sentence
             for word_emb, word_id, attn in zip(embs, caption_id, last_attn):
+                print("word", word_id)
+                print(word_id.item())
                 word = self.idxtoword[word_id.item()]
+
                 if word == "[SEP]":
                     new_emb = torch.stack(token_bank)
                     new_emb = new_emb.sum(axis=0)
@@ -383,10 +386,7 @@ class MM(nn.Module):
                                       probability_matrix=probability_matrix)
 
         image_atts = torch.ones(latent.size()[:-1], dtype=torch.long).to(latent.device)
-        t = time.time()
         outputs = self.bert_encoder(latent=None, input_ids=input_ids, attention_mask=text.attention_mask)
-        print("bert time:", time.time() - t)
-        t = time.time()
         outputs = self.fusion_encoder(latent=None,
                                       encoder_embeds=outputs.hidden_states[-1],
                                       attention_mask=text.attention_mask,
@@ -394,7 +394,6 @@ class MM(nn.Module):
                                       encoder_hidden_states=latent,
                                       encoder_attention_mask=image_atts,  # all ones
                                       return_dict=True)
-        print("fusion time:", time.time() - t)
         # ----------------------------
         # another option, original one
         # outputs = self.bert_encoder(latent=latent, input_ids=caption_ids, labels=labels, attention_mask=attention_mask,
@@ -561,7 +560,7 @@ class MM(nn.Module):
             patch_atten_weights = []
             for i in range(bz):
                 atten_weight = atten_weights[i]
-                atten_weight = atten_weight.clip(torch.quantile(
+                atten_weight = atten_weight.clip_(torch.quantile(
                     atten_weight, 0.1), torch.quantile(atten_weight, 0.9))
                 patch_atten_weights.append(atten_weight.clone())
             patch_atten_weights = torch.stack(patch_atten_weights)
@@ -666,16 +665,13 @@ class MM(nn.Module):
         global_contrastive_loss = self.forward_global_contrastive_loss(latent_unmasked, text_feat, self.temp)
         loss.append(v_loss)
         loss.append(global_contrastive_loss)
-        t1 = time.time()
         if self.local_contrastive_loss:
             t = time.time()
             local_contrastive_loss = self.forward_local_contrastive_loss(latent_unmasked, text.input_ids, text_output)
             print('local:', time.time() - t)
             loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, text)
-        print('mlm:', t1:=time.time() - t1)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)
-        print('itm:', time.time() - t1)
         loss.append(mlm_loss)
         loss.append(itm_loss)
         return loss, pred, mask
