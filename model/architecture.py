@@ -211,7 +211,7 @@ class MM(nn.Module):
         agg_embs_batch = []
         sentences = []
         last_attns = []
-
+        temp_t=0
         # loop over batch
         for embs, caption_id, last_attn in zip(embeddings, caption_ids, last_layer_attn):
             agg_embs = []
@@ -224,7 +224,8 @@ class MM(nn.Module):
             for word_emb, word_id, attn in zip(embs, caption_id, last_attn):
                 t= time.time()
                 word = self.idxtoword[word_id.item()]
-                print("time for idxtoword", time.time()-t)
+                temp_t+=time.time()-t
+
                 if word == "[SEP]":
                     new_emb = torch.stack(token_bank)
                     new_emb = new_emb.sum(axis=0)
@@ -269,7 +270,7 @@ class MM(nn.Module):
         agg_embs_batch = agg_embs_batch.permute(0, 2, 1, 3)
         last_atten_pt = torch.stack(last_attns)
         last_atten_pt = last_atten_pt.type_as(agg_embs_batch)
-
+        print('time for idx:', temp_t)
         return agg_embs_batch, sentences, last_atten_pt
 
     def forward_vision_encoder(self, x, mask_ratio):
