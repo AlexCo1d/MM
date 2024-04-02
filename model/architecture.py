@@ -220,12 +220,16 @@ class MM(nn.Module):
             word_bank = []
             attns = []
             attn_bank = []
+            t=time.time()
+            caption_id=self.tokenizer.convert_tokens_to_string(caption_id)
+            temp_t+=time.time()-t
             # loop over sentence
             for word_emb, word_id, attn in zip(embs, caption_id, last_attn):
-                t= time.time()
-                word = self.idxtoword[word_id.item()]
+                # TODO: solve this problem!
+                # word = self.idxtoword[word_id.item()]
+                t=time.time()
+                word = word_id[0]
                 temp_t+=time.time()-t
-
                 if word == "[SEP]":
                     new_emb = torch.stack(token_bank)
                     new_emb = new_emb.sum(axis=0)
