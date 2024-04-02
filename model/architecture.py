@@ -32,7 +32,7 @@ class MM(nn.Module):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(
             './model/submodule/bert/bert-base-uncased')  # Using BERT tokenizer
-        self.idxtoword = [k for k,v in self.tokenizer.get_vocab().items()]
+        self.idxtoword = [k for k, v in self.tokenizer.get_vocab().items()]
         # self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
@@ -211,7 +211,7 @@ class MM(nn.Module):
         agg_embs_batch = []
         sentences = []
         last_attns = []
-        temp_t=0
+        temp_t = 0
         # loop over batch
         for embs, caption_id, last_attn in zip(embeddings, caption_ids, last_layer_attn):
             agg_embs = []
@@ -220,16 +220,16 @@ class MM(nn.Module):
             word_bank = []
             attns = []
             attn_bank = []
-            t=time.time()
-            caption_id=self.tokenizer.convert_tokens_to_string(caption_id)
-            temp_t+=time.time()-t
+            t = time.time()
+            caption_id = self.tokenizer.convert_tokens_to_string(caption_id)
+            temp_t += time.time() - t
             # loop over sentence
-            for word_emb, word_id, attn in zip(embs, caption_id, last_attn):
+            for word_emb, word, attn in zip(embs, caption_id, last_attn):
                 # TODO: solve this problem!
                 # word = self.idxtoword[word_id.item()]
-                t=time.time()
-                word = word_id[0]
-                temp_t+=time.time()-t
+                # t = time.time()
+                # word = word_id
+                # temp_t += time.time() - t
                 if word == "[SEP]":
                     new_emb = torch.stack(token_bank)
                     new_emb = new_emb.sum(axis=0)
@@ -487,10 +487,10 @@ class MM(nn.Module):
         bz = img_features.size(0)
         all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]
         last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
-        t= time.time()
+        t = time.time()
         all_feat, sents, word_atten = self.aggregate_tokens(
             all_feat, ids, last_layer_attn)
-        print("time for aggregate_tokens", time.time()-t)
+        print("time for aggregate_tokens", time.time() - t)
         word_atten = word_atten[:, 1:].contiguous()
         all_feat = all_feat[:, 0]
         # report_feat = all_feat[:, 0].contiguous()
@@ -518,7 +518,7 @@ class MM(nn.Module):
         atten_scores = F.softmax(atten_sim / temperature, dim=-1)  # [b, words_length, patch_num]
         word_atten_output = torch.bmm(atten_scores, patch_emb)  # [b, words_length, embed]
         word_atten_output = F.normalize(word_atten_output, dim=-1)
-        t= time.time()
+        t = time.time()
         with torch.no_grad():
             atten_weights = word_atten.detach()
             word_atten_weights = []
@@ -530,7 +530,7 @@ class MM(nn.Module):
                 atten_weight[nonzero] = atten_weight[nonzero].clip(low, high)
                 word_atten_weights.append(atten_weight.clone())
             word_atten_weights = torch.stack(word_atten_weights)
-            print("time for loop1", time.time()-t)
+            print("time for loop1", time.time() - t)
         word_atten_weights /= word_atten_weights.sum(dim=1, keepdims=True)
 
         word_sim = torch.bmm(word_emb, word_atten_output.permute(
