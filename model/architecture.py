@@ -32,7 +32,7 @@ class MM(nn.Module):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(
             './model/submodule/bert/bert-base-uncased')  # Using BERT tokenizer
-        self.idxtoword = np.array
+        self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
             self.vision_local_embedding = nn.Conv1d(
