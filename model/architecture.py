@@ -479,8 +479,10 @@ class MM(nn.Module):
         bz = img_features.size(0)
         all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]
         last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
+        t= time.time()
         all_feat, sents, word_atten = self.aggregate_tokens(
             all_feat, ids, last_layer_attn)
+        print("time for aggregate_tokens", time.time()-t)
         word_atten = word_atten[:, 1:].contiguous()
         all_feat = all_feat[:, 0]
         # report_feat = all_feat[:, 0].contiguous()
@@ -548,7 +550,6 @@ class MM(nn.Module):
         atten_scores = F.softmax(
             atten_sim / temperature, dim=-1)  # bz, 196, 111
         patch_atten_output = torch.bmm(atten_scores, word_emb)
-        t= time.time()
         with torch.no_grad():
             img_attn_map = self.blocks[-1].attn.attention_map.detach(
             )
@@ -560,7 +561,6 @@ class MM(nn.Module):
                     atten_weight, 0.1), torch.quantile(atten_weight, 0.9))
                 patch_atten_weights.append(atten_weight.clone())
             patch_atten_weights = torch.stack(patch_atten_weights)
-        print("time for loop2", time.time() - t)
         patch_atten_weights /= patch_atten_weights.sum(
             dim=1, keepdims=True)
 
