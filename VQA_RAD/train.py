@@ -14,9 +14,9 @@ from pathlib import Path
 import torch
 import torch.distributed as dist
 import utils
-from .Dataset import create_dataset
-from .model_VQA import MyVQAModel
-from .vqaTools.vqaEvaluate import compute_vqa_acc
+from Dataset import create_dataset
+from model_VQA import MyVQAModel
+from vqaTools.vqaEvaluate import compute_vqa_acc
 
 
 def train(model, data_loader, optimizer, epoch, device, args):
