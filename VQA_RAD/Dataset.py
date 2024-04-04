@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 import json
 import PIL
-from utils.randaugment import RandomAugment
+from Utils.randaugment import RandomAugment
 from PIL import Image
 
 

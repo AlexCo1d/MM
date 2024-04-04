@@ -40,7 +40,7 @@ def step_lr_schedule(optimizer, epoch, init_lr, min_lr, decay_rate):
         param_group['lr'] = lr
 
 
-# Logger utils
+# Logger Utils
 class Logger(object):
     def __init__(self, filename='default.log', stream=sys.stdout):
         self.terminal = stream

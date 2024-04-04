@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 import torch
 import torch.distributed as dist
-import utils
+import Utils
 from Dataset import create_dataset
 from model_VQA import MyVQAModel
 from vqaTools.vqaEvaluate import compute_vqa_acc
@@ -22,9 +22,9 @@ from vqaTools.vqaEvaluate import compute_vqa_acc
 def train(model, data_loader, optimizer, epoch, device, args):
     # train
     model.train()
-    metric_logger = utils.MetricLogger(delimiter="  ")
-    metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
-    metric_logger.add_meter('loss', utils.SmoothedValue(window_size=1, fmt='{value:.4f}'))
+    metric_logger = Utils.MetricLogger(delimiter="  ")
+    metric_logger.add_meter('lr', Utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
+    metric_logger.add_meter('loss', Utils.SmoothedValue(window_size=1, fmt='{value:.4f}'))
     header = 'Train Epoch: [{}]'.format(epoch)
     print_freq = 50
     for i, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
@@ -59,7 +59,7 @@ def evaluation(model, data_loader, device, args):
     """
     # test
     model.eval()
-    metric_logger = utils.MetricLogger(delimiter="  ")
+    metric_logger = Utils.MetricLogger(delimiter="  ")
     header = 'Generate VQA test result:'
     print_freq = 50
 
@@ -92,11 +92,11 @@ def evaluation(model, data_loader, device, args):
 
 def main(args):
     if args.distributed:
-        utils.init_distributed_mode(args)
+        Utils.init_distributed_mode(args)
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
     # fix the seed for reproducibility
-    utils.set_seed(args.seed + utils.get_rank())
+    Utils.set_seed(args.seed + Utils.get_rank())
 
     #### Loading Dataset ####
     print('Creating vqa {} datasets'.format(args.dataset_use))
@@ -105,8 +105,8 @@ def main(args):
     print('test dataset size: ', len(test_dataset))
 
     if args.distributed:
-        num_tasks = utils.get_world_size()
-        global_rank = utils.get_rank()
+        num_tasks = Utils.get_world_size()
+        global_rank = Utils.get_rank()
         sampler_train = torch.utils.data.DistributedSampler(
             train_dataset, num_replicas=num_tasks, rank=global_rank, shuffle=True
         )
@@ -163,14 +163,14 @@ def main(args):
             if args.distributed:
                 train_loader.sampler.set_epoch(epoch)
 
-            utils.cosine_lr_schedule(optimizer, epoch, args.epochs, args.lr, args.min_lr)
+            Utils.cosine_lr_schedule(optimizer, epoch, args.epochs, args.lr, args.min_lr)
 
             train(model, train_loader, optimizer, epoch, device, args)
 
         if args.evaluate:
             break
 
-        if utils.is_main_process():
+        if Utils.is_main_process():
 
             save_obj = {
                 'model': model_without_ddp.state_dict(),
@@ -225,7 +225,7 @@ if __name__ == '__main__':
     Path(args.result_dir).mkdir(parents=True, exist_ok=True)
 
     # set log, set console print info to file
-    sys.stdout = utils.Logger(filename=os.path.join(args.output_dir, "log.txt"), stream=sys.stdout)
+    sys.stdout = Utils.Logger(filename=os.path.join(args.output_dir, "log.txt"), stream=sys.stdout)
 
     print("args: ", args)
     main(args)

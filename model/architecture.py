@@ -15,7 +15,7 @@ from functools import partial
 from transformers import BertTokenizer
 
 from model.submodule.bert.bert import MyBertMaskedLM
-from utils.pos_embed import get_2d_sincos_pos_embed
+from Utils.pos_embed import get_2d_sincos_pos_embed
 # from model.submodule.bert.bert_encoder import BertEncoder
 from model.submodule.bert.BertConfig import BertConfig
 from torch.autograd import Variable
