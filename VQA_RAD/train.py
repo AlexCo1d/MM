@@ -100,7 +100,7 @@ def main(args):
 
     #### Loading Dataset ####
     print('Creating vqa {} datasets'.format(args.dataset_use))
-    train_dataset, test_dataset = create_dataset(args.dataset_use, args.dataset_path)[0]
+    train_dataset, test_dataset = create_dataset(args.dataset_use, args.dataset_path)
     print('train dataset size: ', len(train_dataset))
     print('test dataset size: ', len(test_dataset))
 
