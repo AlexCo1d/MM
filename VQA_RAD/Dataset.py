@@ -15,10 +15,10 @@ class VQA_Dataset(Dataset):
     def __init__(self, data_path, transform, img_tokens=32, img_root='',
                  seq_length=512, voc_size=32000, mode='train', json_trivial=True):
         max_caption_length = 100
-        max_answer_length=50
+        max_answer_length = 50
         with open(os.path.join(data_path, f'{mode}.json')) as f:
             self.data = json.load(f)
-        self.tokenizer = tokenizers.Tokenizer.from_file("../mimic_wordpiece.json")
+        self.tokenizer = tokenizers.Tokenizer.from_file("../model/submodule/bert/bert-base-uncased")
         self.mode = mode
         self.img_padding = [-100 for i in range(img_tokens)]
         self.attn_padding = [1 for i in range(img_tokens)]
@@ -30,15 +30,15 @@ class VQA_Dataset(Dataset):
 
         answer_list = [item['answer'] for item in self.data]
         # make it unique.
-        self.answer_list=list(dict.fromkeys(answer_list))
+        # self.answer_list = list(dict.fromkeys(answer_list))
         self.tokenizer.enable_padding(length=max_answer_length)
         self.tokenizer.enable_truncation(max_length=max_answer_length)
-        self.answer_list_ids=torch.stack([torch.tensor(self.tokenizer.encode('[CLS] '+item+' sep').ids) for item in answer_list])
-        self.answer_list_att=torch.stack([torch.tensor(self.tokenizer.encode('[CLS] '+item+' sep').attention_mask) for item in answer_list])
+        self.answer_list_ids = torch.stack(
+            [torch.tensor(self.tokenizer.encode('[CLS] ' + item + ' sep').ids) for item in answer_list])
+        self.answer_list_att = torch.stack(
+            [torch.tensor(self.tokenizer.encode('[CLS] ' + item + ' sep').attention_mask) for item in answer_list])
         self.tokenizer.enable_truncation(max_length=max_caption_length)
         self.tokenizer.enable_padding(length=max_caption_length)
-
-
 
     def __len__(self):
         return len(self.data)
@@ -66,12 +66,12 @@ class VQA_Dataset(Dataset):
         pre_text, final_o = self.random_answer(Question, Anwser)
         final_o = self.tokenizer.encode(final_o)
         input_ids = final_o.ids
-        attention_mask=final_o.attention_mask
+        attention_mask = final_o.attention_mask
         input_ids = torch.tensor(input_ids).unsqueeze(0)
-        attention_mask=torch.tensor(attention_mask).unsqueeze(0)
+        attention_mask = torch.tensor(attention_mask).unsqueeze(0)
 
-        label = self.tokenizer.encode('[CLS] '+Anwser+' sep')
-        labels_att=torch.tensor(label.attention_mask).unsqueeze(0)
+        label = self.tokenizer.encode('[CLS] ' + Anwser + ' sep')
+        labels_att = torch.tensor(label.attention_mask).unsqueeze(0)
         label = torch.tensor(label.ids).unsqueeze(0)
 
         if self.mode == 'train':
@@ -87,7 +87,7 @@ class VQA_Dataset(Dataset):
             if self.json_trivial:
                 item = {
                     'input_ids': input_ids,
-                    'attention_mask':attention_mask,
+                    'attention_mask': attention_mask,
                     'images': image,
                     'question': Question,
                     'answer': Anwser,
@@ -97,7 +97,7 @@ class VQA_Dataset(Dataset):
             else:
                 item = {
                     'input_ids': input_ids,
-                    'attention_mask':attention_mask,
+                    'attention_mask': attention_mask,
                     'images': image,
                     'question': Question,
                     'answer': Anwser,
@@ -120,21 +120,22 @@ class VQA_Dataset(Dataset):
             'label_att': labels_att,
             'attention_mask': attention_mask
         }
+
     def collate_fn_test(self, batch):
         # ids,images,names,question, answer type, answer.
         input_ids = torch.stack([item['input_ids'] for item in batch])
         images = torch.stack([item['images'] for item in batch])
-        image_names= [item['image_name'] for item in batch]
-        answer_types= [item['answer_type'] for item in batch]
-        questions= [item['question'] for item in batch]
-        answers= [item['answer'] for item in batch]
+        image_names = [item['image_name'] for item in batch]
+        answer_types = [item['answer_type'] for item in batch]
+        questions = [item['question'] for item in batch]
+        answers = [item['answer'] for item in batch]
         attention_mask = torch.stack([item['attention_mask'] for item in batch])
         return {
             'input_ids': input_ids,
             'attention_mask': attention_mask,
             'images': images,
             'images_name': image_names,
-            'answer_type':  answer_types,
+            'answer_type': answer_types,
             'question': questions,
             'answer': answers
         }
