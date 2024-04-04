@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 import json
 import PIL
-from utils.randaugment import RandomAugment
+from utils import randaugment
 from PIL import Image
 
 
@@ -146,7 +146,7 @@ def create_dataset(dataset, data_path):
     train_transform = transforms.Compose([
         transforms.RandomResizedCrop(img_size, scale=(0.5, 1.0), interpolation=Image.BICUBIC),
         transforms.RandomHorizontalFlip(),
-        RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
+        randaugment.RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
                                               'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
         transforms.ToTensor(),
         normalize,
