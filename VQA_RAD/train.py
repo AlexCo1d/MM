@@ -14,9 +14,9 @@ from pathlib import Path
 import torch
 import torch.distributed as dist
 import utils
-from VQA_RAD.Dataset import create_dataset
-from VQA_RAD.model_VQA import MyVQAModel
-from VQA_RAD.vqaTools.vqaEvaluate import compute_vqa_acc
+from .Dataset import create_dataset
+from .model_VQA import MyVQAModel
+from .vqaTools.vqaEvaluate import compute_vqa_acc
 
 
 def train(model, data_loader, optimizer, epoch, device, args):
@@ -204,8 +204,6 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_use', default='rad', help='choose medical vqa dataset(rad, pathvqa, slake)')
     parser.add_argument('--dataset_path', help='path to the dataset')
     parser.add_argument('--checkpoint', default='/mnt/sda/lpf/weights/output/V2/pretrain/std/med_pretrain_29.pth')
-    parser.add_argument('--output_suffix', default='', help='output suffix, eg. ../rad_29_1')
-    parser.add_argument('--output_dir', default='', help='the final output path, need not to assign')
     parser.add_argument('--evaluate', action='store_true')
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--seed', default=42, type=int)
