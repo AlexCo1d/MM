@@ -120,10 +120,10 @@ def main(args):
 
     train_loader = torch.Utils.data.DataLoader(train_dataset, sampler_train, batch_size=args.batch_size,
                                                num_workers=args.num_workers,
-                                               pin_memory=True, collate_fn=train_dataset.collate_fn_train)
+                                               pin_memory=True)
     test_loader = torch.Utils.data.DataLoader(test_dataset, sampler_test, batch_size=args.batch_size,
                                               num_workers=args.num_workers,
-                                              pin_memory=True, collate_fn=test_dataset.collate_fn_test)
+                                              pin_memory=True)
 
     #### Creating Model ####
     print("Creating model")

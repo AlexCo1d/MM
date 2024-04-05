@@ -20,7 +20,7 @@ class VQA_Dataset(Dataset):
         with open(os.path.join(data_path, f'{mode}.json')) as f:
             self.data = json.load(f)
         self.tokenizer = BertTokenizer.from_pretrained(
-            './model/submodule/bert/bert-base-uncased')
+            '../model/submodule/bert/bert-base-uncased')
         self.mode = mode
         self.img_padding = [-100 for i in range(img_tokens)]
         self.attn_padding = [1 for i in range(img_tokens)]
@@ -30,17 +30,17 @@ class VQA_Dataset(Dataset):
         self.voc_size = voc_size
         self.img_root = img_root
 
-        answer_list = [item['answer'] for item in self.data]
+        # answer_list = [item['answer'] for item in self.data]
         # make it unique.
         # self.answer_list = list(dict.fromkeys(answer_list))
-        self.tokenizer.enable_padding(length=max_answer_length)
-        self.tokenizer.enable_truncation(max_length=max_answer_length)
-        self.answer_list_ids = torch.stack(
-            [torch.tensor(self.tokenizer.encode('[CLS] ' + item + ' sep').ids) for item in answer_list])
-        self.answer_list_att = torch.stack(
-            [torch.tensor(self.tokenizer.encode('[CLS] ' + item + ' sep').attention_mask) for item in answer_list])
-        self.tokenizer.enable_truncation(max_length=max_caption_length)
-        self.tokenizer.enable_padding(length=max_caption_length)
+        # self.tokenizer.enable_padding(length=max_answer_length)
+        # self.tokenizer.enable_truncation(max_length=max_answer_length)
+        # self.answer_list_ids = torch.stack(
+        #     [torch.tensor(self.tokenizer.encode('[CLS] ' + item + ' sep').ids) for item in answer_list])
+        # self.answer_list_att = torch.stack(
+        #     [torch.tensor(self.tokenizer.encode('[CLS] ' + item + ' sep').attention_mask) for item in answer_list])
+        # self.tokenizer.enable_truncation(max_length=max_caption_length)
+        # self.tokenizer.enable_padding(length=max_caption_length)
 
     def __len__(self):
         return len(self.data)
@@ -66,15 +66,15 @@ class VQA_Dataset(Dataset):
         image = self.transform(img)
 
         pre_text, final_o = self.random_answer(Question, Anwser)
-        final_o = self.tokenizer.encode(final_o)
-        input_ids = final_o.ids
+        final_o = self.tokenizer(final_o, padding='longest', truncation=True, max_length=50, return_tensors="pt")
+        input_ids = final_o.input_ids
         attention_mask = final_o.attention_mask
         input_ids = torch.tensor(input_ids).unsqueeze(0)
         attention_mask = torch.tensor(attention_mask).unsqueeze(0)
 
-        label = self.tokenizer.encode('[CLS] ' + Anwser + ' sep')
+        label = self.tokenizer(Anwser, padding='longest', truncation=True, max_length=50, return_tensors="pt")
         labels_att = torch.tensor(label.attention_mask).unsqueeze(0)
-        label = torch.tensor(label.ids).unsqueeze(0)
+        label = torch.tensor(label.input_ids).unsqueeze(0)
 
         if self.mode == 'train':
             item = {
@@ -109,38 +109,38 @@ class VQA_Dataset(Dataset):
 
         return item
 
-    def collate_fn_train(self, batch):
-        input_ids = torch.stack([item['input_ids'] for item in batch])
-        images = torch.stack([item['images'] for item in batch])
-        labels = torch.stack([item['labels'] for item in batch])
-        labels_att = torch.stack([item['label_att'] for item in batch])
-        attention_mask = torch.stack([item['attention_mask'] for item in batch])
-        return {
-            'input_ids': input_ids,
-            'images': images,
-            'labels': labels,
-            'label_att': labels_att,
-            'attention_mask': attention_mask
-        }
-
-    def collate_fn_test(self, batch):
-        # ids,images,names,question, answer type, answer.
-        input_ids = torch.stack([item['input_ids'] for item in batch])
-        images = torch.stack([item['images'] for item in batch])
-        image_names = [item['image_name'] for item in batch]
-        answer_types = [item['answer_type'] for item in batch]
-        questions = [item['question'] for item in batch]
-        answers = [item['answer'] for item in batch]
-        attention_mask = torch.stack([item['attention_mask'] for item in batch])
-        return {
-            'input_ids': input_ids,
-            'attention_mask': attention_mask,
-            'images': images,
-            'images_name': image_names,
-            'answer_type': answer_types,
-            'question': questions,
-            'answer': answers
-        }
+    # def collate_fn_train(self, batch):
+    #     input_ids = torch.stack([item['input_ids'] for item in batch])
+    #     images = torch.stack([item['images'] for item in batch])
+    #     labels = torch.stack([item['labels'] for item in batch])
+    #     labels_att = torch.stack([item['label_att'] for item in batch])
+    #     attention_mask = torch.stack([item['attention_mask'] for item in batch])
+    #     return {
+    #         'input_ids': input_ids,
+    #         'images': images,
+    #         'labels': labels,
+    #         'label_att': labels_att,
+    #         'attention_mask': attention_mask
+    #     }
+    #
+    # def collate_fn_test(self, batch):
+    #     # ids,images,names,question, answer type, answer.
+    #     input_ids = torch.stack([item['input_ids'] for item in batch])
+    #     images = torch.stack([item['images'] for item in batch])
+    #     image_names = [item['image_name'] for item in batch]
+    #     answer_types = [item['answer_type'] for item in batch]
+    #     questions = [item['question'] for item in batch]
+    #     answers = [item['answer'] for item in batch]
+    #     attention_mask = torch.stack([item['attention_mask'] for item in batch])
+    #     return {
+    #         'input_ids': input_ids,
+    #         'attention_mask': attention_mask,
+    #         'images': images,
+    #         'images_name': image_names,
+    #         'answer_type': answer_types,
+    #         'question': questions,
+    #         'answer': answers
+    #     }
 
 
 def create_dataset(dataset, data_path):
