@@ -9,9 +9,10 @@ from einops import rearrange
 from torch import Tensor
 from torchvision.transforms.functional import InterpolationMode
 from timm.models.vision_transformer import PatchEmbed
+
+from .submodule import local_conloss
 from .submodule.vit.vit import Block
 from functools import partial
-
 from transformers import BertTokenizer
 
 from model.submodule.bert.bert import MyBertMaskedLM
@@ -36,22 +37,8 @@ class MM(nn.Module):
         # self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
-            self.vision_local_embedding = nn.Conv1d(
-                embed_dim,
-                embed_dim,
-                kernel_size=1,
-                stride=1,
-                padding=0,
-                bias=False,
-            )
-            self.text_local_embedding = nn.Conv1d(
-                embed_dim,
-                embed_dim,
-                kernel_size=1,
-                stride=1,
-                padding=0,
-                bias=False,
-            )
+            self.vision_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
+            self.text_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
         # --------------------------------------------------------------------------
         # image encoder specifics
         self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
@@ -200,74 +187,6 @@ class MM(nn.Module):
 
         return x_masked, mask, ids_restore
 
-    def aggregate_tokens(self, embeddings, caption_ids, last_layer_attn):
-        """
-        :param embeddings: bz, layer, num_words, 768
-        :param caption_ids: bz, 112
-        :param last_layer_attn: bz, 111
-        """
-        _, num_layers, num_words, dim = embeddings.shape
-        embeddings = embeddings.permute(0, 2, 1, 3)
-        agg_embs_batch = []
-        sentences = []
-        last_attns = []
-        # loop over batch
-        for embs, caption_id, last_attn in zip(embeddings, caption_ids, last_layer_attn):
-            agg_embs = []
-            token_bank = []
-            words = []
-            word_bank = []
-            attns = []
-            attn_bank = []
-            caption_id = self.tokenizer.convert_ids_to_tokens(caption_id)
-            # loop over sentence
-            for word_emb, word, attn in zip(embs, caption_id, last_attn):
-                if word == "[SEP]":
-                    new_emb = torch.stack(token_bank)
-                    new_emb = new_emb.sum(axis=0)
-                    agg_embs.append(new_emb)
-                    words.append("".join(word_bank))
-                    attns.append(sum(attn_bank))
-                    agg_embs.append(word_emb)
-                    words.append(word)
-                    attns.append(attn)
-                    break
-                # This is because some words are divided into two words.
-                if not word.startswith("##"):
-                    if len(word_bank) == 0:
-                        token_bank.append(word_emb)
-                        word_bank.append(word)
-                        attn_bank.append(attn)
-                    else:
-                        new_emb = torch.stack(token_bank)
-                        new_emb = new_emb.sum(axis=0)
-                        agg_embs.append(new_emb)
-                        words.append("".join(word_bank))
-                        attns.append(sum(attn_bank))
-
-                        token_bank = [word_emb]
-                        word_bank = [word]
-                        attn_bank = [attn]
-                else:
-                    token_bank.append(word_emb)
-                    word_bank.append(word[2:])
-                    attn_bank.append(attn)
-            agg_embs = torch.stack(agg_embs)
-            padding_size = num_words - len(agg_embs)
-            paddings = torch.zeros(padding_size, num_layers, dim)
-            paddings = paddings.type_as(agg_embs)
-            words = words + ["[PAD]"] * padding_size
-            last_attns.append(
-                torch.cat([torch.tensor(attns), torch.zeros(padding_size)], dim=0))
-            agg_embs_batch.append(torch.cat([agg_embs, paddings]))
-            sentences.append(words)
-
-        agg_embs_batch = torch.stack(agg_embs_batch)
-        agg_embs_batch = agg_embs_batch.permute(0, 2, 1, 3)
-        last_atten_pt = torch.stack(last_attns)
-        last_atten_pt = last_atten_pt.type_as(agg_embs_batch)
-        return agg_embs_batch, sentences, last_atten_pt
-
     def forward_vision_encoder(self, x, mask_ratio):
         # embed patches
         x = self.patch_embed(x)
@@ -409,7 +328,7 @@ class MM(nn.Module):
         bs = v_embed.size(0)
         attention_mask = text.attention_mask
         image_atts = torch.ones(v_embed.size()[:-1], dtype=torch.long).to(v_embed.device)
-        v_feat = F.normalize(self.vision_proj(v_embed[:, 0, :]), dim=-1)
+        v_feat = F.normalize(self.vision_proj(v_embed[:, 0, :].contiguous()), dim=-1)
         output_feat = self.fusion_encoder(latent=None,
                                           inputs_embeds=l_embed,
                                           attention_mask=attention_mask,
@@ -479,15 +398,15 @@ class MM(nn.Module):
         all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]
         last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
         # t = time.time()
-        all_feat, sents, word_atten = self.aggregate_tokens(
-            all_feat, ids, last_layer_attn)
+        all_feat, sents, word_atten = local_conloss.aggregate_tokens(self, all_feat,
+                                                                     ids, last_layer_attn)
         # print("time for aggregate_tokens", time.time() - t)
         word_atten = word_atten[:, 1:].contiguous()
         all_feat = all_feat[:, 0]
         # report_feat = all_feat[:, 0].contiguous()
         word_feat = all_feat[:, 1:].contiguous()  # [b, words_length, embed]
         # we get report_feat, word_feat, last_atten_pt, sents now
-        word_emb = self.text_local_embedding(word_feat.permute(0, 2, 1)).permute(0, 2, 1)
+        word_emb = self.text_local_embedding(word_feat)
         word_emb = F.normalize(word_emb, dim=-1)
         # words_emb: [b, embed, words_length]
 
@@ -502,7 +421,7 @@ class MM(nn.Module):
         # ).expand_as(img_features)
 
         # we get img_feat and patch_feat now
-        patch_emb = self.vision_local_embedding(patch_feat.permute(0, 2, 1)).permute(0, 2, 1)
+        patch_emb = self.vision_local_embedding(patch_feat)
         patch_emb = F.normalize(patch_emb, dim=-1)  # [b, patch_num, embed]
 
         atten_sim = torch.bmm(word_emb, patch_emb.permute(0, 2, 1))  # [b, words_length, patch_num]
@@ -520,8 +439,8 @@ class MM(nn.Module):
                 atten_weight[nonzero] = atten_weight[nonzero].clip(low, high)
                 word_atten_weights.append(atten_weight.clone())
             word_atten_weights = torch.stack(word_atten_weights)
-        word_atten_weights /= word_atten_weights.sum(dim=1, keepdims=True)
 
+        word_atten_weights /= word_atten_weights.sum(dim=1, keepdims=True)
         word_sim = torch.bmm(word_emb, word_atten_output.permute(
             0, 2, 1)) / temperature
         word_num = word_sim.size(1)
@@ -677,50 +596,50 @@ def build_bert():
     return text_encoder, text_width
 
 
-def attention_fn(query, context, temp1):
-    """
-    query: batch x ndf x sequence_length (ndf is the hidden_embed_size)
-    context: batch x ndf x patch_num
-    :returns
-    weightedContext: batch x ndf x sequence_length
-    attn: batch x sequence_length x patch_num
-    """
-    batch_size, sequence_length = query.size(0), query.size(2)
-    patch_num = context.size(2)
+# def attention_fn(query, context, temp1):
+#     """
+#     query: batch x ndf x sequence_length (ndf is the hidden_embed_size)
+#     context: batch x ndf x patch_num
+#     :returns
+#     weightedContext: batch x ndf x sequence_length
+#     attn: batch x sequence_length x patch_num
+#     """
+#     batch_size, sequence_length = query.size(0), query.size(2)
+#     patch_num = context.size(2)
+#
+#     # --> batch x patch_num x ndf
+#     contextT = torch.transpose(context, 1, 2).contiguous()
+#
+#     # Get attention
+#     # (batch x patch_num x ndf)(batch x ndf x sequence_length)
+#     # -->batch x patch_num x sequence_length
+#     attn = torch.bmm(contextT, query)
+#     # --> batch*patch_num x sequence_length
+#     attn = attn.view(batch_size * patch_num, sequence_length)
+#     attn = nn.Softmax(dim=-1)(attn)
+#
+#     # --> batch x patch_num x sequence_length
+#     attn = attn.view(batch_size, patch_num, sequence_length)
+#     # --> batch*sequence_length x patch_num
+#     attn = torch.transpose(attn, 1, 2).contiguous()
+#     attn = attn.view(batch_size * sequence_length, patch_num)
+#
+#     attn = attn * temp1
+#     attn = nn.Softmax(dim=-1)(attn)
+#     attn = attn.view(batch_size, sequence_length, patch_num)
+#     # --> batch x patch_num x sequence_length
+#     attnT = torch.transpose(attn, 1, 2).contiguous()
+#
+#     # (batch x ndf x patch_num)(batch x patch_num x sequence_length)
+#     # --> batch x ndf x sequence_length
+#     weightedContext = torch.bmm(context, attnT)
+#
+#     return weightedContext, attn
 
-    # --> batch x patch_num x ndf
-    contextT = torch.transpose(context, 1, 2).contiguous()
 
-    # Get attention
-    # (batch x patch_num x ndf)(batch x ndf x sequence_length)
-    # -->batch x patch_num x sequence_length
-    attn = torch.bmm(contextT, query)
-    # --> batch*patch_num x sequence_length
-    attn = attn.view(batch_size * patch_num, sequence_length)
-    attn = nn.Softmax(dim=-1)(attn)
-
-    # --> batch x patch_num x sequence_length
-    attn = attn.view(batch_size, patch_num, sequence_length)
-    # --> batch*sequence_length x patch_num
-    attn = torch.transpose(attn, 1, 2).contiguous()
-    attn = attn.view(batch_size * sequence_length, patch_num)
-
-    attn = attn * temp1
-    attn = nn.Softmax(dim=-1)(attn)
-    attn = attn.view(batch_size, sequence_length, patch_num)
-    # --> batch x patch_num x sequence_length
-    attnT = torch.transpose(attn, 1, 2).contiguous()
-
-    # (batch x ndf x patch_num)(batch x patch_num x sequence_length)
-    # --> batch x ndf x sequence_length
-    weightedContext = torch.bmm(context, attnT)
-
-    return weightedContext, attn
-
-
-def cosine_similarity(x1, x2, dim=1, eps=1e-8):
-    """Returns cosine similarity between x1 and x2, computed along dim."""
-    w12 = torch.sum(x1 * x2, dim)
-    w1 = torch.norm(x1, 2, dim)
-    w2 = torch.norm(x2, 2, dim)
-    return (w12 / (w1 * w2).clamp(min=eps)).squeeze()
+# def cosine_similarity(x1, x2, dim=1, eps=1e-8):
+#     """Returns cosine similarity between x1 and x2, computed along dim."""
+#     w12 = torch.sum(x1 * x2, dim)
+#     w1 = torch.norm(x1, 2, dim)
+#     w2 = torch.norm(x2, 2, dim)
+#     return (w12 / (w1 * w2).clamp(min=eps)).squeeze()
