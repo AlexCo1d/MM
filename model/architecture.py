@@ -509,7 +509,6 @@ class MM(nn.Module):
         atten_scores = F.softmax(atten_sim / temperature, dim=-1)  # [b, words_length, patch_num]
         word_atten_output = torch.bmm(atten_scores, patch_emb)  # [b, words_length, embed]
         word_atten_output = F.normalize(word_atten_output, dim=-1)
-        t = time.time()
         with torch.no_grad():
             atten_weights = word_atten.detach()
             word_atten_weights = []
@@ -521,7 +520,6 @@ class MM(nn.Module):
                 atten_weight[nonzero] = atten_weight[nonzero].clip(low, high)
                 word_atten_weights.append(atten_weight.clone())
             word_atten_weights = torch.stack(word_atten_weights)
-            print("time for loop1", time.time() - t)
         word_atten_weights /= word_atten_weights.sum(dim=1, keepdims=True)
 
         word_sim = torch.bmm(word_emb, word_atten_output.permute(
@@ -661,9 +659,9 @@ class MM(nn.Module):
         loss.append(v_loss)
         loss.append(global_contrastive_loss)
         if self.local_contrastive_loss:
-            t = time.time()
+            # t = time.time()
             local_contrastive_loss = self.forward_local_contrastive_loss(latent_unmasked, text.input_ids, text_output)
-            print('local:', time.time() - t)
+            # print('local:', time.time() - t)
             loss.append(local_contrastive_loss)
         mlm_loss = self.forward_mlm_loss(latent, text)
         itm_loss = self.forward_matching_loss(latent_unmasked, text_embeds, text, text_feat)

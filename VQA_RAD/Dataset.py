@@ -1,12 +1,13 @@
 import os
 import re
 
-import tokenizers
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 import json
 import PIL
+from transformers import BertTokenizer
+
 from Utils.randaugment import RandomAugment
 from PIL import Image
 
@@ -18,7 +19,8 @@ class VQA_Dataset(Dataset):
         max_answer_length = 50
         with open(os.path.join(data_path, f'{mode}.json')) as f:
             self.data = json.load(f)
-        self.tokenizer = tokenizers.Tokenizer.from_file("../model/submodule/bert/bert-base-uncased")
+        self.tokenizer = BertTokenizer.from_pretrained(
+            './model/submodule/bert/bert-base-uncased')
         self.mode = mode
         self.img_padding = [-100 for i in range(img_tokens)]
         self.attn_padding = [1 for i in range(img_tokens)]
