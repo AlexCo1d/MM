@@ -7,7 +7,7 @@ only for testing
 import torch
 from functools import partial
 import torch.nn as nn
-from model.architecture import MM
+from model.archi import MM
 #
 # # 假设的输入维度
 # batch_size = 2

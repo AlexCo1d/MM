@@ -33,7 +33,7 @@ class MM(nn.Module):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(
             './model/submodule/bert/bert-base-uncased')  # Using BERT tokenizer
-        self.idxtoword = [k for k, v in self.tokenizer.get_vocab().items()]
+        # self.idxtoword = [k for k, v in self.tokenizer.get_vocab().items()]
         # self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
@@ -318,19 +318,17 @@ class MM(nn.Module):
         return outputs.loss
 
     def forward_matching_loss(self, v_embed, l_embed, text, l_feat: Tensor):
-        '''
-        :param latent:  unmasked vision_embed from vit
-        :param outputs_labels:  unmasked text_embed from bert
-        :param attention_mask:
-        :param token_type_ids:
-        :return:
-        '''
+        """
+        :param v_embed: vision embedding
+        :param l_embed: text embedding
+        :param text: text input
+        """
         bs = v_embed.size(0)
         attention_mask = text.attention_mask
         image_atts = torch.ones(v_embed.size()[:-1], dtype=torch.long).to(v_embed.device)
         v_feat = F.normalize(self.vision_proj(v_embed[:, 0, :].contiguous()), dim=-1)
         output_feat = self.fusion_encoder(latent=None,
-                                          inputs_embeds=l_embed,
+                                          encoder_embeds=l_embed,
                                           attention_mask=attention_mask,
                                           encoder_hidden_states=v_embed,
                                           encoder_attention_mask=image_atts,  # all ones

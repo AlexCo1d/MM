@@ -30,7 +30,7 @@ import Utils.lr_decay
 import Utils.misc as misc
 from Utils.misc import NativeScalerWithGradNormCount as NativeScaler
 
-from model.architecture import MM
+from model.archi import MM
 
 from engine_pretrain import train_one_epoch
 from Utils.pretrain_datasets import MultimodalBertDataset

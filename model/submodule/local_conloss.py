@@ -21,6 +21,7 @@ class LocalEmbedding(nn.Module):
         x = self.head(x)
         return x.permute(0, 2, 1)
 
+
 def aggregate_tokens(self, embeddings, caption_ids, last_layer_attn):
     """
     :param embeddings: bz, layer, num_words, 768

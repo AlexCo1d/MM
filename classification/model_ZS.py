@@ -5,7 +5,7 @@ import tokenizers
 import torch.nn.functional as F
 
 sys.path.append("..")
-from model.architecture import MM
+from model.archi import MM
 
 
 class MyZSModel(MM):

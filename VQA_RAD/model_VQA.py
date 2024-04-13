@@ -3,7 +3,7 @@ import torch
 import torchvision
 from torchvision.transforms import InterpolationMode
 import torch.nn.functional as F
-from model.architecture import MM
+from model.archi import MM
 from model.submodule.bert.BertConfig import BertConfig
 from model.submodule.bert.bert import BertLMHeadModel
 
