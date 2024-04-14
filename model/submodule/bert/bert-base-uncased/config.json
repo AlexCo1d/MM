@@ -19,5 +19,7 @@
   "transformers_version": "4.6.0.dev0",
   "type_vocab_size": 2,
   "use_cache": true,
-  "vocab_size": 30522
+  "vocab_size": 30522,
+  "output_hidden_states": true,
+  "output_attentions": true
 }

@@ -2,18 +2,23 @@ import datetime
 import logging
 import time
 
+import numpy as np
 import torch
 import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision
+from einops import rearrange
+from torchvision.transforms import InterpolationMode
 
 from Utils.misc import is_dist_avail_and_initialized, get_world_size, get_rank, MetricLogger
 from model.submodule import local_conloss
 from functools import partial
 from transformers import BertTokenizer
-
+from timm.models.vision_transformer import PatchEmbed
 from model.submodule.BLIP import QFormer
 from model.submodule.BLIP.BlipOutput import BlipOutput, BlipOutputFeatures
+from model.submodule.vit.vit import Block
 
 
 class MM_Former(nn.Module):
@@ -27,7 +32,19 @@ class MM_Former(nn.Module):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(
             './model/submodule/bert/bert-base-uncased')
+        self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
         self.freeze_encoder = kwargs.get('freeze_encoder', False)
+
+        self.blocks = nn.ModuleList([
+            Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
+            for i in range(depth)])
+        self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
+        num_patches = self.patch_embed.num_patches
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim),
+                                      requires_grad=False)  # fixed sin-cos embedding
+
+        self.norm = norm_layer(embed_dim)
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
             self.vision_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
@@ -51,13 +68,199 @@ class MM_Former(nn.Module):
 
         self.temp = nn.Parameter(0.07 * torch.ones([]))
 
-        self.max_txt_len = 50
+        self.max_txt_len = 100
+
+    def forward_local_contrastive_loss(self, img_features, ids, words_emb):
+        """
+        :param ids: caption_ids from tokenizer
+        :param img_features: [b, patch_num, embed]
+        :param words_emb: bert output
+        :return: loss, attn_maps
+        """
+        temperature = 0.1
+        # get the local word embed
+        bz = img_features.size(0)
+        all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]
+        last_layer_attn = words_emb.attentions[-1][:, :, 0, 1:].mean(dim=1)
+        # t = time.time()
+        all_feat, sents, word_atten = local_conloss.aggregate_tokens(self, all_feat,
+                                                                     ids, last_layer_attn)
+        # print("time for aggregate_tokens", time.time() - t)
+        word_atten = word_atten[:, 1:].contiguous()
+        all_feat = all_feat[:, 0]
+        # report_feat = all_feat[:, 0].contiguous()
+        word_feat = all_feat[:, 1:].contiguous()  # [b, words_length, embed]
+        # we get report_feat, word_feat, last_atten_pt, sents now
+        word_emb = self.text_local_embedding(word_feat)
+        word_emb = F.normalize(word_emb, dim=-1)
+        # words_emb: [b, embed, words_length]
+
+        # same to the image features because they are all transformer based
+        # img_feat=img_features[-1, :, 0].contiguous()  # [b, embed]
+        patch_feat = img_features[:, 1:].contiguous()  # [b, patch_num, embed]
+
+        # img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
+        # img_features = img_features.permute(0, 2, 1)
+        # img_features = img_features / torch.norm(
+        #     img_features, 2, dim=1, keepdim=True
+        # ).expand_as(img_features)
+
+        # we get img_feat and patch_feat now
+        patch_emb = self.vision_local_embedding(patch_feat)
+        patch_emb = F.normalize(patch_emb, dim=-1)  # [b, patch_num, embed]
+
+        atten_sim = torch.bmm(word_emb, patch_emb.permute(0, 2, 1))  # [b, words_length, patch_num]
+        atten_scores = F.softmax(atten_sim / temperature, dim=-1)  # [b, words_length, patch_num]
+        word_atten_output = torch.bmm(atten_scores, patch_emb)  # [b, words_length, embed]
+        word_atten_output = F.normalize(word_atten_output, dim=-1)
+        with torch.no_grad():
+            atten_weights = word_atten.detach()
+            word_atten_weights = []
+            for i in range(bz):
+                atten_weight = atten_weights[i]
+                nonzero = atten_weight.nonzero().squeeze()
+                low = torch.quantile(atten_weight[nonzero], 0.1)
+                high = torch.quantile(atten_weight[nonzero], 0.9)
+                atten_weight[nonzero] = atten_weight[nonzero].clip(low, high)
+                word_atten_weights.append(atten_weight.clone())
+            word_atten_weights = torch.stack(word_atten_weights)
+
+        word_atten_weights /= word_atten_weights.sum(dim=1, keepdims=True)
+        word_sim = torch.bmm(word_emb, word_atten_output.permute(
+            0, 2, 1)) / temperature
+        word_num = word_sim.size(1)
+        word_sim_1 = rearrange(word_sim, "b n1 n2 -> (b n1) n2")
+        targets = torch.arange(word_num).type_as(
+            word_emb).long().repeat(bz)
+        loss_word_1 = torch.sum(F.cross_entropy(
+            word_sim_1, targets, reduction="none") * word_atten_weights.view(-1)) / bz
+
+        word_sim_2 = rearrange(word_sim, "b n1 n2 -> (b n2) n1")
+        loss_word_2 = torch.sum(F.cross_entropy(
+            word_sim_2, targets, reduction="none") * word_atten_weights.view(-1)) / bz
+
+        loss_word = (loss_word_1 + loss_word_2) / 2.
+
+        # -------------------------------------------------------------
+        # Do the same thing to word, and sum up at last as local loss!
+        atten_sim = torch.bmm(patch_emb, word_emb.permute(0, 2, 1))
+        patch_num = patch_emb.size(1)
+        mask = torch.from_numpy(np.array(sents)[:, 1:] == "[PAD]").type_as(patch_emb).bool()
+        atten_sim[mask.unsqueeze(1).repeat(
+            1, patch_num, 1)] = float("-inf")
+        atten_scores = F.softmax(
+            atten_sim / temperature, dim=-1)  # bz, 196, 111
+        patch_atten_output = torch.bmm(atten_scores, word_emb)
+        with torch.no_grad():
+            img_attn_map = self.blocks[-1].attn.attention_map.detach(
+            )
+            atten_weights = img_attn_map[:, :, 0, 1:].mean(dim=1)
+            patch_atten_weights = []
+            for i in range(bz):
+                atten_weight = atten_weights[i]
+                atten_weight = atten_weight.clip_(torch.quantile(
+                    atten_weight, 0.1), torch.quantile(atten_weight, 0.9))
+                patch_atten_weights.append(atten_weight.clone())
+            patch_atten_weights = torch.stack(patch_atten_weights)
+        patch_atten_weights /= patch_atten_weights.sum(
+            dim=1, keepdims=True)
+
+        patch_sim = torch.bmm(patch_emb, patch_atten_output.permute(
+            0, 2, 1)) / temperature
+        patch_num = patch_sim.size(1)
+        patch_sim_1 = rearrange(patch_sim, "b n1 n2 -> (b n1) n2")
+        targets = torch.arange(patch_num).type_as(
+            patch_emb).long().repeat(bz)
+        # loss_patch_1 = F.cross_entropy(patch_sim_1, targets)
+        loss_patch_1 = torch.sum(F.cross_entropy(
+            patch_sim_1, targets, reduction="none") * patch_atten_weights.view(-1)) / bz
+
+        patch_sim_2 = rearrange(patch_sim, "b n1 n2 -> (b n2) n1")
+        loss_patch_2 = torch.sum(F.cross_entropy(
+            patch_sim_2, targets, reduction="none") * patch_atten_weights.view(-1)) / bz
+
+        loss_patch = (loss_patch_1 + loss_patch_2) / 2.
+
+        loss_local = loss_patch + loss_word
+
+        # batch_size = img_features.shape[0]  # eg. 48
+        # words_num = words_emb.shape[2]
+        # att_maps = []
+        # similarities = []
+        # # cap_lens = cap_lens.data.tolist()
+        # for i in range(batch_size):
+        #     # Get the i-th text description
+        #     word = words_emb[i, :, :].unsqueeze(0).contiguous()
+        #     word = word.repeat(batch_size, 1, 1)  # [48, 768, 100]
+        #     context = img_features  # [48, 768, 196]
+        #
+        #     weiContext, attn = attention_fn(
+        #         word, context, temp1
+        #     )  # [48, 768, 100], [48, 100, 196]
+        #
+        #     att_maps.append(
+        #         attn[i].unsqueeze(0).contiguous()
+        #     )  # add attention for curr index  [100, 196]
+        #     word = word.transpose(1, 2).contiguous()  # [48, 100, 768]
+        #     weiContext = weiContext.transpose(1, 2).contiguous()  # [48, 100, 768]
+        #
+        #     word = word.view(batch_size * words_num, -1)  # [4800, 768]
+        #     weiContext = weiContext.view(batch_size * words_num, -1)  # [4800, 768]
+        #
+        #     row_sim = cosine_similarity(word, weiContext)
+        #     row_sim = row_sim.view(batch_size, words_num)  # [48, 100]
+        #
+        #     row_sim.mul_(temp2).exp_()
+        #     row_sim = row_sim.sum(dim=1, keepdim=True)  # [48, 1]
+        #     row_sim = torch.log(row_sim)
+        #
+        #     similarities.append(row_sim)
+        #
+        # similarities = torch.cat(similarities, 1)  #
+        # similarities = similarities * temp3
+        # similarities1 = similarities.transpose(0, 1).contiguous()  # [48, 48]
+        #
+        # labels = Variable(torch.LongTensor(range(batch_size))).to(similarities.device)
+        #
+        # loss0 = nn.CrossEntropyLoss()(similarities, labels)  # labels: arange(batch_size)
+        # loss1 = nn.CrossEntropyLoss()(similarities1, labels)
+        return loss_local
+
+    def forward_vision_encoder(self, x, mask_ratio):
+        # embed patches
+        x = self.patch_embed(x)
+        # add pos embed w/o cls token
+        x = x + self.pos_embed[:, 1:, :]
+
+        # masking: length -> length * mask_ratio
+        if mask_ratio > 0:
+            x, mask, ids_restore = self.random_masking(x, mask_ratio)
+
+        # append cls token
+        cls_token = self.cls_token + self.pos_embed[:, :1, :]
+        cls_tokens = cls_token.expand(x.shape[0], -1, -1)
+        x = torch.cat((cls_tokens, x), dim=1)
+        hidden_features = []
+        # apply Transformer blocks
+        for i, blk in enumerate(self.blocks):
+            x = blk(x, i == 11)
+            hidden_features.append(x)
+        x = self.norm(x)
+        hidden_features = torch.stack(hidden_features, dim=0)
+        if mask_ratio > 0:
+            return x, mask, ids_restore, hidden_features
+        else:
+            return x, hidden_features
 
     def forward(self, samples):
-        image = samples["image"]
-        text = samples["text_input"]
+        image = samples["image1"]
+        text = samples["text"]
+        loss = []
+        image= image.cuda()
+        imgs_1 = image.clone() # keep the 448 size image
 
-        image_embeds = self.ln_vision(self.visual_encoder(image))
+        _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image)
+        image_embeds, hidden_features = self.forward_vision_encoder(_imgs, mask_ratio=0.0)
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
             image.device
         )
@@ -91,8 +294,11 @@ class MM_Former(nn.Module):
         text_feat = F.normalize(
             self.text_proj(text_output.last_hidden_state[:, 0, :]), dim=-1
         )
+        ###============== Multiview Contrastive ===================###
+        # TODO: multiview contrastive loss
 
-        ###============== Image-text Contrastive ===================###
+
+        ###============== GLobal Image-text Contrastive ===================###
         image_feats_all = concat_all_gather(
             image_feats
         )  # [batch_size*num_gpu, num_query_tokens, embed_dim]
@@ -117,7 +323,9 @@ class MM_Former(nn.Module):
         sim_t2i = sim_t2i / self.temp  # [batch_size, batch_size*num_gpu]
 
         rank = dist.get_rank()
+        # rank=0
         bs = image.size(0)
+
         targets = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(
             image.device
         )
@@ -232,13 +440,15 @@ class MM_Former(nn.Module):
         )
 
         loss_lm = lm_output.loss
-
-        return BlipOutput(
-            loss=loss_itc + loss_itm + loss_lm,
-            loss_itc=loss_itc,
-            loss_itm=loss_itm,
-            loss_lm=loss_lm,
-        )
+        ###============== Local Image-text Contrastive ===================###
+        # TODO:  local contrastive loss
+        if self.local_contrastive_loss:
+            loss_local = self.forward_local_contrastive_loss(image_embeds,text_tokens.input_ids,text_output)
+            loss.append(loss_local)
+        loss.append(loss_itc)
+        loss.append(loss_itm)
+        loss.append(loss_lm)
+        return loss
 
     @torch.no_grad()
     def generate(
@@ -508,9 +718,7 @@ def init_Qformer(num_query_token, vision_width, cross_attention_freq=2):
     encoder_config.add_cross_attention = True
     encoder_config.cross_attention_freq = cross_attention_freq
     encoder_config.query_length = num_query_token
-    Qformer = QFormer.BertLMHeadModel.from_pretrained(
-        "./model/submodule/bert/bert-base-uncased", config=encoder_config
-    )
+    Qformer = QFormer.BertLMHeadModel(config=encoder_config)
     query_tokens = nn.Parameter(
         torch.zeros(1, num_query_token, encoder_config.hidden_size)
     )
@@ -566,6 +774,7 @@ def all_gather_with_grad(tensors):
     """
     # Queue the gathered tensors
     world_size = torch.distributed.get_world_size()
+    # world_size=1
     # There is no need for reduction in the single-proc case
     if world_size == 1:
         return tensors
