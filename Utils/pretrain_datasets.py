@@ -84,9 +84,14 @@ class MultimodalBertDataset(Dataset):
             }
 
     def read_csv(self):
-        csv_path = os.path.join(self.data_root, 'training.csv')
-        df = pd.read_csv(csv_path, sep=',')
-        return df["image_path"], df["report_content"]
+        if self.mv:
+            csv_path=os.path.join(self.data_root,'training_mv.csv')
+            df = pd.read_csv(csv_path, sep=',')
+            return df["image_path"], df['view_type'], df["report_content"]
+        else:
+            csv_path = os.path.join(self.data_root, 'training.csv')
+            df = pd.read_csv(csv_path, sep=',')
+            return df["image_path"], df["report_content"]
 
     # def collate_fn(self, instances: List[Tuple]):
     #     image_list, ids_list, attention_mask_list, type_ids_list, masked_ids_list = [], [], [], [], []
