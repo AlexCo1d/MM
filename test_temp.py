@@ -3,12 +3,12 @@ only for testing
 
 -- alexyhzou
 '''
+import re
 
-import torch
-from functools import partial
-import torch.nn as nn
-from model.archi import MM
-#
+# import torch
+# from functools import partial
+# import torch.nn as nn
+# from model.archi import MM
 # # 假设的输入维度
 # batch_size = 2
 # img_size = 448  # 图像大小
@@ -120,9 +120,9 @@ from model.archi import MM
 # df = pd.read_csv(output_csv_path)
 # row_count = df.shape[0]
 # print(f"CSV 文件的行数为：{row_count}")
-import torch
-
-from VQA_RAD.model_VQA import MyVQAModel
+# import torch
+#
+# from VQA_RAD.model_VQA import MyVQAModel
 
 # t=torch.load('/home/data/Jingkai/alex/pretrain0/checkpoint-40.pth', map_location='cpu')
 # u={}
@@ -238,8 +238,14 @@ with open('./training_mv.csv', 'w') as f:
                     for filename in files:
                         dicom_id = filename.split('.')[0]
                         image_path.append(os.path.join(root, filename))
-                        view_type.append(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
+                        type=str(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
+                        if type!='nan':
+                            view_type.append(type)
                     report_content = t.read()
+                    report_content.replace('\n','')
+                    report_content = report_content.replace('\n', ' ')
+                    # 移除多余的空格
+                    report_content = re.sub(r'\s+', ' ', report_content)
                     image_path = ';'.join(image_path)
                     view_type = ';'.join(view_type)
                     writer.writerow([study_id, image_path, view_type, report_content])
