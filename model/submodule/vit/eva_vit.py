@@ -359,7 +359,7 @@ class VisionTransformer(nn.Module):
             if self.use_checkpoint:
                 x = checkpoint.checkpoint(blk, x, rel_pos_bias)
             else:
-                x = blk(x, i == self.depth, rel_pos_bias)
+                x = blk(x, i == self.depth-1, rel_pos_bias)
         return x
 
     #         x = self.norm(x)
