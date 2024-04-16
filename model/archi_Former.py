@@ -440,14 +440,14 @@ class MM_Former(Blip2Base):
             labels=labels,
         )
 
-        loss_lm = lm_output.loss
+        loss_mlm = lm_output.loss
         ###============== Local Image-text Contrastive ===================###
         if self.local_contrastive_loss:
             loss_local = self.forward_local_contrastive_loss(image_embeds, text_tokens.input_ids, text_output)
             loss.append(loss_local)
         loss.append(loss_itc)
         loss.append(loss_itm)
-        loss.append(loss_lm)
+        loss.append(loss_mlm)
         return loss
 
     @torch.no_grad()
