@@ -4,6 +4,7 @@ import torch
 from torch import nn
 
 from model.submodule.BLIP import QFormer
+from model.submodule.vit.eva_vit import create_eva_vit_g
 
 
 class Blip2Base(nn.Module):
@@ -33,3 +34,21 @@ class Blip2Base(nn.Module):
         query_tokens.data.normal_(mean=0.0, std=encoder_config.initializer_range)
 
         return Qformer, query_tokens
+
+    def init_vision_encoder(self, vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision):
+        visual_encoder= create_eva_vit_g(vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision)
+        ln_vision = LayerNorm(visual_encoder.num_features)
+        return visual_encoder, ln_vision
+
+def disabled_train(self, mode=True):
+    """Overwrite model.train with this function to make sure train/eval mode
+    does not change anymore."""
+    return self
+
+class LayerNorm(nn.LayerNorm):
+    """Subclass torch's LayerNorm to handle fp16."""
+
+    def forward(self, x: torch.Tensor):
+        orig_type = x.dtype
+        ret = super().forward(x.type(torch.float32))
+        return ret.type(orig_type)

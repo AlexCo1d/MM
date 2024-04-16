@@ -17,7 +17,7 @@ from functools import partial
 from transformers import BertTokenizer
 from timm.models.vision_transformer import PatchEmbed
 from model.submodule.BLIP import QFormer
-from model.submodule.BLIP.BLIPBase import Blip2Base
+from model.submodule.BLIP.BLIPBase import (Blip2Base, disabled_train)
 from model.submodule.BLIP.BlipOutput import BlipOutput, BlipOutputFeatures
 from model.submodule.vit.vit import Block
 
@@ -25,9 +25,13 @@ from model.submodule.vit.vit import Block
 class MM_Former(Blip2Base):
     def __init__(self, img_size=224, patch_size=16, in_chans=3, vision_width=768,
                  embed_dim=768, depth=12, num_heads=12,
+                 drop_path_rate=0,
+                 use_grad_checkpoint=False,
+                 vit_precision="fp16",
+                 vit_path='',
                  decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
                  mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False,
-                 temp=0.07, temp1=4.0, temp2=5.0, temp3=10.0, freeze_vit=True,
+                 freeze_vit=True,
                  local_contrastive_loss=False,
                  c_embed_dim=256, num_query_token=32, cross_attention_freq=2, **kwargs):
         super().__init__()
@@ -35,33 +39,25 @@ class MM_Former(Blip2Base):
             './model/submodule/bert/bert-base-uncased')
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
         # VIT encoder part
-        self.blocks = nn.ModuleList([
-            Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
-            for i in range(depth)])
-        self.patch_embed = PatchEmbed(img_size, patch_size, in_chans, embed_dim)
-        num_patches = self.patch_embed.num_patches
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim),
-                                      requires_grad=False)  # fixed sin-cos embedding
-
-        self.norm = norm_layer(embed_dim)
+        self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate, use_grad_checkpoint, vit_precision)
         if freeze_vit:
-            for name, param in self.blocks.named_parameters():
+            for name, param in self.visual_encoder.named_parameters():
                 param.requires_grad = False
-            self.blocks = self.blocks.eval()
+            self.visual_encoder = self.visual_encoder.eval()
+            self.visual_encoder.train = disabled_train
             logging.info("freeze vision encoder")
 
         # Loss options
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
-            self.vision_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
+            self.vision_local_embedding = local_conloss.LocalEmbedding(self.visual_encoder.num_features, 2048, embed_dim)
             self.text_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
 
         self.mv = mv
 
         # Qformer part
         self.Qformer, self.query_tokens = self.init_Qformer(
-            num_query_token, vision_width, cross_attention_freq
+            num_query_token, self.visual_encoder.num_features, cross_attention_freq
         )
 
         self.Qformer.resize_token_embeddings(len(self.tokenizer))
@@ -83,7 +79,7 @@ class MM_Former(Blip2Base):
     def forward_local_contrastive_loss(self, img_features, ids, words_emb):
         """
         :param ids: caption_ids from tokenizer
-        :param img_features: [b, patch_num, embed]
+        :param img_features: [b, patch_num, v_embed]
         :param words_emb: bert output
         :return: loss, attn_maps
         """
@@ -107,7 +103,7 @@ class MM_Former(Blip2Base):
 
         # same to the image features because they are all transformer based
         # img_feat=img_features[-1, :, 0].contiguous()  # [b, embed]
-        patch_feat = img_features[:, 1:].contiguous()  # [b, patch_num, embed]
+        patch_feat = img_features[:, 1:].contiguous()  # [b, patch_num, v_embed]
 
         # img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
         # img_features = img_features.permute(0, 2, 1)
@@ -162,7 +158,7 @@ class MM_Former(Blip2Base):
             atten_sim / temperature, dim=-1)  # bz, 196, 111
         patch_atten_output = torch.bmm(atten_scores, word_emb)
         with torch.no_grad():
-            img_attn_map = self.blocks[-1].attn.attention_map.detach(
+            img_attn_map = self.visual_encoder.blocks[-1].attn.attention_map.detach(
             )
             atten_weights = img_attn_map[:, :, 0, 1:].mean(dim=1)
             patch_atten_weights = []
@@ -236,32 +232,6 @@ class MM_Former(Blip2Base):
         # loss1 = nn.CrossEntropyLoss()(similarities1, labels)
         return loss_local
 
-    def forward_vision_encoder(self, x, mask_ratio):
-        # embed patches
-        x = self.patch_embed(x)
-        # add pos embed w/o cls token
-        x = x + self.pos_embed[:, 1:, :]
-
-        # masking: length -> length * mask_ratio
-        if mask_ratio > 0:
-            x, mask, ids_restore = self.random_masking(x, mask_ratio)
-
-        # append cls token
-        cls_token = self.cls_token + self.pos_embed[:, :1, :]
-        cls_tokens = cls_token.expand(x.shape[0], -1, -1)
-        x = torch.cat((cls_tokens, x), dim=1)
-        hidden_features = []
-        # apply Transformer blocks
-        for i, blk in enumerate(self.blocks):
-            x = blk(x, i == 11)
-            hidden_features.append(x)
-        x = self.norm(x)
-        hidden_features = torch.stack(hidden_features, dim=0)
-        if mask_ratio > 0:
-            return x, mask, ids_restore, hidden_features
-        else:
-            return x, hidden_features
-
     def forward(self, samples):
         image = samples["image1"]
         text = samples["text"]
@@ -270,7 +240,7 @@ class MM_Former(Blip2Base):
         # imgs_1 = image.clone()  # keep the 448 size image
 
         _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image)
-        image_embeds, hidden_features = self.forward_vision_encoder(_imgs, mask_ratio=0.0)
+        image_embeds = self.ln_vision(self.visual_encoder(_imgs))
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
             image.device
         )
@@ -337,21 +307,10 @@ class MM_Former(Blip2Base):
             image.device
         )
 
-        if "image_id" in samples.keys():  # coco retrieval finetuning
-            image_ids = samples["image_id"].view(-1, 1)
-            image_ids_all = concat_all_gather(image_ids)
-            pos_idx = torch.eq(image_ids, image_ids_all.t()).float()
-            sim_targets = pos_idx / pos_idx.sum(1, keepdim=True)
-            sim_targets = 0.9 * sim_targets + 0.1 * torch.ones_like(sim_targets) / sim_targets.size(1)
-
-            loss_t2i = -torch.sum(F.log_softmax(sim_t2i, dim=1) * sim_targets, dim=1).mean()
-            loss_i2t = -torch.sum(F.log_softmax(sim_i2t, dim=1) * sim_targets, dim=1).mean()
-            loss_itc = (loss_t2i + loss_i2t) / 2
-        else:
-            loss_itc = (
-                               F.cross_entropy(sim_i2t, targets, label_smoothing=0.1)
-                               + F.cross_entropy(sim_t2i, targets, label_smoothing=0.1)
-                       ) / 2
+        loss_itc = (
+                           F.cross_entropy(sim_i2t, targets, label_smoothing=0.1)
+                           + F.cross_entropy(sim_t2i, targets, label_smoothing=0.1)
+                   ) / 2
 
         ###============== Multiview Contrastive ===================###
         # TODO: multiview contrastive loss
@@ -359,7 +318,7 @@ class MM_Former(Blip2Base):
             image2 = samples["image2"]
             image2 = image2.cuda()
             _imgs2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image2)
-            image_embeds2, hidden_features2 = self.forward_vision_encoder(_imgs2, mask_ratio=0.0)
+            image_embeds2 = self.ln_vision(self.visual_encoder(_imgs2))
 
             query_output2 = self.Qformer.bert(
                 query_embeds=query_tokens,
@@ -399,13 +358,8 @@ class MM_Former(Blip2Base):
         text_attention_mask_world = concat_all_gather(text_tokens.attention_mask)
         image_embeds_world = all_gather_with_grad(image_embeds)
         with torch.no_grad():
-            if "image_id" in samples.keys():
-                mask = torch.eq(image_ids, image_ids_all.t())
-                sim_t2i.masked_fill_(mask, -10000)
-                sim_i2t.masked_fill_(mask, -10000)
-            else:
-                sim_t2i[:, rank * bs: rank * bs + bs].fill_diagonal_(-10000)
-                sim_i2t[:, rank * bs: rank * bs + bs].fill_diagonal_(-10000)
+            sim_t2i[:, rank * bs: rank * bs + bs].fill_diagonal_(-10000)
+            sim_i2t[:, rank * bs: rank * bs + bs].fill_diagonal_(-10000)
 
             weights_t2i = F.softmax(sim_t2i, dim=1)
             weights_i2t = F.softmax(sim_i2t, dim=1)

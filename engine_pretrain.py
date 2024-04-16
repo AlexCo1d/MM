@@ -41,7 +41,7 @@ def train_one_epoch(model: torch.nn.Module,
         if data_iter_step % accum_iter == 0:
             lr_sched.adjust_learning_rate(optimizer, data_iter_step / len(data_loader) + epoch, args)
         with torch.cuda.amp.autocast():
-            loss, _, _ = model(batch, mask_ratio=mask_ratio)
+            loss= model(batch, mask_ratio=mask_ratio)
             loss_values = []
             loss_values_reduce = []
             loss_dict = {}

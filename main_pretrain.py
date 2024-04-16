@@ -30,7 +30,7 @@ import Utils.lr_decay
 import Utils.misc as misc
 from Utils.misc import NativeScalerWithGradNormCount as NativeScaler
 
-from model.archi import MM
+from model.archi_Former import MM_Former
 
 from engine_pretrain import train_one_epoch
 from Utils.pretrain_datasets import MultimodalBertDataset
@@ -51,12 +51,12 @@ def get_args_parser():
     parser.add_argument('--input_size', default=224, type=int,
                         help='images input size')
 
-    parser.add_argument('--mask_ratio', default=0.75, type=float,
-                        help='Masking ratio (percentage of removed patches).')
+    # parser.add_argument('--mask_ratio', default=0.75, type=float,
+    #                     help='Masking ratio (percentage of removed patches).')
 
-    parser.add_argument('--norm_pix_loss', action='store_true',
-                        help='Use (per-patch) normalized pixels as targets for computing loss')
-    parser.set_defaults(norm_pix_loss=False)
+    # parser.add_argument('--norm_pix_loss', action='store_true',
+    #                     help='Use (per-patch) normalized pixels as targets for computing loss')
+    # parser.set_defaults(norm_pix_loss=False)
 
     # Optimizer parameters
     parser.add_argument('--weight_decay', type=float, default=0.05,
@@ -85,7 +85,8 @@ def get_args_parser():
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--resume', default='',
                         help='resume from checkpoint')
-
+    parser.add_argument('--vit_path', default='',
+                        help='path for loading pretrained ViT model')
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--num_workers', default=10, type=int)
@@ -154,7 +155,7 @@ def main(args):
     )
 
     # define the model
-    model = MM(norm_pix_loss=args.norm_pix_loss, local_contrastive_loss=True)
+    model = MM_Former(local_contrastive_loss=True, vit_path=args.vit_path)
 
     model.to(device)
 
