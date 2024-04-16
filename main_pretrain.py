@@ -155,7 +155,7 @@ def main(args):
     )
 
     # define the model
-    model = MM_Former(local_contrastive_loss=True, vit_path=args.vit_path)
+    model = MM_Former(local_contrastive_loss=True, vit_path=args.vit_path if args.resume is None else '', freeze_vit=True)
 
     model.to(device)
 
