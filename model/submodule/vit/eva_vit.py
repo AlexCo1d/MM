@@ -463,7 +463,6 @@ def create_eva_vit_g(vit_path, img_size=224, drop_path_rate=0.4, use_checkpoint=
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
         use_checkpoint=use_checkpoint,
     )
-    print('1')
     if vit_path!='':
         state_dict = torch.load(vit_path, map_location="cpu")
         interpolate_pos_embed(model, state_dict)

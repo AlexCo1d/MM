@@ -37,7 +37,6 @@ class Blip2Base(nn.Module):
 
     def init_vision_encoder(self, vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision):
         visual_encoder= create_eva_vit_g(vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision)
-        print(vit_path)
         ln_vision = LayerNorm(visual_encoder.num_features)
         return visual_encoder, ln_vision
 
