@@ -122,7 +122,7 @@ import re
 # print(f"CSV 文件的行数为：{row_count}")
 # import torch
 #
-# from VQA_RAD.model_VQA import MyVQAModel
+# from VQA.model_VQA import MyVQAModel
 
 # t=torch.load('/home/data/Jingkai/alex/pretrain0/checkpoint-40.pth', map_location='cpu')
 # u={}

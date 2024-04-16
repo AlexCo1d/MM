@@ -11,8 +11,6 @@ from torchvision import transforms
 import tokenizers
 import random
 
-from transformers import BertTokenizer
-
 from .randaugment import RandomAugment
 
 
@@ -42,7 +40,10 @@ class MultimodalBertDataset(Dataset):
             transforms.ToTensor(),
             normalize,
         ])
-        self.images_list, self.report_list = self.read_csv()
+        self.csv = self.read_csv()
+        self.images_list, self.report_list = self.csv['image_path'], self.csv['report_content']
+        if self.mv:
+            self.view_type_list=self.csv['view_type']
         # self.tokenizer = tokenizers.Tokenizer.from_file("mimic_wordpiece.json")
         # self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         # self.tokenizer.enable_truncation(max_length=self.max_caption_length)
@@ -72,7 +73,22 @@ class MultimodalBertDataset(Dataset):
 
     def __getitem__(self, index):
         if self.mv:
-            pass
+            image_list= self.images_list[index].split(';')
+            view_type_list=self.view_type_list[index].split(';')
+            index1,index2=select_two_index(view_type_list)
+            image1=pil_loader(image_list[index1])
+            image2=pil_loader(image_list[index2])
+            image1 = self.transform(image1)
+            image2 = self.transform(image2)
+
+            # random select multivew image from same study:
+            sent = self.report_list[index]
+            text=pre_caption(sent, self.max_caption_length)
+            return {
+                "image1": image1,
+                "image2": image2,
+                "text": text
+            }
         else:
             image = pil_loader(self.images_list[index])
             image = self.transform(image)
@@ -87,11 +103,11 @@ class MultimodalBertDataset(Dataset):
         if self.mv:
             csv_path=os.path.join(self.data_root,'training_mv.csv')
             df = pd.read_csv(csv_path, sep=',')
-            return df["image_path"], df['view_type'], df["report_content"]
+            return df
         else:
             csv_path = os.path.join(self.data_root, 'training.csv')
             df = pd.read_csv(csv_path, sep=',')
-            return df["image_path"], df["report_content"]
+            return df
 
     # def collate_fn(self, instances: List[Tuple]):
     #     image_list, ids_list, attention_mask_list, type_ids_list, masked_ids_list = [], [], [], [], []
@@ -143,3 +159,31 @@ def pre_caption(caption, max_words):
         caption = ' '.join(caption_words[:max_words])
 
     return caption
+
+
+def select_two_index(view_type_list):
+    # 将类型和索引映射到字典中
+    type_dict = {}
+    for idx, view_type in enumerate(view_type_list):
+        if view_type in type_dict:
+            type_dict[view_type].append(idx)
+        else:
+            type_dict[view_type] = [idx]
+
+    # 获取所有类型的列表
+    types = list(type_dict.keys())
+
+    # 如果只有一个类型可用
+    if len(types) == 1:
+        return random.sample(range(len(view_type_list)), 2)
+
+    # 尝试随机选取两个不同的类型
+    chosen_types = random.sample(types, 2)
+    index1 = random.choice(type_dict[chosen_types[0]])
+    index2 = random.choice(type_dict[chosen_types[1]])
+
+    # 确保不是从相同的类型中选择的两个相同的索引
+    while index1 == index2:
+        index2 = random.choice(type_dict[chosen_types[1]])
+
+    return index1, index2

@@ -17,24 +17,24 @@ from functools import partial
 from transformers import BertTokenizer
 from timm.models.vision_transformer import PatchEmbed
 from model.submodule.BLIP import QFormer
+from model.submodule.BLIP.BLIPBase import Blip2Base
 from model.submodule.BLIP.BlipOutput import BlipOutput, BlipOutputFeatures
 from model.submodule.vit.vit import Block
 
 
-class MM_Former(nn.Module):
+class MM_Former(Blip2Base):
     def __init__(self, img_size=224, patch_size=16, in_chans=3, vision_width=768,
                  embed_dim=768, depth=12, num_heads=12,
                  decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
                  mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False,
-                 temp=0.07, temp1=4.0, temp2=5.0, temp3=10.0,
+                 temp=0.07, temp1=4.0, temp2=5.0, temp3=10.0, freeze_vit=True,
                  local_contrastive_loss=False,
                  c_embed_dim=256, num_query_token=32, cross_attention_freq=2, **kwargs):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(
             './model/submodule/bert/bert-base-uncased')
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
-        self.freeze_encoder = kwargs.get('freeze_encoder', False)
-
+        # VIT encoder part
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
             for i in range(depth)])
@@ -45,12 +45,22 @@ class MM_Former(nn.Module):
                                       requires_grad=False)  # fixed sin-cos embedding
 
         self.norm = norm_layer(embed_dim)
+        if freeze_vit:
+            for name, param in self.blocks.named_parameters():
+                param.requires_grad = False
+            self.blocks = self.blocks.eval()
+            logging.info("freeze vision encoder")
+
+        # Loss options
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
             self.vision_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
             self.text_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
 
-        self.Qformer, self.query_tokens = init_Qformer(
+        self.mv = mv
+
+        # Qformer part
+        self.Qformer, self.query_tokens = self.init_Qformer(
             num_query_token, vision_width, cross_attention_freq
         )
 
@@ -67,7 +77,7 @@ class MM_Former(nn.Module):
         self.itm_head = nn.Linear(self.Qformer.config.hidden_size, 2)
 
         self.temp = nn.Parameter(0.07 * torch.ones([]))
-
+        self.temp1 = nn.Parameter(0.07 * torch.ones([]))
         self.max_txt_len = 100
 
     def forward_local_contrastive_loss(self, img_features, ids, words_emb):
@@ -256,8 +266,8 @@ class MM_Former(nn.Module):
         image = samples["image1"]
         text = samples["text"]
         loss = []
-        image= image.cuda()
-        imgs_1 = image.clone() # keep the 448 size image
+        image = image.cuda()
+        # imgs_1 = image.clone()  # keep the 448 size image
 
         _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image)
         image_embeds, hidden_features = self.forward_vision_encoder(_imgs, mask_ratio=0.0)
@@ -294,9 +304,6 @@ class MM_Former(nn.Module):
         text_feat = F.normalize(
             self.text_proj(text_output.last_hidden_state[:, 0, :]), dim=-1
         )
-        ###============== Multiview Contrastive ===================###
-        # TODO: multiview contrastive loss
-
 
         ###============== GLobal Image-text Contrastive ===================###
         image_feats_all = concat_all_gather(
@@ -345,6 +352,47 @@ class MM_Former(nn.Module):
                                F.cross_entropy(sim_i2t, targets, label_smoothing=0.1)
                                + F.cross_entropy(sim_t2i, targets, label_smoothing=0.1)
                        ) / 2
+
+        ###============== Multiview Contrastive ===================###
+        # TODO: multiview contrastive loss
+        if self.mv:
+            image2 = samples["image2"]
+            image2 = image2.cuda()
+            _imgs2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image2)
+            image_embeds2, hidden_features2 = self.forward_vision_encoder(_imgs2, mask_ratio=0.0)
+
+            query_output2 = self.Qformer.bert(
+                query_embeds=query_tokens,
+                encoder_hidden_states=image_embeds2,
+                encoder_attention_mask=image_atts,
+                use_cache=True,
+                return_dict=True,
+            )
+
+            image_feats2 = F.normalize(
+                self.vision_proj(query_output2.last_hidden_state), dim=-1
+            )
+
+            image_feats_all2 = concat_all_gather(
+                image_feats2
+            )
+            sim_i1_i2 = torch.matmul(
+                rearrange(image_feats, "b n e -> b (n e)"),
+                rearrange(image_feats_all2, "b n e -> b (n e)").t()
+            )
+            sim_i1_i2 = sim_i1_i2 / self.temp1
+            sim_i2_i1 = torch.matmul(
+                rearrange(image_feats2, "b n e -> b (n e)"),
+                rearrange(image_feats_all, "b n e -> b (n e)").t()
+            )
+            sim_i2_i1 = sim_i2_i1 / self.temp1
+            targets_mv = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(image.device)
+
+            inter_view_loss = (
+                               F.cross_entropy(sim_i1_i2, targets_mv, label_smoothing=0.1)
+                               + F.cross_entropy(sim_i2_i1, targets_mv, label_smoothing=0.1)
+                       ) / 2
+            loss.append(inter_view_loss)
 
         ###============== Image-text Matching ===================###
         text_input_ids_world = concat_all_gather(text_tokens.input_ids)
@@ -441,9 +489,8 @@ class MM_Former(nn.Module):
 
         loss_lm = lm_output.loss
         ###============== Local Image-text Contrastive ===================###
-        # TODO:  local contrastive loss
         if self.local_contrastive_loss:
-            loss_local = self.forward_local_contrastive_loss(image_embeds,text_tokens.input_ids,text_output)
+            loss_local = self.forward_local_contrastive_loss(image_embeds, text_tokens.input_ids, text_output)
             loss.append(loss_local)
         loss.append(loss_itc)
         loss.append(loss_itm)
@@ -709,22 +756,6 @@ class MM_Former(nn.Module):
         k_test = task_cfg.k_test
 
         return compute_sim_matrix(model=self, data_loader=data_loader, k_test=k_test)
-
-
-def init_Qformer(num_query_token, vision_width, cross_attention_freq=2):
-    encoder_config = QFormer.BertConfig.from_pretrained("./model/submodule/bert/bert-base-uncased")
-    encoder_config.encoder_width = vision_width
-    # insert cross-attention layer every other block
-    encoder_config.add_cross_attention = True
-    encoder_config.cross_attention_freq = cross_attention_freq
-    encoder_config.query_length = num_query_token
-    Qformer = QFormer.BertLMHeadModel(config=encoder_config)
-    query_tokens = nn.Parameter(
-        torch.zeros(1, num_query_token, encoder_config.hidden_size)
-    )
-    query_tokens.data.normal_(mean=0.0, std=encoder_config.initializer_range)
-
-    return Qformer, query_tokens
 
 
 class GatherLayer(torch.autograd.Function):
