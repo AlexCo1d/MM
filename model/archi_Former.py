@@ -313,7 +313,6 @@ class MM_Former(Blip2Base):
                    ) / 2
 
         ###============== Multiview Contrastive ===================###
-        # TODO: multiview contrastive loss
         if self.mv:
             image2 = samples["image2"]
             image2 = image2.cuda()
