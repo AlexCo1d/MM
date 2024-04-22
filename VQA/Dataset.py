@@ -19,15 +19,10 @@ class VQA_Dataset(Dataset):
         max_answer_length = 50
         with open(os.path.join(data_path, f'{mode}.json')) as f:
             self.data = json.load(f)
-        self.tokenizer = BertTokenizer.from_pretrained(
-            '../model/submodule/bert/bert-base-uncased')
         self.mode = mode
-        self.img_padding = [-100 for i in range(img_tokens)]
-        self.attn_padding = [1 for i in range(img_tokens)]
         self.json_trivial = json_trivial
         self.transform = transform
         self.data_path = data_path
-        self.voc_size = voc_size
         self.img_root = img_root
 
         # answer_list = [item['answer'] for item in self.data]
@@ -66,43 +61,37 @@ class VQA_Dataset(Dataset):
         image = self.transform(img)
 
         pre_text, final_o = self.random_answer(Question, Anwser)
-        final_o = self.tokenizer(final_o, padding='longest', truncation=True, max_length=50, return_tensors="pt")
-        input_ids = final_o.input_ids
-        attention_mask = final_o.attention_mask
-        input_ids = torch.tensor(input_ids).unsqueeze(0)
-        attention_mask = torch.tensor(attention_mask).unsqueeze(0)
+        # final_o = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=50, return_tensors="pt")
+        # input_ids = final_o.input_ids
+        # attention_mask = final_o.attention_mask
+        # input_ids = torch.tensor(input_ids).unsqueeze(0)
+        # attention_mask = torch.tensor(attention_mask).unsqueeze(0)
 
-        label = self.tokenizer(Anwser, padding='longest', truncation=True, max_length=50, return_tensors="pt")
-        labels_att = torch.tensor(label.attention_mask).unsqueeze(0)
-        label = torch.tensor(label.input_ids).unsqueeze(0)
+        # label = self.tokenizer(Anwser, padding='longest', truncation=True, max_length=50, return_tensors="pt")
+        # labels_att = torch.tensor(label.attention_mask).unsqueeze(0)
+        # label = torch.tensor(label.input_ids).unsqueeze(0)
 
         if self.mode == 'train':
             item = {
-                'input_ids': input_ids,
-                'attention_mask': attention_mask,
-                'images': image,
-                'labels': label,
-                'label_att': labels_att
+                'text_input': pre_text,
+                'text_output': Anwser,
+                'image': image,
             }
         # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
             if self.json_trivial:
                 item = {
-                    'input_ids': input_ids,
-                    'attention_mask': attention_mask,
-                    'images': image,
-                    'question': Question,
-                    'answer': Anwser,
+                    'text_input': pre_text,
+                    'text_output': Anwser,
+                    'image': image,
                     'answer_type': sample['answer_type'],
                     'image_name': sample['image_name']
                 }
             else:
                 item = {
-                    'input_ids': input_ids,
-                    'attention_mask': attention_mask,
-                    'images': image,
-                    'question': Question,
-                    'answer': Anwser,
+                    'text_input': pre_text,
+                    'text_output': Anwser,
+                    'image': image,
                     'answer_type': at,
                     'image_name': sample['image_name']
                 }

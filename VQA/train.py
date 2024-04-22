@@ -14,8 +14,10 @@ from pathlib import Path
 import torch
 import torch.distributed as dist
 import utils
+import Utils.misc as misc
+import Utils.lr_sched as lr_sched
 from Dataset import create_dataset
-from model_VQA import MyVQAModel
+from model.Former_T5 import Former_T5
 from vqaTools.vqaEvaluate import compute_vqa_acc
 
 
@@ -28,12 +30,8 @@ def train(model, data_loader, optimizer, epoch, device, args):
     header = 'Train Epoch: [{}]'.format(epoch)
     print_freq = 50
     for i, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
-        images = b['image'].to(device)
-        input_ids = b['input_ids'].to(device)
-        labels = b['labels'].to(device)
-        attention_mask = b['attention_mask'].to(device)
-        labels_att = b['labels_att'].to(device)
-        loss = model(images, input_ids,attention_mask, labels,labels_att, train=True)
+        lr_sched.adjust_learning_rate(optimizer, i / len(data_loader) + epoch, args)
+        loss = model(b)
 
         optimizer.zero_grad()
         loss.backward()
@@ -66,26 +64,16 @@ def evaluation(model, data_loader, device, args):
     result = []
 
     for n, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
-        images = b['image'].to(device)
-        input_ids = b['input_ids'].to(device)
-        questions = b['question']  # 获取问题
-        answers = b['answer']  # 获取答案
-        answer_types = b['answer_type']  # 获取答案类型
-        image_names=b['image_name']
-        attention_mask=b['attention_mask'].to(device)
 
-        topk_ids, topk_probs = model(images, input_ids,attention_mask, data_loader.dataset.answer_list_ids.to(device),data_loader.dataset.answer_list_att.to(device), train=False)
-        for idx, (ques_id, topk_id, topk_prob) in enumerate(zip(topk_ids, topk_probs)):
-            _, pred_idx = topk_prob.max(dim=0)  # 获取概率最大值的索引，即预测的答案索引
-            pred_answer= data_loader.dataset.answer_list[topk_id[pred_idx]]  # 假设pred_answer是预测的答案，这里简化处理，直接使用索引作为答案，根据实际情况调整
-
+        text_output = model.predict_answers(b)
+        for idx, answer in enumerate(text_output):
             # 构造结果字典
             result_dict = {
-                'image_name':image_names[idx], #获取图片名
-                "question": questions[idx],  # 当前问题
-                "pred": pred_answer,  # 预测的答案
-                "answer": answers[idx],  # 实际答案
-                "answer_type": answer_types[idx]  # 答案类型
+                'image_name':b['image_name'][idx], #获取图片名
+                "question": b['text_input'][idx],  # 当前问题
+                "pred": text_output[idx],  # 预测的答案
+                "answer": b['text_output'][idx],  # 实际答案
+                "answer_type": b['answer_type'][idx]  # 答案类型
             }
             result.append(result_dict)
     return result
@@ -127,10 +115,15 @@ def main(args):
 
     #### Creating Model ####
     print("Creating model")
-    model = MyVQAModel()
+    model = Former_T5(t5_model_path=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '', freeze_vit=True)
     model = model.to(device)
     # print(model)
+
+    eff_batch_size = args.batch_size * misc.get_world_size()
+
+
     optimizer = torch.optim.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.05)
+
 
     model_without_ddp = model
     if args.distributed:
@@ -185,7 +178,8 @@ def main(args):
                 json.dump(vqa_result,
                           open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
                 acc = compute_vqa_acc(vqa_result, epoch, args=args)
-                acc_list.append(acc)
+                acc_list.append({'epoch:':epoch,'acc:':acc})
+            torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
         if args.distributed:
             dist.barrier()
@@ -203,7 +197,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_use', default='rad', help='choose medical vqa dataset(rad, pathvqa, slake)')
     parser.add_argument('--dataset_path', help='path to the dataset')
-    parser.add_argument('--checkpoint', default='/mnt/sda/lpf/weights/output/V2/pretrain/std/med_pretrain_29.pth')
+    parser.add_argument('--checkpoint', default='')
+    parser.add_argument('--vit_path', default='',
+                        help='path for loading pretrained ViT model')
+    parser.add_argument('--LLM_path', default='', type=str, help='path for loading pretrained LLM model')
+    parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--evaluate', action='store_true')
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--seed', default=42, type=int)
@@ -218,6 +216,8 @@ if __name__ == '__main__':
     parser.add_argument('--eval_freq', default=5, type=int)
     parser.add_argument('--min_lr', type=float, default=1e-7, metavar='LR',
                         help='lower lr bound for cyclic schedulers that hit 0')
+    parser.add_argument('--warmup_epochs', type=int, default=40, metavar='N',
+                        help='epochs to warmup LR')
     args = parser.parse_args()
 
     args.result_dir = os.path.join(args.output_dir, 'result')

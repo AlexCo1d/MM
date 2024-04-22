@@ -126,7 +126,7 @@ class Former_T5(Blip2Base):
             )
             loss = outputs.loss
 
-            return {"loss": loss}
+            return loss
     @torch.no_grad()
     def generate(
         self,
