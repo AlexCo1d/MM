@@ -129,38 +129,38 @@ import re
 # u['model']=t['model']
 # torch.save(u,'/home/data/Jingkai/alex/weight/MM1.pth')
 
-# from PIL import Image
-# import pathlib
-# from concurrent.futures import ProcessPoolExecutor
-# import time
-#
-# def resize_image(image_path):
-#     """
-#     Resize the given image to 448x448, apply grayscale, and measure the time taken.
-#     """
-#     start_time = time.time()  # 开始计时
-#
-#     with Image.open(image_path) as img:
-#         # 应用RandomResizedCrop等效操作
-#         img = img.resize((448, 448), Image.BICUBIC)  # 等效于RandomResizedCrop
-#         img = img.convert('L').convert('RGB')  # 等效于Grayscale(num_output_channels=3)
-#         img.save(image_path)
-#
-#     end_time = time.time()  # 结束计时
-#     print(f"Processed {image_path.name} in {end_time - start_time:.4f} seconds.")
-#
-# def main(directory_path):
-#     """
-#     Recursively traverse the directory, find all JPG images,
-#     and resize them in parallel while measuring time.
-#     """
-#     path = pathlib.Path(directory_path)
-#     jpg_images = list(path.glob('**/*.jpg'))
-#
-#     with ProcessPoolExecutor() as executor:
-#         executor.map(resize_image, jpg_images)
-#
-# main('/home/data/Jingkai/alex/mimic/files')
+from PIL import Image
+import pathlib
+from concurrent.futures import ProcessPoolExecutor
+import time
+
+def resize_image(image_path):
+    """
+    Resize the given image to 448x448, apply grayscale, and measure the time taken.
+    """
+    start_time = time.time()  # 开始计时
+
+    with Image.open(image_path) as img:
+        # 应用RandomResizedCrop等效操作
+        img = img.resize((448, 448), Image.BICUBIC)  # 等效于RandomResizedCrop
+        img = img.convert('L').convert('RGB')  # 等效于Grayscale(num_output_channels=3)
+        img.save(image_path)
+
+    end_time = time.time()  # 结束计时
+    print(f"Processed {image_path.name} in {end_time - start_time:.4f} seconds.")
+
+def main(directory_path):
+    """
+    Recursively traverse the directory, find all JPG images,
+    and resize them in parallel while measuring time.
+    """
+    path = pathlib.Path(directory_path)
+    jpg_images = list(path.glob('**/*.jpg'))
+
+    with ProcessPoolExecutor() as executor:
+        executor.map(resize_image, jpg_images)
+
+main('/mnt/data/yueli/mimic/files')
 
 # batch_size = 2
 # seq_length = 100
@@ -216,38 +216,38 @@ import re
 # # 检查输出
 # print(output)
 
-import pandas as pd
-import csv
-import os
-
-# 读取CSV文件
-meta = pd.read_csv('./mimic-cxr-2.0.0-metadata.csv', sep=',')
-train = pd.read_csv('./training.csv', sep=',')
-folder_path = "/home/data/Jingkai/alex/mimic/files"
-with open('./training_mv.csv', 'w') as f:
-    writer = csv.writer(f)
-    writer.writerow(['study_id', 'image_path', 'view_type', 'report_content'])
-    for root, dirs, files in os.walk(folder_path):
-        # files is list of files, root is current full dir.
-        if root.split('/')[-1].startswith('s'):
-            if len(files) > 1:
-                with open(root + '.txt', 'r') as t:
-                    study_id = root.split('/')[-1].replace("s", "")
-                    image_path = []
-                    view_type = []
-                    for filename in files:
-                        dicom_id = filename.split('.')[0]
-                        image_path.append(os.path.join(root, filename))
-                        type=str(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
-                        if type!='nan':
-                            view_type.append(type)
-                    report_content = t.read()
-                    report_content.replace('\n','')
-                    report_content = report_content.replace('\n', ' ')
-                    # 移除多余的空格
-                    report_content = re.sub(r'\s+', ' ', report_content)
-                    image_path = ';'.join(image_path)
-                    view_type = ';'.join(view_type)
-                    writer.writerow([study_id, image_path, view_type, report_content])
+# import pandas as pd
+# import csv
+# import os
+#
+# # 读取CSV文件
+# meta = pd.read_csv('./mimic-cxr-2.0.0-metadata.csv', sep=',')
+# train = pd.read_csv('./training.csv', sep=',')
+# folder_path = "/home/data/Jingkai/alex/mimic/files"
+# with open('./training_mv.csv', 'w') as f:
+#     writer = csv.writer(f)
+#     writer.writerow(['study_id', 'image_path', 'view_type', 'report_content'])
+#     for root, dirs, files in os.walk(folder_path):
+#         # files is list of files, root is current full dir.
+#         if root.split('/')[-1].startswith('s'):
+#             if len(files) > 1:
+#                 with open(root + '.txt', 'r') as t:
+#                     study_id = root.split('/')[-1].replace("s", "")
+#                     image_path = []
+#                     view_type = []
+#                     for filename in files:
+#                         dicom_id = filename.split('.')[0]
+#                         image_path.append(os.path.join(root, filename))
+#                         type=str(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
+#                         if type!='nan':
+#                             view_type.append(type)
+#                     report_content = t.read()
+#                     report_content.replace('\n','')
+#                     report_content = report_content.replace('\n', ' ')
+#                     # 移除多余的空格
+#                     report_content = re.sub(r'\s+', ' ', report_content)
+#                     image_path = ';'.join(image_path)
+#                     view_type = ';'.join(view_type)
+#                     writer.writerow([study_id, image_path, view_type, report_content])
 
 
