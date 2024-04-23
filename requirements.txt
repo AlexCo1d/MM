@@ -1,0 +1,12 @@
+einops==0.7.0
+numpy==1.26.4
+opencv_python==4.9.0.80
+pandas==2.2.2
+Pillow==10.3.0
+scikit_learn==1.4.1.post1
+spacy==3.7.4
+tensorflow==2.16.1
+timm==0.9.16
+tokenizers==0.19.1
+tqdm==4.65.0
+transformers==4.37.2
