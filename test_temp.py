@@ -160,7 +160,7 @@ def main(directory_path):
     with ProcessPoolExecutor() as executor:
         executor.map(resize_image, jpg_images)
 
-main('/mnt/data/yueli/mimic/files')
+main('/mnt/data/yueli/files')
 
 # batch_size = 2
 # seq_length = 100
