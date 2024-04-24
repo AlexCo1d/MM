@@ -127,7 +127,7 @@ def main(args):
     cudnn.benchmark = True
 
 
-    dataset_train = MultimodalBertDataset(os.path.join(args.data_path))
+    dataset_train = MultimodalBertDataset(os.path.join(args.data_path),mv=args.mv)
 
     print(dataset_train)
 
