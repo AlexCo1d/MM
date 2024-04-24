@@ -57,7 +57,9 @@ def get_args_parser():
     # parser.add_argument('--norm_pix_loss', action='store_true',
     #                     help='Use (per-patch) normalized pixels as targets for computing loss')
     # parser.set_defaults(norm_pix_loss=False)
-
+    parser.add_argument('--mv', action='store_true',
+                        help='multiview')
+    parser.set_defaults(mv=False)
     # Optimizer parameters
     parser.add_argument('--weight_decay', type=float, default=0.05,
                         help='weight decay (default: 0.05)')
@@ -155,7 +157,7 @@ def main(args):
     )
 
     # define the model
-    model = MM_Former(local_contrastive_loss=True, vit_path=args.vit_path if args.resume is None else '', freeze_vit=True)
+    model = MM_Former(local_contrastive_loss=True, vit_path=args.vit_path if args.resume is None else '', freeze_vit=True, mv=args.mv)
 
     model.to(device)
 
