@@ -129,38 +129,38 @@ import re
 # u['model']=t['model']
 # torch.save(u,'/home/data/Jingkai/alex/weight/MM1.pth')
 
-from PIL import Image
-import pathlib
-from concurrent.futures import ProcessPoolExecutor
-import time
-
-def resize_image(image_path):
-    """
-    Resize the given image to 448x448, apply grayscale, and measure the time taken.
-    """
-    start_time = time.time()  # 开始计时
-
-    with Image.open(image_path) as img:
-        # 应用RandomResizedCrop等效操作
-        img = img.resize((448, 448), Image.BICUBIC)  # 等效于RandomResizedCrop
-        img = img.convert('L').convert('RGB')  # 等效于Grayscale(num_output_channels=3)
-        img.save(image_path)
-
-    end_time = time.time()  # 结束计时
-    print(f"Processed {image_path.name} in {end_time - start_time:.4f} seconds.")
-
-def main(directory_path):
-    """
-    Recursively traverse the directory, find all JPG images,
-    and resize them in parallel while measuring time.
-    """
-    path = pathlib.Path(directory_path)
-    jpg_images = list(path.glob('**/*.jpg'))
-
-    with ProcessPoolExecutor() as executor:
-        executor.map(resize_image, jpg_images)
-
-main('/mnt/data/yueli/files')
+# from PIL import Image
+# import pathlib
+# from concurrent.futures import ProcessPoolExecutor
+# import time
+#
+# def resize_image(image_path):
+#     """
+#     Resize the given image to 448x448, apply grayscale, and measure the time taken.
+#     """
+#     start_time = time.time()  # 开始计时
+#
+#     with Image.open(image_path) as img:
+#         # 应用RandomResizedCrop等效操作
+#         img = img.resize((448, 448), Image.BICUBIC)  # 等效于RandomResizedCrop
+#         img = img.convert('L').convert('RGB')  # 等效于Grayscale(num_output_channels=3)
+#         img.save(image_path)
+#
+#     end_time = time.time()  # 结束计时
+#     print(f"Processed {image_path.name} in {end_time - start_time:.4f} seconds.")
+#
+# def main(directory_path):
+#     """
+#     Recursively traverse the directory, find all JPG images,
+#     and resize them in parallel while measuring time.
+#     """
+#     path = pathlib.Path(directory_path)
+#     jpg_images = list(path.glob('**/*.jpg'))
+#
+#     with ProcessPoolExecutor() as executor:
+#         executor.map(resize_image, jpg_images)
+#
+# main('/mnt/data/yueli/files')
 
 # batch_size = 2
 # seq_length = 100
@@ -250,4 +250,32 @@ main('/mnt/data/yueli/files')
 #                     view_type = ';'.join(view_type)
 #                     writer.writerow([study_id, image_path, view_type, report_content])
 
+import re
 
+
+def extract_sections(report):
+    # This regular expression looks for the sections FINDINGS and IMPRESSION
+    # and extracts all text up to the next all-caps word or the end of the string.
+    pattern = r"(FINDINGS:.*?)(?=\n[A-Z]+:|$)|(IMPRESSION:.*?)(?=\n[A-Z]+:|$)"
+
+    extracted_text = ''
+
+    # Searching the report using the pattern
+    matches = re.findall(pattern, report, re.DOTALL)
+
+    # Each match contains tuples with the content of the sections
+    for match in matches:
+        if match[0].startswith('FINDINGS'):
+            extracted_text += match[0] + ' '
+        elif match[1].startswith('IMPRESSION'):
+            extracted_text += match[1] + ' '
+
+    return extracted_text.strip()
+
+
+import pandas as pd
+
+df = pd.read_csv('/home/data/Jingkai/alex/mimic/training.csv', sep=',')
+df['report_content'] = df['report_content'].apply(extract_sections)
+df = df[df['report_content'].notna()]
+df.to_csv('/home/data/Jingkai/alex/mimic/training.csv', index=False)
