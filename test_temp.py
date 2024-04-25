@@ -277,5 +277,8 @@ import pandas as pd
 
 df = pd.read_csv('/home/data/Jingkai/alex/mimic/training.csv', sep=',')
 df['report_content'] = df['report_content'].apply(extract_sections)
+df.to_csv('/home/data/Jingkai/alex/mimic/training.csv', index=False)
+
+df = pd.read_csv('/home/data/Jingkai/alex/mimic/training.csv', sep=',')
 df = df[df['report_content'].notna()]
 df.to_csv('/home/data/Jingkai/alex/mimic/training.csv', index=False)
