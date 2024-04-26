@@ -360,6 +360,11 @@ class MM_Former(Blip2Base):
             sim_t2i[:, rank * bs: rank * bs + bs].fill_diagonal_(-10000)
             sim_i2t[:, rank * bs: rank * bs + bs].fill_diagonal_(-10000)
 
+            max_val = torch.max(sim_i2t, dim=1, keepdim=True)[0]  # for numeric stability
+            sim_i2t -= max_val
+            max_val = torch.max(sim_t2i, dim=1, keepdim=True)[0]  # for numeric stability
+            sim_t2i -= max_val
+
             weights_t2i = F.softmax(sim_t2i, dim=1)
             weights_i2t = F.softmax(sim_i2t, dim=1)
 
