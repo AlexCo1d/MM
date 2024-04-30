@@ -106,10 +106,10 @@ def main(args):
         sampler_train = torch.utils.data.RandomSampler(train_dataset)
         sampler_test = torch.utils.data.RandomSampler(test_dataset)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, sampler_train, batch_size=args.batch_size,
+    train_loader = torch.utils.data.DataLoader(train_dataset, sampler=sampler_train, batch_size=args.batch_size,
                                                num_workers=args.num_workers,
                                                pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, sampler_test, batch_size=args.batch_size,
+    test_loader = torch.utils.data.DataLoader(test_dataset, sampler=sampler_test, batch_size=args.batch_size,
                                               num_workers=args.num_workers,
                                               pin_memory=True)
 
