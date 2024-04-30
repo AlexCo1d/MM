@@ -6,7 +6,7 @@ alexyhzou
 import argparse
 import os
 import sys
-
+sys.path.append("..")
 import time
 import datetime
 import json
