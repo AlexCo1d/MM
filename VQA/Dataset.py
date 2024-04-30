@@ -56,7 +56,7 @@ class VQA_Dataset(Dataset):
         Anwser = pre_answer(Anwser)
 
         ##### read image pathes #####
-        img_path = os.path.join(self.data_path, self.img_root, sample['img_name'])
+        img_path = os.path.join(self.data_path, self.img_root, sample['image_name'])
         img = PIL.Image.open(img_path).convert('RGB')
         image = self.transform(img)
 
@@ -72,7 +72,7 @@ class VQA_Dataset(Dataset):
         # label = torch.tensor(label.input_ids).unsqueeze(0)
 
         if self.mode == 'train':
-            item = {
+            item =  {
                 'text_input': pre_text,
                 'text_output': Anwser,
                 'image': image,
