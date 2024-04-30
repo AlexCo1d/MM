@@ -95,21 +95,21 @@ def main(args):
     if args.distributed:
         num_tasks = utils.get_world_size()
         global_rank = utils.get_rank()
-        sampler_train = torch.Utils.data.DistributedSampler(
+        sampler_train = torch.utils.data.DistributedSampler(
             train_dataset, num_replicas=num_tasks, rank=global_rank, shuffle=True
         )
-        sampler_test = torch.Utils.data.DistributedSampler(
+        sampler_test = torch.utils.data.DistributedSampler(
             test_dataset, num_replicas=num_tasks, rank=global_rank, shuffle=False
         )
         print("Sampler_train = %s" % str(sampler_train))
     else:
-        sampler_train = torch.Utils.data.RandomSampler(train_dataset)
-        sampler_test = torch.Utils.data.RandomSampler(test_dataset)
+        sampler_train = torch.utils.data.RandomSampler(train_dataset)
+        sampler_test = torch.utils.data.RandomSampler(test_dataset)
 
-    train_loader = torch.Utils.data.DataLoader(train_dataset, sampler_train, batch_size=args.batch_size,
+    train_loader = torch.utils.data.DataLoader(train_dataset, sampler_train, batch_size=args.batch_size,
                                                num_workers=args.num_workers,
                                                pin_memory=True)
-    test_loader = torch.Utils.data.DataLoader(test_dataset, sampler_test, batch_size=args.batch_size,
+    test_loader = torch.utils.data.DataLoader(test_dataset, sampler_test, batch_size=args.batch_size,
                                               num_workers=args.num_workers,
                                               pin_memory=True)
 
