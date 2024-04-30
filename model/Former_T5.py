@@ -30,7 +30,7 @@ class Former_T5(Blip2Base):
         super().__init__()
 
         self.tokenizer = BertTokenizer.from_pretrained(
-            './model/submodule/bert/bert-base-uncased')
+            '../model/submodule/bert/bert-base-uncased')
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
