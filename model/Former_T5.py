@@ -9,7 +9,7 @@ from transformers import T5TokenizerFast, BertTokenizer
 from model.submodule.LLM.modeling_t5 import T5Config, T5ForConditionalGeneration
 from model.submodule.vit.vit import Block
 from timm.models.vision_transformer import PatchEmbed
-from model.submodule.BLIP.BLIPBase import Blip2Base
+from model.submodule.BLIP.BLIPBase import (Blip2Base, disabled_train)
 
 class Former_T5(Blip2Base):
     def __init__(
