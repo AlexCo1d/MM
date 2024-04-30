@@ -1,4 +1,5 @@
 import contextlib
+import logging
 
 import torch
 from torch import nn
@@ -21,6 +22,7 @@ class Blip2Base(nn.Module):
 
     @classmethod
     def init_Qformer(cls, num_query_token, vision_width, cross_attention_freq=2, tokenizer_config='./model/submodule/bert/bert-base-uncased'):
+        logging.INFO("Initializing QFormer"+str(tokenizer_config))
         encoder_config = QFormer.BertConfig.from_pretrained(tokenizer_config)
         encoder_config.encoder_width = vision_width
         # insert cross-attention layer every other block
