@@ -36,9 +36,10 @@ class Former_T5(Blip2Base):
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
                                                                        use_grad_checkpoint, vit_precision)
         if freeze_vit:
-            for name, param in self.blocks.named_parameters():
+            for name, param in self.visual_encoder.named_parameters():
                 param.requires_grad = False
-            self.blocks = self.blocks.eval()
+            self.visual_encoder = self.visual_encoder.eval()
+            self.visual_encoder.train = disabled_train
             logging.info("freeze vision encoder")
 
         self.Qformer, self.query_tokens = self.init_Qformer(
