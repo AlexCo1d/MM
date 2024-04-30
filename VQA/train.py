@@ -134,13 +134,6 @@ def main(args):
     if args.checkpoint:
         checkpoint = torch.load(args.checkpoint, map_location='cpu')
         state_dict = checkpoint['model']
-        for key in state_dict.keys():
-            if key == 'fusion_encoder':
-                state_dict[key.replace('fusion_encoder', 'bert_decoder')] = state_dict.pop(key)
-            if 'bert' in key and 'embeddings' in key:
-                t=state_dict.pop(key)
-                if 'word_embeddings' in key or 'LayerNorm' in key:
-                    state_dict[key]=t
 
         msg = model.load_state_dict(state_dict, strict=False)
         print('load checkpoint from %s' % args.checkpoint)
@@ -152,6 +145,12 @@ def main(args):
     start_time = time.time()
 
     for epoch in range(start_epoch, args.epochs):
+        if args.evaluate:
+            vqa_result = evaluation(model, test_loader, device, args)
+            json.dump(vqa_result,
+                      open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
+            break
+
         if not args.evaluate:
             if args.distributed:
                 train_loader.sampler.set_epoch(epoch)
@@ -159,9 +158,6 @@ def main(args):
             utils.cosine_lr_schedule(optimizer, epoch, args.epochs, args.lr, args.min_lr)
 
             train(model, train_loader, optimizer, epoch, device, args)
-
-        if args.evaluate:
-            break
 
         if utils.is_main_process():
 
@@ -195,7 +191,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_use', default='rad', help='choose medical vqa dataset(rad, pathvqa, slake)')
+    parser.add_argument('--dataset_use', default='radvqa', help='choose medical vqa dataset(radvqa, pathvqa, slake)')
     parser.add_argument('--dataset_path', help='path to the dataset')
     parser.add_argument('--checkpoint', default='')
     parser.add_argument('--vit_path', default='',
@@ -203,6 +199,7 @@ if __name__ == '__main__':
     parser.add_argument('--LLM_path', default='', type=str, help='path for loading pretrained LLM model')
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--evaluate', action='store_true')
+    parser.set_defaults(evaluate=False)
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--world_size', default=1, type=int, help='number of distributed processes')

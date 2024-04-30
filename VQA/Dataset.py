@@ -151,8 +151,8 @@ def create_dataset(dataset, data_path):
 
     # vqa_rad
     if dataset == 'radvqa':
-        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='VQA Image Folder')
-        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='VQA Image Folder')
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='VQA_RAD Image Folder')
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='VQA_RAD Image Folder')
         return train_dataset, test_dataset
 
     # pathvqa
