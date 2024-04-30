@@ -20,6 +20,7 @@ class Blip2Base(nn.Module):
         else:
             return contextlib.nullcontext()
 
+    @classmethod
     def init_Qformer(cls, num_query_token, vision_width, cross_attention_freq=2, tokenizer_config='./model/submodule/bert/bert-base-uncased'):
         print(f"Initializing QFormer {tokenizer_config}")
         encoder_config = QFormer.BertConfig.from_pretrained(tokenizer_config)
@@ -40,6 +41,10 @@ class Blip2Base(nn.Module):
         visual_encoder= create_eva_vit_g(vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision)
         ln_vision = LayerNorm(visual_encoder.num_features)
         return visual_encoder, ln_vision
+
+    @property
+    def device(self):
+        return list(self.parameters())[0].device
 
 def disabled_train(self, mode=True):
     """Overwrite model.train with this function to make sure train/eval mode
