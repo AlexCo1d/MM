@@ -43,7 +43,7 @@ class Former_T5(Blip2Base):
             logging.info("freeze vision encoder")
 
         self.Qformer, self.query_tokens = self.init_Qformer(
-            num_query_token, self.visual_encoder.num_features, tokenizer_config
+            num_query_token, self.visual_encoder.num_features, tokenizer_config=tokenizer_config
         )
         self.Qformer.cls = None
         self.Qformer.bert.embeddings.word_embeddings = None
