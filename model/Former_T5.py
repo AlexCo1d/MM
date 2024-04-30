@@ -23,14 +23,14 @@ class Former_T5(Blip2Base):
         t5_model_path="google/flan-t5-xl",
         prompt="",
         vit_path="",
+        tokenizer_config='../model/submodule/bert/bert-base-uncased',
         max_txt_len=32,
         apply_lemmatizer=False,
     ):
 
         super().__init__()
 
-        self.tokenizer = BertTokenizer.from_pretrained(
-            '../model/submodule/bert/bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
@@ -43,7 +43,7 @@ class Former_T5(Blip2Base):
             logging.info("freeze vision encoder")
 
         self.Qformer, self.query_tokens = self.init_Qformer(
-            num_query_token, self.visual_encoder.num_features
+            num_query_token, self.visual_encoder.num_features, tokenizer_config
         )
         self.Qformer.cls = None
         self.Qformer.bert.embeddings.word_embeddings = None
