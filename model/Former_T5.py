@@ -74,7 +74,7 @@ class Former_T5(Blip2Base):
         self._lemmatizer = None
 
     def forward(self, samples):
-        image = samples["image"]
+        image = samples["image"].to(self.device)
 
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
@@ -230,10 +230,8 @@ class Former_T5(Blip2Base):
         length_penalty=-1,
         **kwargs
     ):
-        image = samples["image"]
-        print(f"image device: {image.device}")
-        print(f"ln_vision device: {next(self.ln_vision.parameters()).device}")
-
+        image = samples["image"].to(self.device)
+        image=image.half()
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
         image_embeds = image_embeds.float()
