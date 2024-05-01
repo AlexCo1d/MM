@@ -56,6 +56,8 @@ def evaluation(model, data_loader, device, args):
     :return: a dict that contains the result of the evaluation {question, pred, answer, answer_type}
     """
     # test
+    if args.distributed:
+        model = model.module
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Generate VQA test result:'
