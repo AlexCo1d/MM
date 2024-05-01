@@ -151,6 +151,8 @@ def main(args):
             vqa_result = evaluation(model, test_loader, device, args)
             json.dump(vqa_result,
                       open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
+            acc = compute_vqa_acc(vqa_result, epoch, args=args)
+            print(f'{args.dataset_use} acc: {acc}')
             break
 
         if not args.evaluate:
