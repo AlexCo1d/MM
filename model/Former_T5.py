@@ -231,6 +231,7 @@ class Former_T5(Blip2Base):
         **kwargs
     ):
         image = samples["image"]
+        image = image.half()
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
         image_embeds = image_embeds.float()
