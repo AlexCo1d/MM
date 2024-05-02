@@ -104,7 +104,7 @@ def compute_vqa_acc(vqa_results: [], epoch, args):
 
     acc = {
         'epoch': epoch,
-        'overall': sum(open_list) + sum(closed_list) / len(vqa_results),
+        'overall': (sum(open_list) + sum(closed_list)) / len(vqa_results),
         'OPEN': sum(open_list) / len(open_list),
         'CLOSED': sum(closed_list) / len(closed_list)
     }
