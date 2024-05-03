@@ -156,8 +156,8 @@ def create_dataset(dataset, data_path):
 
     # pathvqa
     elif dataset == 'pathvqa':
-        train_dataset = VQA_Dataset(data_path, train_transform, mode='train')
-        test_dataset = VQA_Dataset(data_path, test_transform, mode='test')
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='images')
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='images')
         return train_dataset, test_dataset
     # slake
     elif dataset == 'slake':
