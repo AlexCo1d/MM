@@ -218,7 +218,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=2e-5, metavar='LR',
                         help='learning rate (absolute lr)')
     parser.add_argument('--epochs', default=200, type=int)
-    parser.add_argument('--eval_freq', default=5, type=int)
+    parser.add_argument('--eval_freq', default=10, type=int)
     parser.add_argument('--min_lr', type=float, default=1e-7, metavar='LR',
                         help='lower lr bound for cyclic schedulers that hit 0')
     parser.add_argument('--warmup_epochs', type=int, default=40, metavar='N',
