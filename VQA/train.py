@@ -28,11 +28,10 @@ def train(model, data_loader, optimizer, epoch, device, args):
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     metric_logger.add_meter('loss', utils.SmoothedValue(window_size=1, fmt='{value:.4f}'))
     header = 'Train Epoch: [{}]'.format(epoch)
-    print_freq = 50
+    print_freq = 10
     for i, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
         lr_sched.adjust_learning_rate(optimizer, i / len(data_loader) + epoch, args)
         loss = model(b)
-
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -61,7 +60,7 @@ def evaluation(model, data_loader, device, args):
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Generate VQA test result:'
-    print_freq = 50
+    print_freq = 10
 
     result = []
 
