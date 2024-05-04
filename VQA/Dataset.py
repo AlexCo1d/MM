@@ -47,13 +47,11 @@ class VQA_Dataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.data[idx]
-        print(sample)
         Question = sample['question']
-        at = 'CLOSED' if (sample['answer_type'] == 'yes' or sample['answer_type'] == 'no') else 'OPEN'
         Anwser = sample['answer']
-        Question = pre_question(Question)
         Anwser = pre_answer(Anwser)
-
+        at = 'CLOSED' if (Anwser == 'yes' or Anwser == 'no') else 'OPEN'
+        Question = pre_question(Question)
         ##### read image pathes #####
         img_path = os.path.join(self.data_path, self.img_root, sample['image_name'])
         img = PIL.Image.open(img_path).convert('RGB')
@@ -85,6 +83,7 @@ class VQA_Dataset(Dataset):
                 'answer_type': at,
                 'image_name': sample['image_name']
             }
+
         return item
 
     # def collate_fn_train(self, batch):
