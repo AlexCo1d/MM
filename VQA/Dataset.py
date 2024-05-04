@@ -47,6 +47,7 @@ class VQA_Dataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.data[idx]
+        print(sample)
         Question = sample['question']
         at = 'CLOSED' if (sample['answer_type'] == 'yes' or sample['answer_type'] == 'no') else 'OPEN'
         Anwser = sample['answer']
