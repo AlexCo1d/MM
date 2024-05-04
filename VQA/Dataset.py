@@ -14,13 +14,12 @@ from PIL import Image
 
 class VQA_Dataset(Dataset):
     def __init__(self, data_path, transform, img_tokens=32, img_root='',
-                 seq_length=512, voc_size=32000, mode='train', json_trivial=True):
+                 seq_length=512, voc_size=32000, mode='train'):
         max_caption_length = 100
         max_answer_length = 50
         with open(os.path.join(data_path, f'{mode}.json')) as f:
             self.data = json.load(f)
         self.mode = mode
-        self.json_trivial = json_trivial
         self.transform = transform
         self.data_path = data_path
         self.img_root = img_root
@@ -49,8 +48,7 @@ class VQA_Dataset(Dataset):
     def __getitem__(self, idx):
         sample = self.data[idx]
         Question = sample['question']
-        if not self.json_trivial:
-            at = 'CLOSED' if (sample['answer_type'] == 'yes' or sample['answer_type'] == 'no') else 'OPEN'
+        at = 'CLOSED' if (sample['answer_type'] == 'yes' or sample['answer_type'] == 'no') else 'OPEN'
         Anwser = sample['answer']
         Question = pre_question(Question)
         Anwser = pre_answer(Anwser)
@@ -79,23 +77,13 @@ class VQA_Dataset(Dataset):
             }
         # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
-            if self.json_trivial:
-                item = {
-                    'text_input': pre_text,
-                    'text_output': Anwser,
-                    'image': image,
-                    'answer_type': sample['answer_type'],
-                    'image_name': sample['image_name']
-                }
-            else:
-                item = {
-                    'text_input': pre_text,
-                    'text_output': Anwser,
-                    'image': image,
-                    'answer_type': at,
-                    'image_name': sample['image_name']
-                }
-
+            item = {
+                'text_input': pre_text,
+                'text_output': Anwser,
+                'image': image,
+                'answer_type': at,
+                'image_name': sample['image_name']
+            }
         return item
 
     # def collate_fn_train(self, batch):
