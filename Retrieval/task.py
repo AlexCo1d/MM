@@ -45,9 +45,9 @@ def _report_metrics(ret, args, txt2img, img2txt):
     scores_i2i = ret["i2i"] # num_image x num_candidates
     with open(os.path.join(args.data_path, f'candidate.csv')) as f:
         candidate = pd.read_csv(f)
-    with open(os.path.join(args.data_path, f'IR_query.json')) as f:
+    with open(os.path.join(args.data_path, f'IR_query.csv')) as f:
         IR_query = pd.read_csv(f)
-    with open(os.path.join(args.data_path, f'TR_query.json')) as f:
+    with open(os.path.join(args.data_path, f'TR_query.csv')) as f:
         TR_query = pd.read_csv(f)
 
     # # Images->Text
