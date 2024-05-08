@@ -1,7 +1,7 @@
 import os
 import argparse
-from .vqa import *
-from .vqaEval import *
+import re
+import json
 
 contractions = {"aint": "ain't", "arent": "aren't", "cant": "can't", "couldve": "could've",
                 "couldnt": "couldn't",
