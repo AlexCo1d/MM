@@ -4,6 +4,8 @@ import torch
 import torch.nn.functional as F
 from functools import partial
 import torch.nn as nn
+from transformers import BertTokenizer
+
 from model.archi_Former import MM_Former
 import torch.distributed as dist
 from Utils.misc import is_dist_avail_and_initialized, get_world_size, get_rank, MetricLogger
@@ -46,6 +48,9 @@ class Former_RT(MM_Former):
             local_contrastive_loss=local_contrastive_loss,
             c_embed_dim=c_embed_dim, num_query_token=num_query_token, cross_attention_freq=cross_attention_freq
         )
+        self.tokenizer = BertTokenizer.from_pretrained(
+            '../model/submodule/bert/bert-base-uncased')
+        self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
     def forward(self, samples, match_head="itm"):
         image = samples["image"].to(self.device)
