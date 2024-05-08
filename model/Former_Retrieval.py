@@ -49,7 +49,7 @@ class Former_RT(MM_Former):
             c_embed_dim=c_embed_dim, num_query_token=num_query_token, cross_attention_freq=cross_attention_freq
         )
 
-    def forward(self, samples, match_head="itm"):
+    def forward1(self, samples, match_head="itm"):
         image = samples["image"].to(self.device)
         caption = samples["text_input"]
 
@@ -114,7 +114,7 @@ class Former_RT(MM_Former):
 
             return sim
 
-    def compute_sim_matrix(self, data_loader, k_test=128):
+    def forward(self, data_loader, k_test=128):
         """
         Compute similarity i2t, t2i matrix for the given data loader.
         """
