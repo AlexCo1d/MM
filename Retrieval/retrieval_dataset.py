@@ -19,18 +19,18 @@ class retrieval_dataset(Dataset):
         self.image = []
         txt_id = 0
         for img_id in range(len(self.IR_query)):
-            sample=self.IR_query[img_id]
+            sample=self.IR_query.iloc[img_id]
             img= PIL.Image.open(os.path.join(data_path, sample["Path"])).convert('RGB')
             img.resize((224, 224))
             self.image.append(img)
         for text_id in range(len(self.IR_query)):
-            self.text.append(self.TR_query[text_id]["Text"])
+            self.text.append(self.TR_query.iloc[text_id]["Text"])
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        sample = self.data[idx]
+        sample = self.data.iloc[idx]
         img_path = os.path.join(self.data_path, sample['Path'])
         img = PIL.Image.open(img_path).convert('RGB')
         img.resize((224, 224))
