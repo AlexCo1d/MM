@@ -2,7 +2,7 @@ import PIL
 import pandas as pd
 import json
 import os
-
+import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
 
@@ -22,7 +22,7 @@ class retrieval_dataset(Dataset):
             sample=self.IR_query.iloc[img_id]
             img= PIL.Image.open(os.path.join(data_path, sample["Path"])).convert('RGB')
             img.resize((224, 224))
-            self.image.append(img)
+            self.image.append(transforms.ToTensor()(img))
         for text_id in range(len(self.TR_query)):
             self.text.append(self.TR_query.iloc[text_id]["Text"])
 
@@ -35,7 +35,7 @@ class retrieval_dataset(Dataset):
         img = PIL.Image.open(img_path).convert('RGB')
         img.resize((224, 224))
         item={
-            'image': img,
+            'image': transforms.ToTensor()(img),
             'idx':idx
         }
         return item
