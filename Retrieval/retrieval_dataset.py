@@ -17,12 +17,16 @@ class retrieval_dataset(Dataset):
         self.data_path = data_path
         self.text = []
         self.image = []
-        txt_id = 0
+        self.transform= transforms.Compose([
+            transforms.Resize(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
         for img_id in range(len(self.IR_query)):
             sample=self.IR_query.iloc[img_id]
             img= PIL.Image.open(os.path.join(data_path, sample["Path"])).convert('RGB')
             img.resize((224, 224))
-            self.image.append(transforms.ToTensor()(img))
+            self.image.append(self.transform(img))
         for text_id in range(len(self.TR_query)):
             self.text.append(self.TR_query.iloc[text_id]["Text"])
 
@@ -35,7 +39,7 @@ class retrieval_dataset(Dataset):
         img = PIL.Image.open(img_path).convert('RGB')
         img.resize((224, 224))
         item={
-            'image': transforms.ToTensor()(img),
+            'image': self.transform(img),
             'idx':idx
         }
         return item
