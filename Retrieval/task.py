@@ -15,6 +15,12 @@ def main():
     parser.add_argument('--data_path', type=str, default="")
     parser.add_argument('--distributed', type=bool, default=True)
     parser.add_argument('--device', default='cuda')
+    parser.add_argument('--world_size', default=1, type=int,
+                        help='number of distributed processes')
+    parser.add_argument('--local_rank', default=-1, type=int)
+    parser.add_argument('--dist_on_itp', action='store_true')
+    parser.add_argument('--dist_url', default='env://',
+                        help='url used to set up distributed training')
     args = parser.parse_args()
     if args.distributed:
         misc.init_distributed_mode(args)
