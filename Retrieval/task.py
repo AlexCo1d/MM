@@ -47,7 +47,7 @@ def main():
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
     model.eval()
-    ret = model.compute_sim_matrix(dataloader)
+    ret = model(dataloader)
     if misc.is_main_process():
         _report_metrics(ret,args)
 
