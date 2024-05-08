@@ -29,14 +29,14 @@ class MM_Former(Blip2Base):
                  use_grad_checkpoint=False,
                  vit_precision="fp16",
                  vit_path='',
+                 tokenizer_config='./model/submodule/bert/bert-base-uncased',
                  decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
                  mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False,
                  freeze_vit=True,
                  local_contrastive_loss=False,
                  c_embed_dim=256, num_query_token=32, cross_attention_freq=2, **kwargs):
         super().__init__()
-        self.tokenizer = BertTokenizer.from_pretrained(
-            './model/submodule/bert/bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
         # VIT encoder part
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate, use_grad_checkpoint, vit_precision)

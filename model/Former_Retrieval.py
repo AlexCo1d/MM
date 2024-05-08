@@ -44,13 +44,10 @@ class Former_RT(MM_Former):
             vit_path=vit_path,
             decoder_embed_dim=decoder_embed_dim, decoder_depth=decoder_depth, decoder_num_heads=decoder_num_heads,
             mlp_ratio=mlp_ratio, norm_layer=norm_layer, mv=mv,
-            freeze_vit=freeze_vit,
+            freeze_vit=freeze_vit, tokenizer_config='../model/submodule/bert/bert-base-uncased',
             local_contrastive_loss=local_contrastive_loss,
             c_embed_dim=c_embed_dim, num_query_token=num_query_token, cross_attention_freq=cross_attention_freq
         )
-        self.tokenizer = BertTokenizer.from_pretrained(
-            '../model/submodule/bert/bert-base-uncased')
-        self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
     def forward(self, samples, match_head="itm"):
         image = samples["image"].to(self.device)
