@@ -57,7 +57,7 @@ class MM_Former(Blip2Base):
 
         # Qformer part
         self.Qformer, self.query_tokens = self.init_Qformer(
-            num_query_token, self.visual_encoder.num_features, cross_attention_freq
+            num_query_token, self.visual_encoder.num_features, cross_attention_freq, tokenizer_config=tokenizer_config
         )
 
         self.Qformer.resize_token_embeddings(len(self.tokenizer))
