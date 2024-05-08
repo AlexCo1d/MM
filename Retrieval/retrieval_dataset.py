@@ -23,7 +23,7 @@ class retrieval_dataset(Dataset):
             img= PIL.Image.open(os.path.join(data_path, sample["Path"])).convert('RGB')
             img.resize((224, 224))
             self.image.append(img)
-        for text_id in range(len(self.IR_query)):
+        for text_id in range(len(self.TR_query)):
             self.text.append(self.TR_query.iloc[text_id]["Text"])
 
     def __len__(self):
