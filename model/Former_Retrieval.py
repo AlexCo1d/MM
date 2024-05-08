@@ -140,7 +140,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     # ------------------- query text-------------------
     texts = data_loader.dataset.text
     images = data_loader.dataset.image
-    print(images.shape)
+    print(images[0].shape,images[1].shape)
     num_text = len(texts)
     text_bs = 256
     text_ids = []
