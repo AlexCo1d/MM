@@ -11,7 +11,7 @@ from Retrieval.retrieval_dataset import retrieval_dataset
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--checkpoint', type=str, default="./LLaMA/checkpoint-12600")
+    parser.add_argument('--checkpoint', type=str, default="")
     parser.add_argument('--data_path', type=str, default="")
     parser.add_argument('--distributed', type=bool, default=True)
     parser.add_argument('--device', default='cuda')
@@ -32,6 +32,14 @@ def main():
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
+
+    if args.checkpoint:
+        checkpoint = torch.load(args.checkpoint, map_location='cpu')
+        state_dict = checkpoint['model']
+
+        msg = model.load_state_dict(state_dict, strict=False)
+        print('load checkpoint from %s' % args.checkpoint)
+        print(msg)
     model.eval()
     ret = model.compute_sim_matrix(dataloader)
     if misc.is_main_process():

@@ -150,3 +150,14 @@ def pre_answer(answer):
     answer = answer.replace('x ray', 'xray').replace('x-ray', 'xray')
     answer = answer.replace(' - ', '-')
     return answer
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file', type=str, default="")
+    args=parser.parse_args()
+    json_file = json.load(open(args.file, 'r'))
+    print(compute_vqa_acc(json_file))
+
+
+if __name__ == '__main__':
+    main()
