@@ -184,7 +184,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     image_embeds = []
     for samples in data_loader:
         image = samples["image"]
-        print(image.size()[0])
+        print('batchsize:', image.size()[0])
         image = image.to(model.device)
         with model.maybe_autocast():
             image_feat, vit_feat = model.forward_image(image)
