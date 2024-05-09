@@ -202,7 +202,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     # print('image_embeds:', image_embeds.size(), 'qimage_embeds:', qimage_embeds.size(), 'text_embeds:', text_embeds.size())
     # image_embeds: torch.Size([1600, 32, 256]) qimage_embeds: torch.Size([80, 32, 256]) text_embeds: torch.Size([40, 256])
 
-    sims_i2i= einops.einsum('n q d, m q d-> n m', qimage_embeds, image_embeds)
+    sims_i2i= torch.einsum('nqd, mqd -> nm', qimage_embeds, image_embeds)
     # sims_i2i = torch.mm(qimage_embeds, image_embeds.t())  # [num_image, num_candidate]
 
     sims_matrix = []
