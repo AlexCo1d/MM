@@ -202,7 +202,9 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     # print('image_embeds:', image_embeds.size(), 'qimage_embeds:', qimage_embeds.size(), 'text_embeds:', text_embeds.size())
     # image_embeds: torch.Size([1600, 32, 256]) qimage_embeds: torch.Size([80, 32, 256]) text_embeds: torch.Size([40, 256])
 
-    sims_i2i= torch.einsum('nqd, mqd -> nm', qimage_embeds, image_embeds)
+    sims_i2i= torch.einsum('n p d, m q d -> n m p q', qimage_embeds, image_embeds)
+    sims_i2i, _ = sims_i2i.max(-1)
+    sims_i2i, _ = sims_i2i.max(-1)
     # sims_i2i = torch.mm(qimage_embeds, image_embeds.t())  # [num_image, num_candidate]
 
     sims_matrix = []
@@ -269,8 +271,8 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     logging.info("Evaluation time {}".format(total_time_str))
 
     ret = {
-        'i2t': score_matrix_i2t.cpu().numpy(),
-        't2i': score_matrix_t2i.cpu().numpy(),
-        'i2i': sims_i2i.cpu().numpy()
+        'i2t': F.softmax(score_matrix_i2t).cpu().numpy(),
+        't2i': F.softmax(score_matrix_t2i).cpu().numpy(),
+        'i2i': F.softmax(sims_i2i).cpu().numpy()
     }
     return ret
