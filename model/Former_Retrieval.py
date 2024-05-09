@@ -210,7 +210,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
         sim_q2t = image_embed @ text_embeds.t()
         sim_i2t, _ = sim_q2t.max(0)
         sims_matrix.append(sim_i2t)
-    sims_matrix = torch.stack(sims_matrix, dim=0)
+    sims_matrix = torch.stack(sims_matrix, dim=0)   # [num_candidate, num_text]
 
     score_matrix_i2t = torch.full(
         (len(data_loader.dataset.image), len(texts)), -100.0
@@ -222,21 +222,21 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     start = rank * step
     end = min(sims_matrix.size(0), start + step)
 
-    for i, sims in enumerate(
-            metric_logger.log_every(sims_matrix[start:end], 50, header)
-    ):
-        topk_sim, topk_idx = sims.topk(k=k_test, dim=0)
-        image_inputs = vit_feats[start + i].repeat(k_test, 1, 1).to(model.device)
-        score = model.compute_itm(
-            image_inputs=image_inputs,
-            text_ids=text_ids[topk_idx],
-            text_atts=text_atts[topk_idx],
-        ).float()
-        score_matrix_i2t[start + i, topk_idx] = score + topk_sim
+    # for i, sims in enumerate(
+    #         metric_logger.log_every(sims_matrix[start:end], 50, header)
+    # ):
+    #     topk_sim, topk_idx = sims.topk(k=k_test, dim=0)
+    #     image_inputs = vit_feats[start + i].repeat(k_test, 1, 1).to(model.device)
+    #     score = model.compute_itm(
+    #         image_inputs=image_inputs,
+    #         text_ids=text_ids[topk_idx],
+    #         text_atts=text_atts[topk_idx],
+    #     ).float()
+    #     score_matrix_i2t[start + i, topk_idx] = score + topk_sim
 
     sims_matrix = sims_matrix.t()
     score_matrix_t2i = torch.full(
-        (len(texts), len(data_loader.dataset.image)), -100.0
+        (len(texts), len(data_loader.dataset)), -100.0
     ).to(model.device)
 
     step = sims_matrix.size(0) // num_tasks + 1
