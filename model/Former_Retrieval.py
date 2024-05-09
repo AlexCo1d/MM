@@ -171,7 +171,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     num_image = len(images)
     for i in range(0, num_image, image_bs):
         image = torch.stack(images[i: min(num_image, i + image_bs)], dim=0)
-        image = image.to(model.device)
+        image = image.to(model.device).half()
         with model.maybe_autocast():
             image_feat, image_embed = model.forward_image(image)
         image_embed = F.normalize(model.vision_proj(image_feat))
@@ -184,8 +184,8 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     image_embeds = []
     for samples in data_loader:
         image = samples["image"]
-        print('batchsize:', image.size()[0])
-        image = image.to(model.device)
+        # print('batchsize:', image.size()[0])
+        image = image.to(model.device).half()
         with model.maybe_autocast():
             image_feat, vit_feat = model.forward_image(image)
         image_embed = model.vision_proj(image_feat)
