@@ -199,6 +199,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     vit_feats = torch.cat(vit_feats, dim=0)
     image_embeds = torch.cat(image_embeds, dim=0)  # [num_candidate, embed_dim]
 
+    print('image_embeds:', image_embeds.size(), 'qimage_embeds:', qimage_embeds.size(), 'text_embeds:', text_embeds.size())
     sims_i2i = torch.mm(qimage_embeds, image_embeds.t())  # [num_image, num_candidate]
 
     sims_matrix = []
