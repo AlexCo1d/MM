@@ -122,6 +122,7 @@ class Former_RT(MM_Former):
         return compute_sim_matrix(model=self, data_loader=data_loader, k_test=k_test)
 
 
+@torch.no_grad()
 def compute_sim_matrix(model, data_loader, **kwargs):
     '''
     :param model:

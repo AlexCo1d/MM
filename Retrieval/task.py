@@ -46,6 +46,7 @@ def main():
         msg = model.load_state_dict(state_dict, strict=False)
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
+    model=model.half()
     model.eval()
     ret = model(dataloader)
     if misc.is_main_process():
