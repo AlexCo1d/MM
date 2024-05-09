@@ -53,7 +53,7 @@ def main():
 
 
 @torch.no_grad()
-def _report_metrics(ret, args, txt2img, img2txt):
+def _report_metrics(ret, args):
     scores_i2t = ret["i2t"] # num_image x num_candidates
     scores_t2i = ret["t2i"] # num_text x num_candidates
     scores_i2i = ret["i2i"] # num_image x num_candidates
