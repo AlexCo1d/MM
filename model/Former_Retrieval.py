@@ -1,5 +1,6 @@
 import datetime
 
+import einops
 import torch
 import torch.nn.functional as F
 from functools import partial
@@ -184,7 +185,6 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     image_embeds = []
     for samples in data_loader:
         image = samples["image"]
-        # print('batchsize:',image.size()[0])
         image = image.to(model.device)
         with model.maybe_autocast():
             image_feat, vit_feat = model.forward_image(image)
@@ -199,8 +199,11 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     vit_feats = torch.cat(vit_feats, dim=0)
     image_embeds = torch.cat(image_embeds, dim=0)  # [num_candidate, embed_dim]
 
-    print('image_embeds:', image_embeds.size(), 'qimage_embeds:', qimage_embeds.size(), 'text_embeds:', text_embeds.size())
-    sims_i2i = torch.mm(qimage_embeds, image_embeds.t())  # [num_image, num_candidate]
+    # print('image_embeds:', image_embeds.size(), 'qimage_embeds:', qimage_embeds.size(), 'text_embeds:', text_embeds.size())
+    # image_embeds: torch.Size([1600, 32, 256]) qimage_embeds: torch.Size([80, 32, 256]) text_embeds: torch.Size([40, 256])
+
+    sims_i2i= einops.einsum('n q d, m q d-> n m', qimage_embeds, image_embeds)
+    # sims_i2i = torch.mm(qimage_embeds, image_embeds.t())  # [num_image, num_candidate]
 
     sims_matrix = []
     for image_embed in image_embeds:
