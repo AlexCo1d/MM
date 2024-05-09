@@ -48,6 +48,8 @@ def main():
         print(msg)
     model.eval()
     ret = model(dataloader)
+    # save the result
+    np.save(os.path.join(args.data_path, 'result.npy'), ret)
     if misc.is_main_process():
         _report_metrics(ret,args)
 
