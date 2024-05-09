@@ -334,15 +334,21 @@ class MM_Former(Blip2Base):
             image_feats_all2 = concat_all_gather(
                 image_feats2
             )
-            sim_i1_i2 = torch.matmul(
-                rearrange(image_feats, "b n e -> b (n e)"),
-                rearrange(image_feats_all2, "b n e -> b (n e)").t()
-            )
+            # sim_i1_i2 = torch.matmul(
+            #     rearrange(image_feats, "b n e -> b (n e)"),
+            #     rearrange(image_feats_all2, "b n e -> b (n e)").t()
+            # )
+            sim_i1_i2 = torch.einsum('n p d, m q d -> n m p q', image_feats, image_feats_all2)
+            sim_i1_i2 = sim_i1_i2.max(-1)[0]
+            sim_i1_i2 = sim_i1_i2.max(-1)[0]
             sim_i1_i2 = sim_i1_i2 / self.temp1
-            sim_i2_i1 = torch.matmul(
-                rearrange(image_feats2, "b n e -> b (n e)"),
-                rearrange(image_feats_all, "b n e -> b (n e)").t()
-            )
+            # sim_i2_i1 = torch.matmul(
+            #     rearrange(image_feats2, "b n e -> b (n e)"),
+            #     rearrange(image_feats_all, "b n e -> b (n e)").t()
+            # )
+            sim_i2_i1 = torch.einsum('n p d, m q d -> n m p q', image_feats2, image_feats_all)
+            sim_i2_i1 = sim_i2_i1.max(-1)[0]
+            sim_i2_i1 = sim_i2_i1.max(-1)[0]
             sim_i2_i1 = sim_i2_i1 / self.temp1
             targets_mv = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(image.device)
 
