@@ -157,7 +157,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
             return_tensors="pt",
         ).to(model.device)
         text_feat = model.forward_text(text_input)
-        text_embed = F.normalize(model.text_proj(text_feat))
+        text_embed = F.normalize(model.text_proj(text_feat), dim=-1)
         text_embeds.append(text_embed)
         text_ids.append(text_input.input_ids)
         text_atts.append(text_input.attention_mask)
@@ -175,7 +175,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
         image = image.to(model.device)
         with model.maybe_autocast():
             image_feat, image_embed = model.forward_image(image)
-        image_embed = F.normalize(model.vision_proj(image_feat))
+        image_embed = F.normalize(model.vision_proj(image_feat), dim=-1)
         qimage_embeds.append(image_embed)
 
     qimage_embeds = torch.cat(qimage_embeds, dim=0)  # [num_image, embed_dim]
@@ -191,13 +191,13 @@ def compute_sim_matrix(model, data_loader, **kwargs):
         image_embed = model.vision_proj(image_feat)
         image_embed = F.normalize(image_embed, dim=-1)
 
-        vit_feats.append(vit_feat.cpu())
+        vit_feats.append(vit_feat)
         image_embeds.append(image_embed)
         del image, image_feat, vit_feat, image_embed
         torch.cuda.empty_cache()
 
     vit_feats = torch.cat(vit_feats, dim=0)
-    image_embeds = torch.cat(image_embeds, dim=0)  # [num_candidate, embed_dim]
+    image_embeds = torch.cat(image_embeds, dim=0)  # [num_candidate, query_num, embed_dim]
 
     # print('image_embeds:', image_embeds.size(), 'qimage_embeds:', qimage_embeds.size(), 'text_embeds:', text_embeds.size())
     # image_embeds: torch.Size([1600, 32, 256]) qimage_embeds: torch.Size([80, 32, 256]) text_embeds: torch.Size([40, 256])
