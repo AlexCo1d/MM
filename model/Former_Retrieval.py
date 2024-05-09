@@ -173,7 +173,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
         image = image.to(model.device)
         with model.maybe_autocast():
             image_feat, image_embed = model.forward_image(image)
-        image_embed = F.normalize(model.vision_proj(image_feat.float()))
+        image_embed = F.normalize(model.vision_proj(image_feat))
         qimage_embeds.append(image_embed)
 
     qimage_embeds = torch.cat(qimage_embeds, dim=0)  # [num_image, embed_dim]
@@ -187,7 +187,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
         image = image.to(model.device)
         with model.maybe_autocast():
             image_feat, vit_feat = model.forward_image(image)
-        image_embed = model.vision_proj(image_feat.float())
+        image_embed = model.vision_proj(image_feat)
         image_embed = F.normalize(image_embed, dim=-1)
 
         vit_feats.append(vit_feat.cpu())

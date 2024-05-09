@@ -29,7 +29,7 @@ def main():
 
     dataset = retrieval_dataset(args.data_path)
 
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False, num_workers=5, pin_memory=True)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
 
     model = Former_Retrieval.Former_RT()
     model = model.to(device)
