@@ -141,7 +141,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     texts = data_loader.dataset.text
     images = data_loader.dataset.image
     num_text = len(texts)
-    text_bs = 256
+    text_bs = 32
     text_ids = []
     text_embeds = []
     text_atts = []
@@ -166,7 +166,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
 
     # ------------------- query image-------------------
     qimage_embeds = []
-    image_bs = 256
+    image_bs = 32
     num_image = len(images)
     for i in range(0, num_image, image_bs):
         image = torch.stack(images[i: min(num_image, i + image_bs)], dim=0)
