@@ -122,7 +122,7 @@ def _report_metrics(ret, args):
             matched = 0
             for top_idx in top_k_indices:
                 # 检查候选项中的one-hot编码是否与查询匹配
-                if candidate.iloc[top_idx][query['variable'].iloc[idx]] == 1:
+                if candidate.iloc[top_idx][query['Variable'].iloc[idx]] == 1:
                     matched += 1
             precision = matched / k
             precisions.append(precision)
