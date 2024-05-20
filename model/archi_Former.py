@@ -23,12 +23,13 @@ from model.submodule.vit.vit import Block
 
 
 class MM_Former(Blip2Base):
-    def __init__(self, img_size=224, patch_size=16, in_chans=3, vision_width=768,
-                 embed_dim=768, depth=12, num_heads=12,
+    def __init__(self, img_size=224,
+                 embed_dim=768,
                  drop_path_rate=0,
                  use_grad_checkpoint=False,
                  vit_precision="fp16",
                  vit_path='',
+                 vit_type='eva_vit',
                  tokenizer_config='./model/submodule/bert/bert-base-uncased',
                  decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
                  mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False,
@@ -39,7 +40,7 @@ class MM_Former(Blip2Base):
         self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
         # VIT encoder part
-        self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate, use_grad_checkpoint, vit_precision)
+        self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate, use_grad_checkpoint, vit_precision, encoder=vit_type)
         if freeze_vit:
             for name, param in self.visual_encoder.named_parameters():
                 param.requires_grad = False
@@ -83,7 +84,7 @@ class MM_Former(Blip2Base):
         :param words_emb: bert output
         :return: loss, attn_maps
         """
-        temperature = 0.1
+        temperature = 0.07
         # get the local word embed
         bz = img_features.size(0)
         all_feat = words_emb.hidden_states[-1].unsqueeze(1)  # [b, layer, words_length, embed]

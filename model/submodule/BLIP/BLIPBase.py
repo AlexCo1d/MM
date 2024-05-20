@@ -6,6 +6,7 @@ from torch import nn
 
 from model.submodule.BLIP import QFormer
 from model.submodule.vit.eva_vit import create_eva_vit_g
+from model.submodule.vit.vit import get_ViT
 
 
 class Blip2Base(nn.Module):
@@ -36,9 +37,13 @@ class Blip2Base(nn.Module):
 
         return Qformer, query_tokens
 
-    def init_vision_encoder(self, vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision):
-        visual_encoder= create_eva_vit_g(vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision)
-        ln_vision = LayerNorm(visual_encoder.num_features)
+    def init_vision_encoder(self, vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision, encoder='eva_vit'):
+        if encoder!='eva_vit':
+            model = get_ViT(vit_path, img_size, drop_path_rate)
+            return model, nn.Identity()
+        else:
+            visual_encoder= create_eva_vit_g(vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision)
+            ln_vision = LayerNorm(visual_encoder.num_features)
         return visual_encoder, ln_vision
 
     @property

@@ -89,6 +89,8 @@ def get_args_parser():
                         help='resume from checkpoint')
     parser.add_argument('--vit_path', default='',
                         help='path for loading pretrained ViT model')
+    parser.add_argument('--vit_type', type=str, default='eva_vit',
+                        help='type of ViT model to use')
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--num_workers', default=10, type=int)
@@ -157,7 +159,8 @@ def main(args):
     )
 
     # define the model
-    model = MM_Former(local_contrastive_loss=True, vit_path=args.vit_path if args.resume is None else '', freeze_vit=True, mv=args.mv)
+    model = MM_Former(local_contrastive_loss=True, vit_path=args.vit_path if args.resume is None else '',vit_type=args.vit_type,
+                      freeze_vit=True if args.vit_type == 'eva_vit' else False, mv=args.mv)
 
     model.to(device)
 
