@@ -39,7 +39,7 @@ class Blip2Base(nn.Module):
 
     def init_vision_encoder(self, vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision, encoder='eva_vit'):
         if encoder!='eva_vit':
-            model = get_ViT(vit_path, img_size, drop_path_rate)
+            model = get_ViT(vit_path, img_size, drop_path_rate=drop_path_rate)
             return model, nn.Identity()
         else:
             visual_encoder= create_eva_vit_g(vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision)
