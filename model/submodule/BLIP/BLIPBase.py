@@ -46,6 +46,16 @@ class Blip2Base(nn.Module):
             ln_vision = LayerNorm(visual_encoder.num_features)
         return visual_encoder, ln_vision
 
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            # we use xavier_uniform following official JAX ViT:
+            torch.nn.init.xavier_uniform_(m.weight)
+            if isinstance(m, nn.Linear) and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
+
     @property
     def device(self):
         return list(self.parameters())[0].device
