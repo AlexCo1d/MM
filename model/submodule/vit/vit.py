@@ -90,7 +90,6 @@ def get_ViT(vit_path='', img_size=224, **kwargs):
             state_dict = state_dict['model']
         interpolate_pos_embed(model, state_dict)
         incompatible_keys = model.load_state_dict(state_dict, strict=False)
-        print('load VIT model')
         print(incompatible_keys)
 
     return model

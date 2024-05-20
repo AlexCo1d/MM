@@ -467,7 +467,6 @@ def create_eva_vit_g(vit_path, img_size=224, drop_path_rate=0.4, use_checkpoint=
         state_dict = torch.load(vit_path, map_location="cpu")
         interpolate_pos_embed(model, state_dict)
         incompatible_keys = model.load_state_dict(state_dict, strict=False)
-        print('load eva VIT model')
         print(incompatible_keys)
 
     if precision == "fp16":
