@@ -240,8 +240,8 @@ class MM_Former(Blip2Base):
         image = image.cuda()
         # imgs_1 = image.clone()  # keep the 448 size image
 
-        _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image)
-        image_embeds = self.ln_vision(self.visual_encoder(_imgs))
+        # _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image)
+        image_embeds = self.ln_vision(self.visual_encoder(image))
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
             image.device
         )
@@ -317,8 +317,8 @@ class MM_Former(Blip2Base):
         if self.mv:
             image2 = samples["image2"]
             image2 = image2.cuda()
-            _imgs2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image2)
-            image_embeds2 = self.ln_vision(self.visual_encoder(_imgs2))
+            # _imgs2 = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image2)
+            image_embeds2 = self.ln_vision(self.visual_encoder(image2))
 
             query_output2 = self.Qformer.bert(
                 query_embeds=query_tokens,

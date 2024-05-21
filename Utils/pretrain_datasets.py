@@ -11,6 +11,8 @@ from torchvision import transforms
 import tokenizers
 import random
 
+from torchvision.transforms import InterpolationMode
+
 from .randaugment import RandomAugment
 
 
@@ -21,29 +23,30 @@ def pil_loader(path: str) -> Image.Image:
         return img.convert('RGB')
 
 
-class MultimodalBertDataset(Dataset):
+class MIMICDataset(Dataset):
     def __init__(
             self,
             data_root,
             max_caption_length: int = 100,
             mv=False
     ):
-        self.mv=mv
+        self.mv = mv
         self.max_caption_length = max_caption_length
         self.data_root = data_root
         normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
         self.transform = transforms.Compose([
-            # transforms.RandomResizedCrop(448, scale=(0.2, 1.0), interpolation=Image.BICUBIC),
+            transforms.RandomResizedCrop(224, scale=(0.2, 1.0), interpolation=InterpolationMode.BICUBIC),
             transforms.RandomHorizontalFlip(),
             RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
                                                   'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
+            # transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC),
             transforms.ToTensor(),
             normalize,
         ])
         self.csv = self.read_csv()
         self.images_list, self.report_list = self.csv['image_path'], self.csv['report_content']
         if self.mv:
-            self.view_type_list=self.csv['view_type']
+            self.view_type_list = self.csv['view_type']
         # self.tokenizer = tokenizers.Tokenizer.from_file("mimic_wordpiece.json")
         # self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
         # self.tokenizer.enable_truncation(max_length=self.max_caption_length)
@@ -73,17 +76,17 @@ class MultimodalBertDataset(Dataset):
 
     def __getitem__(self, index):
         if self.mv:
-            image_list= self.images_list[index].split(';')
-            view_type_list=self.view_type_list[index].split(';')
-            index1,index2=select_two_index(view_type_list)
-            image1=pil_loader(image_list[index1])
-            image2=pil_loader(image_list[index2])
+            image_list = self.images_list[index].split(';')
+            view_type_list = self.view_type_list[index].split(';')
+            index1, index2 = select_two_index(view_type_list)
+            image1 = pil_loader(image_list[index1])
+            image2 = pil_loader(image_list[index2])
             image1 = self.transform(image1)
             image2 = self.transform(image2)
 
             # random select multivew image from same study:
             sent = self.report_list[index]
-            text=pre_caption(sent, self.max_caption_length)
+            text = pre_caption(sent, self.max_caption_length)
             return {
                 "image1": image1,
                 "image2": image2,
@@ -101,7 +104,7 @@ class MultimodalBertDataset(Dataset):
 
     def read_csv(self):
         if self.mv:
-            csv_path=os.path.join(self.data_root,'training_mv.csv')
+            csv_path = os.path.join(self.data_root, 'training_mv.csv')
             df = pd.read_csv(csv_path, sep=',')
             return df
         else:
@@ -137,6 +140,7 @@ class MultimodalBertDataset(Dataset):
     #     }
     #
     #     return return_dict
+
 
 def pre_caption(caption, max_words):
     caption = re.sub(
@@ -187,3 +191,122 @@ def select_two_index(view_type_list):
         index2 = random.choice(type_dict[chosen_types[1]])
 
     return index1, index2
+
+
+class MediCaTDataset(Dataset):
+    def __init__(
+            self,
+            data_root,
+            img_root='figures',
+            max_caption_length: int = 100,
+            mv=False
+    ):
+        self.mv = mv
+        self.max_caption_length = max_caption_length
+        self.data_root = data_root
+        self.img_root = img_root
+        normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
+        self.transform = transforms.Compose([
+            transforms.RandomResizedCrop(224, scale=(0.2, 1.0), interpolation=InterpolationMode.BICUBIC),
+            transforms.RandomHorizontalFlip(),
+            RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
+                                                  'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
+            transforms.ToTensor(),
+            normalize,
+        ])
+
+        self.data = self.read_json()
+        self.images_list = self.data['pdf_hash']+'_'+self.data['fig_uri']
+        self.texts_list = self.data['s2_caption']
+        # self.tokenizer = tokenizers.Tokenizer.from_file("mimic_wordpiece.json")
+        # self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
+        # self.tokenizer.enable_truncation(max_length=self.max_caption_length)
+        # self.tokenizer.enable_padding(length=self.max_caption_length)
+
+    def read_json(self):
+        json_path = os.path.join(self.data_root, 'training.json')
+        df = pd.read_json(json_path, lines=True)
+        return df
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        image = self.images_list[index]
+        image = pil_loader(os.path.join(self.data_root, self.img_root, image))
+        sent = self.texts_list[index]
+        text = pre_caption(sent, self.max_caption_length)
+        image1 = self.transform(image)
+
+        if self.mv:
+            image2 = self.transform(image)
+            # random select multivew image from same study:
+            return {
+                "image1": image1,
+                "image2": image2,
+                "text": text
+            }
+        else:
+            return {
+                "image1": image,
+                "text": text
+            }
+
+class ROCODataset(Dataset):
+    def __init__(
+            self,
+            data_root,
+            img_root='images',
+            max_caption_length: int = 100,
+            mv=False
+    ):
+        self.mv = mv
+        self.max_caption_length = max_caption_length
+        self.data_root = data_root
+        self.img_root = img_root
+        normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
+        self.transform = transforms.Compose([
+            transforms.RandomResizedCrop(224, scale=(0.2, 1.0), interpolation=InterpolationMode.BICUBIC),
+            transforms.RandomHorizontalFlip(),
+            RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
+                                                  'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
+            transforms.ToTensor(),
+            normalize,
+        ])
+
+        self.data = self.read_csv()
+        self.images_list = self.data['image_path']
+        self.texts_list = self.data['text']
+        # self.tokenizer = tokenizers.Tokenizer.from_file("mimic_wordpiece.json")
+        # self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
+        # self.tokenizer.enable_truncation(max_length=self.max_caption_length)
+        # self.tokenizer.enable_padding(length=self.max_caption_length)
+
+    def read_csv(self):
+        csv_path = os.path.join(self.data_root, 'training.csv')
+        df = pd.read_csv(csv_path, sep=',')
+        return df
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        image = self.images_list[index]
+        image = pil_loader(os.path.join(self.data_root, self.img_root, image))
+        sent = self.texts_list[index]
+        text = pre_caption(sent, self.max_caption_length)
+        image1 = self.transform(image)
+
+        if self.mv:
+            image2 = self.transform(image)
+            # random select multivew image from same study:
+            return {
+                "image1": image1,
+                "image2": image2,
+                "text": text
+            }
+        else:
+            return {
+                "image1": image,
+                "text": text
+            }

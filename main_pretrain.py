@@ -33,7 +33,7 @@ from Utils.misc import NativeScalerWithGradNormCount as NativeScaler
 from model.archi_Former import MM_Former
 
 from engine_pretrain import train_one_epoch
-from Utils.pretrain_datasets import MultimodalBertDataset
+from Utils.pretrain_datasets import MIMICDataset
 
 
 def get_args_parser():
@@ -129,7 +129,7 @@ def main(args):
     cudnn.benchmark = True
 
 
-    dataset_train = MultimodalBertDataset(os.path.join(args.data_path),mv=args.mv)
+    dataset_train = MIMICDataset(os.path.join(args.data_path), mv=args.mv)
 
     print(dataset_train)
 
