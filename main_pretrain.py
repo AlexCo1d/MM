@@ -28,12 +28,13 @@ import timm.optim.optim_factory as optim_factory
 
 import Utils.lr_decay
 import Utils.misc as misc
+from Utils.pretrain_datasets import get_pretrain_dataset
 from Utils.misc import NativeScalerWithGradNormCount as NativeScaler
 
 from model.archi_Former import MM_Former
 
 from engine_pretrain import train_one_epoch
-from Utils.pretrain_datasets import MIMICDataset
+
 
 
 def get_args_parser():
@@ -59,6 +60,9 @@ def get_args_parser():
     # parser.set_defaults(norm_pix_loss=False)
     parser.add_argument('--mv', action='store_true',
                         help='multiview')
+    parser.add_argument('--concat', action='store_true',
+                        help='Concat multiple datasets')
+    parser.set_defaults(concat=False)
     parser.set_defaults(mv=False)
     # Optimizer parameters
     parser.add_argument('--weight_decay', type=float, default=0.05,
@@ -128,8 +132,7 @@ def main(args):
 
     cudnn.benchmark = True
 
-
-    dataset_train = MIMICDataset(os.path.join(args.data_path), mv=args.mv)
+    dataset_train = get_pretrain_dataset(args)
 
     print(dataset_train)
 

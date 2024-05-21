@@ -3,10 +3,10 @@ import time
 from copy import deepcopy
 import os
 from typing import List, Tuple
-from PIL import Image
+from PIL import Image, ImageFilter
 import pandas as pd
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, ConcatDataset
 from torchvision import transforms
 import tokenizers
 import random
@@ -27,22 +27,14 @@ class MIMICDataset(Dataset):
     def __init__(
             self,
             data_root,
+            transform,
             max_caption_length: int = 100,
             mv=False
     ):
         self.mv = mv
         self.max_caption_length = max_caption_length
         self.data_root = data_root
-        normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
-        self.transform = transforms.Compose([
-            transforms.RandomResizedCrop(224, scale=(0.2, 1.0), interpolation=InterpolationMode.BICUBIC),
-            transforms.RandomHorizontalFlip(),
-            RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
-                                                  'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
-            # transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC),
-            transforms.ToTensor(),
-            normalize,
-        ])
+        self.transform = transform
         self.csv = self.read_csv()
         self.images_list, self.report_list = self.csv['image_path'], self.csv['report_content']
         if self.mv:
@@ -197,6 +189,7 @@ class MediCaTDataset(Dataset):
     def __init__(
             self,
             data_root,
+            transform,
             img_root='figures',
             max_caption_length: int = 100,
             mv=False
@@ -205,18 +198,11 @@ class MediCaTDataset(Dataset):
         self.max_caption_length = max_caption_length
         self.data_root = data_root
         self.img_root = img_root
-        normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
-        self.transform = transforms.Compose([
-            transforms.RandomResizedCrop(224, scale=(0.2, 1.0), interpolation=InterpolationMode.BICUBIC),
-            transforms.RandomHorizontalFlip(),
-            RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
-                                                  'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
-            transforms.ToTensor(),
-            normalize,
-        ])
+
+        self.transform = transform
 
         self.data = self.read_json()
-        self.images_list = self.data['pdf_hash']+'_'+self.data['fig_uri']
+        self.images_list = self.data['pdf_hash'] + '_' + self.data['fig_uri']
         self.texts_list = self.data['s2_caption']
         # self.tokenizer = tokenizers.Tokenizer.from_file("mimic_wordpiece.json")
         # self.idxtoword = {v: k for k, v in self.tokenizer.get_vocab().items()}
@@ -252,10 +238,12 @@ class MediCaTDataset(Dataset):
                 "text": text
             }
 
+
 class ROCODataset(Dataset):
     def __init__(
             self,
             data_root,
+            transform,
             img_root='images',
             max_caption_length: int = 100,
             mv=False
@@ -264,15 +252,7 @@ class ROCODataset(Dataset):
         self.max_caption_length = max_caption_length
         self.data_root = data_root
         self.img_root = img_root
-        normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
-        self.transform = transforms.Compose([
-            transforms.RandomResizedCrop(224, scale=(0.2, 1.0), interpolation=InterpolationMode.BICUBIC),
-            transforms.RandomHorizontalFlip(),
-            RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
-                                                  'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
-            transforms.ToTensor(),
-            normalize,
-        ])
+        self.transform = transform
 
         self.data = self.read_csv()
         self.images_list = self.data['image_path']
@@ -310,3 +290,42 @@ class ROCODataset(Dataset):
                 "image1": image,
                 "text": text
             }
+
+
+class GaussianBlur(object):
+    """Gaussian blur augmentation in SimCLR https://arxiv.org/abs/2002.05709"""
+
+    def __init__(self, sigma=[.1, 2.]):
+        self.sigma = sigma
+
+    def __call__(self, x):
+        sigma = random.uniform(self.sigma[0], self.sigma[1])
+        x = x.filter(ImageFilter.GaussianBlur(radius=sigma))
+        return x
+
+
+def get_pretrain_dataset(args):
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+    transform = transforms.Compose([
+        transforms.RandomResizedCrop(224, scale=(0.7, 1.0), interpolation=InterpolationMode.BICUBIC),
+        transforms.RandomApply([
+            transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
+        ], p=0.7),
+        transforms.RandomGrayscale(p=0.1),
+        RandomAugment(2, 6, isPIL=True, augs=['Identity', 'Equalize', 'Sharpness',
+                                              'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
+        transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        normalize
+    ])
+
+    MIMIC = MIMICDataset(data_root=args.data_root, transform=transform, mv=args.mv)
+
+    if args.concat:
+        MediCaT = MediCaTDataset(data_root=args.data_root, transform=transform, mv=args.mv)
+        ROCO = ROCODataset(data_root=args.data_root, transform=transform, mv=args.mv)
+        return ConcatDataset([MIMIC, MediCaT, ROCO])
+    else:
+        return MIMIC
