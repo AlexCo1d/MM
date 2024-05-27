@@ -69,15 +69,15 @@ class MIMICDataset(Dataset):
     def __getitem__(self, index):
         if self.mv:
             image_list = self.images_list[index].split(';')
-            view_type_list = self.view_type_list[index].split(';')
             if len(image_list) > 1:
+                view_type_list = self.view_type_list[index].split(';')
                 index1, index2 = select_two_index(view_type_list)
                 image1 = pil_loader(image_list[index1])
                 image2 = pil_loader(image_list[index2])
                 image1 = self.transform(image1)
                 image2 = self.transform(image2)
             else:
-                image= pil_loader(image_list[0])
+                image = pil_loader(image_list[0])
                 image1 = self.transform(image)
                 image2 = self.transform(image)
 
