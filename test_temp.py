@@ -259,8 +259,7 @@ with open(os.path.join(path,'./training_mv.csv'), 'w') as f:
                         dicom_id = filename.split('.')[0]
                         image_path.append(os.path.join(root, filename))
                         type=str(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
-                        if type!='nan':
-                            view_type.append(type)
+                        view_type.append(type)
                     report_content = t.read()
                     report_content = report_content.replace('\n', ' ')
                     # 移除多余的空格
@@ -271,7 +270,7 @@ with open(os.path.join(path,'./training_mv.csv'), 'w') as f:
                     writer.writerow([study_id, image_path, view_type, report_content])
             else:
                 with open(root + '.txt', 'r') as t:
-                    image_path=os.path.join(root, files[0])
+                    image_path=files[0]
                     dicom_id = image_path.split('.')[0]
                     type = str(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
                     report_content = t.read()
@@ -279,7 +278,7 @@ with open(os.path.join(path,'./training_mv.csv'), 'w') as f:
                     # 移除多余的空格
                     report_content = re.sub(r'\s+', ' ', report_content)
                     report_content = extract_sections(report_content)
-                    writer.writerow([study_id, image_path, type, report_content])
+                    writer.writerow([study_id, os.path.join(root, image_path), type, report_content])
 
 
 
