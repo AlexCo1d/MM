@@ -22,6 +22,7 @@ class Former_T5(Blip2Base):
         num_query_token=32,
         t5_model_path="google/flan-t5-xl",
         prompt="",
+        vit_type="eva_vit",
         vit_path="",
         tokenizer_config='../model/submodule/bert/bert-base-uncased',
         max_txt_len=32,
@@ -34,7 +35,7 @@ class Former_T5(Blip2Base):
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
-                                                                       use_grad_checkpoint, vit_precision)
+                                                                       use_grad_checkpoint, vit_precision, encoder=vit_type)
         if freeze_vit:
             for name, param in self.visual_encoder.named_parameters():
                 param.requires_grad = False
