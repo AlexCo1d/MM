@@ -240,7 +240,7 @@ import os
 import re
 
 # 读取CSV文件
-path='/mnt/data/yueli/mimic'
+path='/home/data/Jingkai/alex/mimic'
 meta = pd.read_csv(os.path.join(path,'./mimic-cxr-2.0.0-metadata.csv'), sep=',')
 # train = pd.read_csv(os.path.join(path,'./training.csv'), sep=',')
 folder_path = os.path.join(path,'files')
