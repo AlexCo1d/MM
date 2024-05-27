@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+from PIL import Image
 
 ## aug functions
 def identity_func(img):
@@ -331,10 +331,12 @@ class RandomAugment(object):
                 continue
             args = arg_dict[name](level)
             img = func_dict[name](img, *args)
-        return img
+        return Image.fromarray(np.uint8(img))
 
 
 if __name__ == '__main__':
-    a = RandomAugment()
-    img = np.random.randn(32, 32, 3)
-    a(img)
+    a = RandomAugment(augs=['Identity', 'Equalize', 'Sharpness','ShearX', 'ShearY', 'TranslateX', 'TranslateY','Rotate'])
+    img = np.random.randint(0, 255, (224, 224, 3)).astype(np.uint8)
+    i=a(img)
+    from torchvision import transforms
+    print(transforms.ToTensor()(i))
