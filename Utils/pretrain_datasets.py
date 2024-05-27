@@ -313,8 +313,10 @@ def get_pretrain_dataset(args):
             transforms.ColorJitter(0.4, 0.4, 0.4, 0.1)  # not strengthened
         ], p=0.7),
         transforms.RandomGrayscale(p=0.1),
-        RandomAugment(2, 6, isPIL=True, augs=['Identity', 'Equalize', 'Sharpness',
-                                              'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
+        transforms.RandomApply([RandomAugment(2, 6, isPIL=True, augs=['Identity', 'Equalize', 'Sharpness',
+                                                                      'ShearX', 'ShearY', 'TranslateX', 'TranslateY',
+                                                                      'Rotate'])], p=0.8),
+        transforms.ToPILImage(),
         transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
@@ -324,9 +326,9 @@ def get_pretrain_dataset(args):
     MIMIC = MIMICDataset(data_root=args.data_path, transform=transform, mv=args.mv)
 
     if args.concat:
-        fpath=os.path.join(args.data_path, '..')
-        MediCaT = MediCaTDataset(data_root=os.path.join(fpath,'medicat'), transform=transform, mv=args.mv)
-        ROCO = ROCODataset(data_root=os.path.join(fpath,'roco-dataset'), transform=transform, mv=args.mv)
+        fpath = os.path.join(args.data_path, '..')
+        MediCaT = MediCaTDataset(data_root=os.path.join(fpath, 'medicat'), transform=transform, mv=args.mv)
+        ROCO = ROCODataset(data_root=os.path.join(fpath, 'roco-dataset'), transform=transform, mv=args.mv)
         return ConcatDataset([MIMIC, MediCaT, ROCO])
     else:
         return MIMIC
