@@ -325,7 +325,8 @@ def get_pretrain_dataset(args):
     MIMIC = MIMICDataset(data_root=args.data_path, transform=transform, mv=args.mv)
 
     if args.concat:
-        fpath = os.path.join(args.data_path, '..')
+        # capture the upper path of args.datapath
+        fpath = os.path.dirname(args.data_path)
         MediCaT = MediCaTDataset(data_root=os.path.join(fpath, 'medicat'), transform=transform, mv=args.mv)
         ROCO = ROCODataset(data_root=os.path.join(fpath, 'roco-dataset'), transform=transform, mv=args.mv)
         return ConcatDataset([MIMIC, MediCaT, ROCO])
