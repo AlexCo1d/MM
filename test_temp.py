@@ -279,8 +279,6 @@ with open(os.path.join(path,'./training_mv.csv'), 'w') as f:
                     # 移除多余的空格
                     report_content = re.sub(r'\s+', ' ', report_content)
                     report_content = extract_sections(report_content)
-                    image_path = ';'.join(image_path)
-                    view_type = ';'.join(view_type)
                     writer.writerow([study_id, image_path, type, report_content])
 
 
