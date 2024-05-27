@@ -215,44 +215,6 @@ import re
 #
 # # 检查输出
 # print(output)
-
-# import pandas as pd
-# import csv
-# import os
-#
-# # 读取CSV文件
-# meta = pd.read_csv('./mimic-cxr-2.0.0-metadata.csv', sep=',')
-# train = pd.read_csv('./training.csv', sep=',')
-# folder_path = "/home/data/Jingkai/alex/mimic/files"
-# with open('./training_mv.csv', 'w') as f:
-#     writer = csv.writer(f)
-#     writer.writerow(['study_id', 'image_path', 'view_type', 'report_content'])
-#     for root, dirs, files in os.walk(folder_path):
-#         # files is list of files, root is current full dir.
-#         if root.split('/')[-1].startswith('s'):
-#             if len(files) > 1:
-#                 with open(root + '.txt', 'r') as t:
-#                     study_id = root.split('/')[-1].replace("s", "")
-#                     image_path = []
-#                     view_type = []
-#                     for filename in files:
-#                         dicom_id = filename.split('.')[0]
-#                         image_path.append(os.path.join(root, filename))
-#                         type=str(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
-#                         if type!='nan':
-#                             view_type.append(type)
-#                     report_content = t.read()
-#                     report_content.replace('\n','')
-#                     report_content = report_content.replace('\n', ' ')
-#                     # 移除多余的空格
-#                     report_content = re.sub(r'\s+', ' ', report_content)
-#                     image_path = ';'.join(image_path)
-#                     view_type = ';'.join(view_type)
-#                     writer.writerow([study_id, image_path, view_type, report_content])
-
-import re
-
-
 def extract_sections(report):
     # This regular expression looks for the sections FINDINGS and IMPRESSION
     # and extracts all text up to the next all-caps word or the end of the string.
@@ -272,13 +234,68 @@ def extract_sections(report):
 
     return extracted_text.strip()
 
-
 import pandas as pd
+import csv
+import os
+import re
 
-df = pd.read_csv('/home/data/Jingkai/alex/mimic/training.csv', sep=',')
-df['report_content'] = df['report_content'].apply(extract_sections)
-df.to_csv('/home/data/Jingkai/alex/mimic/training.csv', index=False)
+# 读取CSV文件
+path='/mnt/data/yueli/mimic'
+meta = pd.read_csv(os.path.join(path,'./mimic-cxr-2.0.0-metadata.csv'), sep=',')
+# train = pd.read_csv(os.path.join(path,'./training.csv'), sep=',')
+folder_path = os.path.join(path,'files')
+with open(os.path.join(path,'./training_mv.csv'), 'w') as f:
+    writer = csv.writer(f)
+    writer.writerow(['study_id', 'image_path', 'view_type', 'report_content'])
+    for root, dirs, files in os.walk(folder_path):
+        # files is list of files, root is current full dir.
+        if root.split('/')[-1].startswith('s'):
+            study_id = root.split('/')[-1].replace("s", "")
+            if len(files) > 1:
+                with open(root + '.txt', 'r') as t:
+                    image_path = []
+                    view_type = []
+                    for filename in files:
+                        dicom_id = filename.split('.')[0]
+                        image_path.append(os.path.join(root, filename))
+                        type=str(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
+                        if type!='nan':
+                            view_type.append(type)
+                    report_content = t.read()
+                    report_content = report_content.replace('\n', ' ')
+                    # 移除多余的空格
+                    report_content = re.sub(r'\s+', ' ', report_content)
+                    report_content = extract_sections(report_content)
+                    image_path = ';'.join(image_path)
+                    view_type = ';'.join(view_type)
+                    writer.writerow([study_id, image_path, view_type, report_content])
+            else:
+                with open(root + '.txt', 'r') as t:
+                    image_path=files[0]
+                    dicom_id = image_path.split('.')[0]
+                    type = str(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
+                    report_content = t.read()
+                    report_content = report_content.replace('\n', ' ')
+                    # 移除多余的空格
+                    report_content = re.sub(r'\s+', ' ', report_content)
+                    report_content = extract_sections(report_content)
+                    image_path = ';'.join(image_path)
+                    view_type = ';'.join(view_type)
+                    writer.writerow([study_id, image_path, type, report_content])
 
-df = pd.read_csv('/home/data/Jingkai/alex/mimic/training.csv', sep=',')
+
+
+
+df = pd.read_csv(os.path.join(path,'./training_mv.csv'), sep=',')
 df = df[df['report_content'].notna()]
-df.to_csv('/home/data/Jingkai/alex/mimic/training.csv', index=False)
+df.to_csv(os.path.join(path,'./training_mv.csv'), index=False)
+
+
+
+
+# import pandas as pd
+#
+# df = pd.read_csv('/home/data/Jingkai/alex/mimic/training.csv', sep=',')
+# df['report_content'] = df['report_content'].apply(extract_sections)
+# df.to_csv('/home/data/Jingkai/alex/mimic/training.csv', index=False)
+#
