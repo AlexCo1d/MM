@@ -271,7 +271,7 @@ with open(os.path.join(path,'./training_mv.csv'), 'w') as f:
                     writer.writerow([study_id, image_path, view_type, report_content])
             else:
                 with open(root + '.txt', 'r') as t:
-                    image_path=files[0]
+                    image_path=os.path.join(root, files[0])
                     dicom_id = image_path.split('.')[0]
                     type = str(meta[meta['dicom_id'] == dicom_id]['ViewPosition'].values[0])
                     report_content = t.read()
