@@ -70,11 +70,16 @@ class MIMICDataset(Dataset):
         if self.mv:
             image_list = self.images_list[index].split(';')
             view_type_list = self.view_type_list[index].split(';')
-            index1, index2 = select_two_index(view_type_list)
-            image1 = pil_loader(image_list[index1])
-            image2 = pil_loader(image_list[index2])
-            image1 = self.transform(image1)
-            image2 = self.transform(image2)
+            if len(image_list) > 1:
+                index1, index2 = select_two_index(view_type_list)
+                image1 = pil_loader(image_list[index1])
+                image2 = pil_loader(image_list[index2])
+                image1 = self.transform(image1)
+                image2 = self.transform(image2)
+            else:
+                image= pil_loader(image_list[0])
+                image1 = self.transform(image)
+                image2 = self.transform(image)
 
             # random select multivew image from same study:
             sent = self.report_list[index]
