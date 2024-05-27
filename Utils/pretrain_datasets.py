@@ -316,7 +316,6 @@ def get_pretrain_dataset(args):
         transforms.RandomApply([RandomAugment(2, 6, isPIL=True, augs=['Identity', 'Equalize', 'Sharpness',
                                                                       'ShearX', 'ShearY', 'TranslateX', 'TranslateY',
                                                                       'Rotate'])], p=0.8),
-        transforms.ToPILImage(),
         transforms.RandomApply([GaussianBlur([.1, 2.])], p=0.5),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
