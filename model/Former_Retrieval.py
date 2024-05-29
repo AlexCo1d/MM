@@ -272,8 +272,8 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     logging.info("Evaluation time {}".format(total_time_str))
 
     ret = {
-        'i2t': F.softmax(score_matrix_i2t).cpu().numpy(),
-        't2i': F.softmax(score_matrix_t2i).cpu().numpy(),
-        'i2i': F.softmax(sims_i2i).cpu().numpy()
+        'i2t': F.softmax(score_matrix_i2t, dim=-1).cpu().numpy(),
+        't2i': F.softmax(score_matrix_t2i, dim=-1).cpu().numpy(),
+        'i2i': F.softmax(sims_i2i, dim=-1).cpu().numpy()
     }
     return ret

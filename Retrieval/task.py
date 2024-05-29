@@ -52,7 +52,7 @@ def main():
     # save the result
     np.save(os.path.join(args.data_path, 'result.npy'), ret)
     if misc.is_main_process():
-        _report_metrics(ret,args)
+        _report_metrics(ret, args)
 
 
 @torch.no_grad()
