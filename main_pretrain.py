@@ -91,6 +91,8 @@ def get_args_parser():
     parser.add_argument('--seed', default=42, type=int)
     parser.add_argument('--resume', default='',
                         help='resume from checkpoint')
+    parser.add_argument('--load_optim', action='store_true')
+    parser.set_defaults(load_optim=False)
     parser.add_argument('--vit_path', default='',
                         help='path for loading pretrained ViT model')
     parser.add_argument('--vit_type', type=str, default='eva_vit',
