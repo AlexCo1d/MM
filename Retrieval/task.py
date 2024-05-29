@@ -129,15 +129,15 @@ def _report_metrics(ret, args):
                     matched += 1
             precision = matched / k
             precisions.append(precision)
-        return np.mean(precisions)
+        return np.mean(precisions), precisions
 
     eval_result = {
-        "t2i_r1": compute_precision_at_k(scores_t2i, TR_query, candidate, k=1),
         "t2i_r5": compute_precision_at_k(scores_t2i, TR_query, candidate, k=5),
         "t2i_r10": compute_precision_at_k(scores_t2i, TR_query, candidate, k=10),
-        "i2i_r1": compute_precision_at_k(scores_i2i, IR_query, candidate, k=1),
+        "t2i_r50": compute_precision_at_k(scores_t2i, TR_query, candidate, k=50),
         "i2i_r5": compute_precision_at_k(scores_i2i, IR_query, candidate, k=5),
         "i2i_r10": compute_precision_at_k(scores_i2i, IR_query, candidate, k=10),
+        "i2i_r50": compute_precision_at_k(scores_i2i, IR_query, candidate, k=50),
     }
 
     print(eval_result)
