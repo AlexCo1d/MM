@@ -57,15 +57,12 @@ def main():
 
 @torch.no_grad()
 def _report_metrics(ret, args):
-    scores_i2t = ret["i2t"] # num_image x num_candidates
-    scores_t2i = ret["t2i"] # num_text x num_candidates
-    scores_i2i = ret["i2i"] # num_image x num_candidates
-    with open(os.path.join(args.data_path, f'candidate.csv')) as f:
-        candidate = pd.read_csv(f)
-    with open(os.path.join(args.data_path, f'I2IR_query.csv')) as f:
-        IR_query = pd.read_csv(f)
-    with open(os.path.join(args.data_path, f'T2IR_query.csv')) as f:
-        TR_query = pd.read_csv(f)
+    # with open(os.path.join(args.data_path, f'candidate.csv')) as f:
+    #     candidate = pd.read_csv(f)
+    # with open(os.path.join(args.data_path, f'I2IR_query.csv')) as f:
+    #     IR_query = pd.read_csv(f)
+    # with open(os.path.join(args.data_path, f'T2IR_query.csv')) as f:
+    #     TR_query = pd.read_csv(f)
 
     # # Images->Text
     # ranks = np.zeros(scores_i2t.shape[0])
@@ -118,27 +115,38 @@ def _report_metrics(ret, args):
     #         os.path.join(registry.get_path("output_dir"), "evaluate.txt"), "a"
     # ) as f:
     #     f.write(json.dumps(eval_result) + "\n")
-    def compute_precision_at_k(scores, query, candidate, k=1):
+    def compute_precision_at_k(scores, classes, k=1):
         precisions = []
-        for idx, score in enumerate(scores):
-            top_k_indices = np.argsort(score)[-k:][::-1]  # 从高到低
-            matched = 0
-            for top_idx in top_k_indices:
-                # 检查候选项中的one-hot编码是否与查询匹配
-                if candidate.iloc[top_idx][query['Variable'].iloc[idx]] == 1:
-                    matched += 1
-            precision = matched / k
+
+        for i, score_row in enumerate(scores):
+            sample_class = classes[i]
+            top_k_indices = np.argsort(score_row)[-k:][::-1]  # Get top k indices
+            correct_retrievals = sum(classes[idx] == sample_class for idx in top_k_indices)
+            precision = correct_retrievals / k
             precisions.append(precision)
+
         return np.mean(precisions), precisions
 
-    eval_result = {
-        "t2i_r5": compute_precision_at_k(scores_t2i, TR_query, candidate, k=5),
-        "t2i_r10": compute_precision_at_k(scores_t2i, TR_query, candidate, k=10),
-        "t2i_r50": compute_precision_at_k(scores_t2i, TR_query, candidate, k=50),
-        "i2i_r5": compute_precision_at_k(scores_i2i, IR_query, candidate, k=5),
-        "i2i_r10": compute_precision_at_k(scores_i2i, IR_query, candidate, k=10),
-        "i2i_r50": compute_precision_at_k(scores_i2i, IR_query, candidate, k=50),
+    scores_i2t = ret["i2t"]
+    scores_t2i = ret["t2i"]
+    with open(os.path.join(args.data_path, 'df_200.csv')) as f:
+        df = pd.read_csv(f)
+    classes = df['Class']
+
+    eval_result= {
+        "i2t_r1": compute_precision_at_k(scores_i2t, classes, k=1),
+        "i2t_r2": compute_precision_at_k(scores_i2t, classes, k=2),
+        "i2t_r5": compute_precision_at_k(scores_i2t, classes, k=5),
+        "i2t_r10": compute_precision_at_k(scores_i2t, classes, k=10),
+        "i2t_r50": compute_precision_at_k(scores_i2t, classes, k=50),
+        "t2i_r1": compute_precision_at_k(scores_t2i, classes, k=1),
+        "t2i_r2": compute_precision_at_k(scores_t2i, classes, k=2),
+        "t2i_r5": compute_precision_at_k(scores_t2i, classes, k=5),
+        "t2i_r10": compute_precision_at_k(scores_t2i, classes, k=10),
+        "t2i_r50": compute_precision_at_k(scores_t2i, classes, k=50),
     }
+
+
 
     print(eval_result)
     return eval_result
