@@ -248,29 +248,30 @@ def compute_sim_matrix(model, data_loader, **kwargs):
             text_ids=text_ids[topk_idx],
             text_atts=text_atts[topk_idx],
         ).float()
-        score_matrix_i2t[start + i, topk_idx] = score + topk_sim
-    score_matrix_t2i = score_matrix_i2t.t()
-    # sims_matrix = sims_matrix.t()
-    # score_matrix_t2i = torch.full(
-    #     (length, length), -100.0
-    # ).to(model.device)
-    #
-    # step = sims_matrix.size(0) // num_tasks + 1
-    # start = rank * step
-    # end = min(sims_matrix.size(0), start + step)
-    #
-    # for i, sims in enumerate(
-    #         metric_logger.log_every(sims_matrix[start:end], 50, header)
-    # ):
-    #     topk_sim, topk_idx = sims.topk(k=k_test, dim=0)
-    #     image_inputs = vit_feats[topk_idx.cpu()].to(model.device)
-    #     score = model.compute_itm(
-    #         image_inputs=image_inputs,
-    #         text_ids=text_ids[start + i].repeat(k_test, 1),
-    #         text_atts=text_atts[start + i].repeat(k_test, 1),
-    #     ).float()
-    #     score_matrix_t2i[start + i, topk_idx] = score + topk_sim
-    #     # score_matrix_t2i[start + i, topk_idx] = topk_sim
+        # score_matrix_i2t[start + i, topk_idx] = score + topk_sim
+        score_matrix_i2t[start + i, topk_idx] = topk_sim
+    # score_matrix_t2i = score_matrix_i2t.t()
+    sims_matrix = sims_matrix.t()
+    score_matrix_t2i = torch.full(
+        (length, length), -100.0
+    ).to(model.device)
+
+    step = sims_matrix.size(0) // num_tasks + 1
+    start = rank * step
+    end = min(sims_matrix.size(0), start + step)
+
+    for i, sims in enumerate(
+            metric_logger.log_every(sims_matrix[start:end], 50, header)
+    ):
+        topk_sim, topk_idx = sims.topk(k=k_test, dim=0)
+        image_inputs = vit_feats[topk_idx.cpu()].to(model.device)
+        score = model.compute_itm(
+            image_inputs=image_inputs,
+            text_ids=text_ids[start + i].repeat(k_test, 1),
+            text_atts=text_atts[start + i].repeat(k_test, 1),
+        ).float()
+        # score_matrix_t2i[start + i, topk_idx] = score + topk_sim
+        score_matrix_t2i[start + i, topk_idx] = topk_sim
 
     if is_dist_avail_and_initialized():
         dist.barrier()

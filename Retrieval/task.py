@@ -125,7 +125,7 @@ def _report_metrics(ret, args):
             precision = correct_retrievals / k
             precisions.append(precision)
 
-        return np.mean(precisions), precisions
+        return np.nanmean(precisions)
 
     scores_i2t = ret["i2t"]
     scores_t2i = ret["t2i"]
