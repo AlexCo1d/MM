@@ -192,6 +192,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
 
         vit_feats.append(vit_feat)
         image_embeds.append(image_embed)
+
         text = samples["text"]
         text_input = model.tokenizer(
             text,
@@ -278,9 +279,9 @@ def compute_sim_matrix(model, data_loader, **kwargs):
         torch.distributed.all_reduce(
             score_matrix_i2t, op=torch.distributed.ReduceOp.SUM
         )
-        # torch.distributed.all_reduce(
-        #     score_matrix_t2i, op=torch.distributed.ReduceOp.SUM
-        # )
+        torch.distributed.all_reduce(
+            score_matrix_t2i, op=torch.distributed.ReduceOp.SUM
+        )
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
