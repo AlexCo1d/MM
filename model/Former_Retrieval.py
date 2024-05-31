@@ -139,50 +139,49 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     logging.info("Computing features for evaluation...")
     start_time = time.time()
 
-    # ------------------- query text-------------------
-    texts = data_loader.dataset.text
-    images = data_loader.dataset.image
-    num_text = len(texts)
-    text_bs = 32
-    text_ids = []
-    text_embeds = []
-    text_atts = []
-    for i in range(0, num_text, text_bs):
-        text = texts[i: min(num_text, i + text_bs)]
-        text_input = model.tokenizer(
-            text,
-            padding="max_length",
-            truncation=True,
-            max_length=35,
-            return_tensors="pt",
-        ).to(model.device)
-        text_feat = model.forward_text(text_input)
-        text_embed = F.normalize(model.text_proj(text_feat), dim=-1)
-        text_embeds.append(text_embed)
-        text_ids.append(text_input.input_ids)
-        text_atts.append(text_input.attention_mask)
-
-    text_embeds = torch.cat(text_embeds, dim=0)
-    text_ids = torch.cat(text_ids, dim=0)
-    text_atts = torch.cat(text_atts, dim=0)
-
-    # ------------------- query image-------------------
-    qimage_embeds = []
-    image_bs = 32
-    num_image = len(images)
-    for i in range(0, num_image, image_bs):
-        image = torch.stack(images[i: min(num_image, i + image_bs)], dim=0)
-        image = image.to(model.device)
-        with model.maybe_autocast():
-            image_feat, image_embed = model.forward_image(image)
-        image_embed = F.normalize(model.vision_proj(image_feat), dim=-1)
-        qimage_embeds.append(image_embed)
-
-    qimage_embeds = torch.cat(qimage_embeds, dim=0)  # [num_image, embed_dim]
+    # # ------------------- query text-------------------
+    # num_text = len(texts)
+    # text_bs = 32
+    #
+    # for i in range(0, num_text, text_bs):
+    #     text = texts[i: min(num_text, i + text_bs)]
+    #     text_input = model.tokenizer(
+    #         text,
+    #         padding="max_length",
+    #         truncation=True,
+    #         max_length=35,
+    #         return_tensors="pt",
+    #     ).to(model.device)
+    #     text_feat = model.forward_text(text_input)
+    #     text_embed = F.normalize(model.text_proj(text_feat), dim=-1)
+    #     text_embeds.append(text_embed)
+    #     text_ids.append(text_input.input_ids)
+    #     text_atts.append(text_input.attention_mask)
+    #
+    # text_embeds = torch.cat(text_embeds, dim=0)
+    # text_ids = torch.cat(text_ids, dim=0)
+    # text_atts = torch.cat(text_atts, dim=0)
+    #
+    # # ------------------- query image-------------------
+    # qimage_embeds = []
+    # image_bs = 32
+    # num_image = len(images)
+    # for i in range(0, num_image, image_bs):
+    #     image = torch.stack(images[i: min(num_image, i + image_bs)], dim=0)
+    #     image = image.to(model.device)
+    #     with model.maybe_autocast():
+    #         image_feat, image_embed = model.forward_image(image)
+    #     image_embed = F.normalize(model.vision_proj(image_feat), dim=-1)
+    #     qimage_embeds.append(image_embed)
+    #
+    # qimage_embeds = torch.cat(qimage_embeds, dim=0)  # [num_image, embed_dim]
 
     # ------------------- candidate image-------------------
     vit_feats = []
     image_embeds = []
+    text_ids = []
+    text_embeds = []
+    text_atts = []
     for samples in data_loader:
         image = samples["image"]
         image = image.to(model.device)
@@ -193,18 +192,33 @@ def compute_sim_matrix(model, data_loader, **kwargs):
 
         vit_feats.append(vit_feat)
         image_embeds.append(image_embed)
-        del image, image_feat, vit_feat, image_embed
+        text = samples["text"]
+        text_input = model.tokenizer(
+            text,
+            padding="max_length",
+            truncation=True,
+            max_length=45,
+            return_tensors="pt",
+        ).to(model.device)
+        text_feat = model.forward_text(text_input)
+        text_embed = F.normalize(model.text_proj(text_feat), dim=-1)
+        text_embeds.append(text_embed)
+        text_ids.append(text_input.input_ids)
+        text_atts.append(text_input.attention_mask)
+        # del image, image_feat, vit_feat, image_embed, text_embed, text_feat
         # torch.cuda.empty_cache()
-
+    text_embeds = torch.cat(text_embeds, dim=0)
+    # text_ids = torch.cat(text_ids, dim=0)
+    text_atts = torch.cat(text_atts, dim=0)
     vit_feats = torch.cat(vit_feats, dim=0)
     image_embeds = torch.cat(image_embeds, dim=0)  # [num_candidate, query_num, embed_dim]
 
     # print('image_embeds:', image_embeds.size(), 'qimage_embeds:', qimage_embeds.size(), 'text_embeds:', text_embeds.size())
     # image_embeds: torch.Size([1600, 32, 256]) qimage_embeds: torch.Size([80, 32, 256]) text_embeds: torch.Size([40, 256])
 
-    sims_i2i= torch.einsum('n p d, m q d -> n m p q', qimage_embeds, image_embeds)
-    sims_i2i, _ = sims_i2i.max(-1)
-    sims_i2i, _ = sims_i2i.max(-1)
+    # sims_i2i= torch.einsum('n p d, m q d -> n m p q', qimage_embeds, image_embeds)
+    # sims_i2i, _ = sims_i2i.max(-1)
+    # sims_i2i, _ = sims_i2i.max(-1)
     # sims_i2i = torch.mm(qimage_embeds, image_embeds.t())  # [num_image, num_candidate]
 
     sims_matrix = []
@@ -213,9 +227,9 @@ def compute_sim_matrix(model, data_loader, **kwargs):
         sim_i2t, _ = sim_q2t.max(0)
         sims_matrix.append(sim_i2t)
     sims_matrix = torch.stack(sims_matrix, dim=0)   # [num_candidate, num_text]
-
+    length=len(data_loader.dataset)
     score_matrix_i2t = torch.full(
-        (len(data_loader.dataset.image), len(texts)), -100.0
+        (length, length), -100.0
     ).to(model.device)
 
     num_tasks = get_world_size()
@@ -224,48 +238,48 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     start = rank * step
     end = min(sims_matrix.size(0), start + step)
 
-    # for i, sims in enumerate(
-    #         metric_logger.log_every(sims_matrix[start:end], 50, header)
-    # ):
-    #     topk_sim, topk_idx = sims.topk(k=k_test, dim=0)
-    #     image_inputs = vit_feats[start + i].repeat(k_test, 1, 1).to(model.device)
-    #     score = model.compute_itm(
-    #         image_inputs=image_inputs,
-    #         text_ids=text_ids[topk_idx],
-    #         text_atts=text_atts[topk_idx],
-    #     ).float()
-    #     score_matrix_i2t[start + i, topk_idx] = score + topk_sim
-
-    sims_matrix = sims_matrix.t()
-    score_matrix_t2i = torch.full(
-        (len(texts), len(data_loader.dataset)), -100.0
-    ).to(model.device)
-
-    step = sims_matrix.size(0) // num_tasks + 1
-    start = rank * step
-    end = min(sims_matrix.size(0), start + step)
-
     for i, sims in enumerate(
             metric_logger.log_every(sims_matrix[start:end], 50, header)
     ):
         topk_sim, topk_idx = sims.topk(k=k_test, dim=0)
-        # image_inputs = vit_feats[topk_idx.cpu()].to(model.device)
-        # score = model.compute_itm(
-        #     image_inputs=image_inputs,
-        #     text_ids=text_ids[start + i].repeat(k_test, 1),
-        #     text_atts=text_atts[start + i].repeat(k_test, 1),
-        # ).float()
-        # score_matrix_t2i[start + i, topk_idx] = score + topk_sim
-        score_matrix_t2i[start + i, topk_idx] = topk_sim
+        image_inputs = vit_feats[start + i].repeat(k_test, 1, 1).to(model.device)
+        score = model.compute_itm(
+            image_inputs=image_inputs,
+            text_ids=text_ids[topk_idx],
+            text_atts=text_atts[topk_idx],
+        ).float()
+        score_matrix_i2t[start + i, topk_idx] = score + topk_sim
+    score_matrix_t2i = score_matrix_i2t.t()
+    # sims_matrix = sims_matrix.t()
+    # score_matrix_t2i = torch.full(
+    #     (length, length), -100.0
+    # ).to(model.device)
+    #
+    # step = sims_matrix.size(0) // num_tasks + 1
+    # start = rank * step
+    # end = min(sims_matrix.size(0), start + step)
+    #
+    # for i, sims in enumerate(
+    #         metric_logger.log_every(sims_matrix[start:end], 50, header)
+    # ):
+    #     topk_sim, topk_idx = sims.topk(k=k_test, dim=0)
+    #     image_inputs = vit_feats[topk_idx.cpu()].to(model.device)
+    #     score = model.compute_itm(
+    #         image_inputs=image_inputs,
+    #         text_ids=text_ids[start + i].repeat(k_test, 1),
+    #         text_atts=text_atts[start + i].repeat(k_test, 1),
+    #     ).float()
+    #     score_matrix_t2i[start + i, topk_idx] = score + topk_sim
+    #     # score_matrix_t2i[start + i, topk_idx] = topk_sim
 
     if is_dist_avail_and_initialized():
         dist.barrier()
         torch.distributed.all_reduce(
             score_matrix_i2t, op=torch.distributed.ReduceOp.SUM
         )
-        torch.distributed.all_reduce(
-            score_matrix_t2i, op=torch.distributed.ReduceOp.SUM
-        )
+        # torch.distributed.all_reduce(
+        #     score_matrix_t2i, op=torch.distributed.ReduceOp.SUM
+        # )
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -274,6 +288,6 @@ def compute_sim_matrix(model, data_loader, **kwargs):
     ret = {
         'i2t': F.softmax(score_matrix_i2t, dim=-1).cpu().numpy(),
         't2i': F.softmax(score_matrix_t2i, dim=-1).cpu().numpy(),
-        'i2i': F.softmax(sims_i2i, dim=-1).cpu().numpy()
+        # 'i2i': F.softmax(sims_i2i, dim=-1).cpu().numpy()
     }
     return ret
