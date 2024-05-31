@@ -133,7 +133,7 @@ def _report_metrics(ret, args):
         df = pd.read_csv(f)
     classes = df['Class']
 
-    eval_result= {
+    eval_result = {
         "i2t_r1": compute_precision_at_k(scores_i2t, classes, k=1),
         "i2t_r2": compute_precision_at_k(scores_i2t, classes, k=2),
         "i2t_r5": compute_precision_at_k(scores_i2t, classes, k=5),
@@ -145,8 +145,6 @@ def _report_metrics(ret, args):
         "t2i_r10": compute_precision_at_k(scores_t2i, classes, k=10),
         "t2i_r50": compute_precision_at_k(scores_t2i, classes, k=50),
     }
-
-
 
     print(eval_result)
     return eval_result

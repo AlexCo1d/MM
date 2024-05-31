@@ -208,7 +208,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
         # del image, image_feat, vit_feat, image_embed, text_embed, text_feat
         # torch.cuda.empty_cache()
     text_embeds = torch.cat(text_embeds, dim=0)
-    # text_ids = torch.cat(text_ids, dim=0)
+    text_ids = torch.cat(text_ids, dim=0)
     text_atts = torch.cat(text_atts, dim=0)
     vit_feats = torch.cat(vit_feats, dim=0)
     image_embeds = torch.cat(image_embeds, dim=0)  # [num_candidate, query_num, embed_dim]
