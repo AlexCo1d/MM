@@ -6,6 +6,9 @@ alexyhzou
 import argparse
 import os
 import sys
+
+from model.Former_Llama import Former_Llama
+
 sys.path.append("..")
 import time
 import datetime
@@ -116,7 +119,7 @@ def main(args):
 
     #### Creating Model ####
     print("Creating model")
-    model = Former_T5(t5_model_path=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '', freeze_vit=True)
+    model = Former_Llama(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '', freeze_vit=True)
     model = model.to(device)
     # print(model)
 

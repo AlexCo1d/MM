@@ -227,7 +227,7 @@ class Former_Llama(Blip2Base):
         return loss
 
     @torch.no_grad()
-    def generate(
+    def predict_answers(
             self,
             samples,
             use_nucleus_sampling=False,
@@ -257,8 +257,8 @@ class Former_Llama(Blip2Base):
             assert len(prompt) == bs, "The number of prompts must be equal to the batch size."
 
         # For TextCaps
-        if "ocr_tokens" in samples.keys() and "{}" in prompt[0]:
-            prompt = [p.format(', '.join(samples['ocr_tokens'][i][:30])) for i, p in enumerate(prompt)]
+        # if "ocr_tokens" in samples.keys() and "{}" in prompt[0]:
+        #     prompt = [p.format(', '.join(samples['ocr_tokens'][i][:30])) for i, p in enumerate(prompt)]
 
         query_tokens = self.query_tokens.expand(bs, -1, -1)
         if self.qformer_text_input:
@@ -279,34 +279,34 @@ class Former_Llama(Blip2Base):
         # For video data
         if image.dim() == 5:
             inputs_llm, atts_llm = [], []
-            for j in range(image.size(2)):
-                this_frame = image[:, :, j, :, :]
-                with self.maybe_autocast():
-                    frame_embeds = self.ln_vision(self.visual_encoder(this_frame))
-                frame_atts = torch.ones(frame_embeds.size()[:-1], dtype=torch.long).to(image.device)
-
-                if self.qformer_text_input:
-                    frame_query_output = self.Qformer.bert(
-                        text_Qformer.input_ids,
-                        attention_mask=Qformer_atts,
-                        query_embeds=query_tokens,
-                        encoder_hidden_states=frame_embeds,
-                        encoder_attention_mask=frame_atts,
-                        return_dict=True,
-                    )
-                else:
-                    frame_query_output = self.Qformer.bert(
-                        query_embeds=query_tokens,
-                        encoder_hidden_states=frame_embeds,
-                        encoder_attention_mask=frame_atts,
-                        return_dict=True,
-                    )
-                frame_inputs_llm = self.llm_proj(frame_query_output.last_hidden_state[:, :query_tokens.size(1), :])
-                frame_atts_llm = torch.ones(frame_inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
-                inputs_llm.append(frame_inputs_llm)
-                atts_llm.append(frame_atts_llm)
-            inputs_llm = torch.cat(inputs_llm, dim=1)
-            atts_llm = torch.cat(atts_llm, dim=1)
+            # for j in range(image.size(2)):
+            #     this_frame = image[:, :, j, :, :]
+            #     with self.maybe_autocast():
+            #         frame_embeds = self.ln_vision(self.visual_encoder(this_frame))
+            #     frame_atts = torch.ones(frame_embeds.size()[:-1], dtype=torch.long).to(image.device)
+            #
+            #     if self.qformer_text_input:
+            #         frame_query_output = self.Qformer.bert(
+            #             text_Qformer.input_ids,
+            #             attention_mask=Qformer_atts,
+            #             query_embeds=query_tokens,
+            #             encoder_hidden_states=frame_embeds,
+            #             encoder_attention_mask=frame_atts,
+            #             return_dict=True,
+            #         )
+            #     else:
+            #         frame_query_output = self.Qformer.bert(
+            #             query_embeds=query_tokens,
+            #             encoder_hidden_states=frame_embeds,
+            #             encoder_attention_mask=frame_atts,
+            #             return_dict=True,
+            #         )
+            #     frame_inputs_llm = self.llm_proj(frame_query_output.last_hidden_state[:, :query_tokens.size(1), :])
+            #     frame_atts_llm = torch.ones(frame_inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
+            #     inputs_llm.append(frame_inputs_llm)
+            #     atts_llm.append(frame_atts_llm)
+            # inputs_llm = torch.cat(inputs_llm, dim=1)
+            # atts_llm = torch.cat(atts_llm, dim=1)
         else:
             with self.maybe_autocast():
                 image_embeds = self.ln_vision(self.visual_encoder(image))
@@ -364,7 +364,7 @@ class Former_Llama(Blip2Base):
 
         return output_text
 
-    def predict_answers(
+    def predict_answer(
             self,
             samples,
             num_beams=5,

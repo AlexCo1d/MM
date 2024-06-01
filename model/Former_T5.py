@@ -20,7 +20,7 @@ class Former_T5(Blip2Base):
         vit_precision="fp16",
         freeze_vit=True,
         num_query_token=32,
-        t5_model_path="google/flan-t5-xl",
+        llm_model="google/flan-t5-xl",
         prompt="",
         vit_type="eva_vit",
         vit_path="",
