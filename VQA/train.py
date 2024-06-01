@@ -139,7 +139,7 @@ def main(args):
         checkpoint = torch.load(args.checkpoint, map_location='cpu')
         state_dict = checkpoint['model']
 
-        msg = model.load_state_dict(state_dict, strict=False)
+        msg = model_without_ddp.load_state_dict(state_dict, strict=False)
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
 
