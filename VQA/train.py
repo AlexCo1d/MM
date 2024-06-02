@@ -176,6 +176,7 @@ def main(args):
             # for evaluation and output the result
             if args.output_dir and epoch >= 20 and (epoch % args.eval_freq == 0 or epoch == args.epochs - 1):
                 torch.save(save_obj, os.path.join(args.output_dir, '%s_rad_%02d.pth' % (prefix, epoch)))
+                torch.cuda.empty_cache()
                 vqa_result = evaluation(model, test_loader, device, args)
                 json.dump(vqa_result,
                           open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
