@@ -238,7 +238,7 @@ class Former_Llama(Blip2Base):
         else:
             prompt = self.prompt
 
-        image = samples["image"]
+        image = samples["image"].to(self.device)
 
         bs = image.size(0)
 
@@ -299,6 +299,7 @@ class Former_Llama(Blip2Base):
             # inputs_llm = torch.cat(inputs_llm, dim=1)
             # atts_llm = torch.cat(atts_llm, dim=1)
         else:
+            image = image.half()
             with self.maybe_autocast():
                 image_embeds = self.ln_vision(self.visual_encoder(image))
             image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
@@ -536,13 +537,13 @@ class Former_Llama(Blip2Base):
                     encoder_attention_mask=image_atts,
                     return_dict=True,
                 )
-            else:
-                query_output = self.Qformer.bert(
-                    query_embeds=query_tokens,
-                    encoder_hidden_states=image_embeds,
-                    encoder_attention_mask=image_atts,
-                    return_dict=True,
-                )
+            # else:
+            #     query_output = self.Qformer.bert(
+            #         query_embeds=query_tokens,
+            #         encoder_hidden_states=image_embeds,
+            #         encoder_attention_mask=image_atts,
+            #         return_dict=True,
+            #     )
 
             inputs_llm = self.llm_proj(query_output.last_hidden_state[:, :query_tokens.size(1), :])
             atts_llm = torch.ones(inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
