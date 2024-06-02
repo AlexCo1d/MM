@@ -11,22 +11,23 @@ from model.submodule.vit.vit import Block
 from timm.models.vision_transformer import PatchEmbed
 from model.submodule.BLIP.BLIPBase import (Blip2Base, disabled_train)
 
+
 class Former_T5(Blip2Base):
     def __init__(
-        self,
-        img_size=224,
-        drop_path_rate=0,
-        use_grad_checkpoint=False,
-        vit_precision="fp16",
-        freeze_vit=True,
-        num_query_token=32,
-        llm_model="google/flan-t5-xl",
-        prompt="",
-        vit_type="eva_vit",
-        vit_path="",
-        tokenizer_config='../model/submodule/bert/bert-base-uncased',
-        max_txt_len=32,
-        apply_lemmatizer=False,
+            self,
+            img_size=224,
+            drop_path_rate=0,
+            use_grad_checkpoint=False,
+            vit_precision="fp16",
+            freeze_vit=True,
+            num_query_token=32,
+            llm_model="google/flan-t5-xl",
+            prompt="",
+            vit_type="eva_vit",
+            vit_path="",
+            tokenizer_config='../model/submodule/bert/bert-base-uncased',
+            max_txt_len=32,
+            apply_lemmatizer=False,
     ):
 
         super().__init__()
@@ -35,7 +36,8 @@ class Former_T5(Blip2Base):
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
-                                                                       use_grad_checkpoint, vit_precision, encoder=vit_type)
+                                                                       use_grad_checkpoint, vit_precision,
+                                                                       encoder=vit_type)
         if freeze_vit:
             for name, param in self.visual_encoder.named_parameters():
                 param.requires_grad = False
@@ -129,19 +131,20 @@ class Former_T5(Blip2Base):
             loss = outputs.loss
 
             return loss
+
     @torch.no_grad()
     def generate(
-        self,
-        samples,
-        use_nucleus_sampling=False,
-        num_beams=5,
-        max_length=30,
-        min_length=1,
-        top_p=0.9,
-        repetition_penalty=1.0,
-        length_penalty=1.0,
-        num_captions=1,
-        temperature=1,
+            self,
+            samples,
+            use_nucleus_sampling=False,
+            num_beams=5,
+            max_length=30,
+            min_length=1,
+            top_p=0.9,
+            repetition_penalty=1.0,
+            length_penalty=1.0,
+            num_captions=1,
+            temperature=1,
     ):
         """
         Args:
@@ -219,20 +222,20 @@ class Former_T5(Blip2Base):
         return output_text
 
     def predict_answers(
-        self,
-        samples,
-        num_beams=5,
-        inference_method="generate",
-        max_len=10,
-        min_len=1,
-        num_ans_candidates=128,
-        answer_list=None,
-        prompt="",
-        length_penalty=-1,
-        **kwargs
+            self,
+            samples,
+            num_beams=5,
+            inference_method="generate",
+            max_len=10,
+            min_len=1,
+            num_ans_candidates=128,
+            answer_list=None,
+            prompt="",
+            length_penalty=-1,
+            **kwargs
     ):
         image = samples["image"].to(self.device)
-        image=image.half()
+        image = image.half()
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
         image_embeds = image_embeds.float()
@@ -322,5 +325,3 @@ class Former_T5(Blip2Base):
                 exit(1)
 
         return self._lemmatizer
-
-

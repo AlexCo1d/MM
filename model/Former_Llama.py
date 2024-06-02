@@ -302,6 +302,7 @@ class Former_Llama(Blip2Base):
             image = image.half()
             with self.maybe_autocast():
                 image_embeds = self.ln_vision(self.visual_encoder(image))
+            image_embeds = image_embeds.float()
             image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
 
             if self.qformer_text_input:
