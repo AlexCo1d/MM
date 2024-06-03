@@ -128,6 +128,7 @@ def main(args):
 
     optimizer = torch.optim.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.05)
 
+    start_epoch = 0
 
     model_without_ddp = model
     if args.distributed:
@@ -142,8 +143,12 @@ def main(args):
         msg = model_without_ddp.load_state_dict(state_dict, strict=False)
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
+        if 'optimizer' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer'])
+        if 'epoch' in checkpoint:
+            start_epoch = checkpoint['epoch'] + 1
 
-    start_epoch = 0
+
     acc_list = []
     print("\nStart training\n")
     start_time = time.time()
@@ -170,19 +175,18 @@ def main(args):
             save_obj = {
                 'model': model_without_ddp.state_dict(),
                 'optimizer': optimizer.state_dict(),
-                # 'epoch': epoch,
+                'epoch': epoch,
             }
             prefix = args.checkpoint.split('/')[-1].split('.')[0]
             # for evaluation and output the result
             if args.output_dir and epoch >= 20 and (epoch % args.eval_freq == 0 or epoch == args.epochs - 1):
                 torch.save(save_obj, os.path.join(args.output_dir, '%s_rad_%02d.pth' % (prefix, epoch)))
-                torch.cuda.empty_cache()
-                vqa_result = evaluation(model, test_loader, device, args)
-                json.dump(vqa_result,
-                          open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                acc = compute_vqa_acc(vqa_result, epoch, args=args)
-                acc_list.append({'epoch:':epoch,'acc:':acc})
-            torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
+                # vqa_result = evaluation(model, test_loader, device, args)
+                # json.dump(vqa_result,
+                #           open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
+                # acc = compute_vqa_acc(vqa_result, epoch, args=args)
+                # acc_list.append({'epoch:':epoch,'acc:':acc})
+            # torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
         if args.distributed:
             dist.barrier()
