@@ -233,19 +233,19 @@ class Former_Llama(Blip2Base):
     ):
         self.llm_tokenizer.padding_side = "left"
 
-        if "prompt" in samples.keys():
-            prompt = samples["prompt"]
-        else:
-            prompt = self.prompt
-
+        # if "prompt" in samples.keys():
+        #     prompt = samples["prompt"]
+        # else:
+        #     prompt = self.prompt
+        #
         image = samples["image"].to(self.device)
-
+        #
         bs = image.size(0)
-
-        if isinstance(prompt, str):
-            prompt = [prompt] * bs
-        else:
-            assert len(prompt) == bs, "The number of prompts must be equal to the batch size."
+        #
+        # if isinstance(prompt, str):
+        #     prompt = [prompt] * bs
+        # else:
+        #     assert len(prompt) == bs, "The number of prompts must be equal to the batch size."
 
         # For TextCaps
         # if "ocr_tokens" in samples.keys() and "{}" in prompt[0]:
@@ -258,7 +258,7 @@ class Former_Llama(Blip2Base):
             # qformer_prompt = ['Question: ' + qp.split(' Question: ')[1] for qp in qformer_prompt]
 
             text_Qformer = self.tokenizer(
-                prompt,
+                samples["text_input"],
                 padding='longest',
                 truncation=True,
                 max_length=self.max_txt_len,
@@ -326,7 +326,7 @@ class Former_Llama(Blip2Base):
             atts_llm = torch.ones(inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
 
         llm_tokens = self.llm_tokenizer(
-            prompt,
+            samples["text_input"],
             padding="longest",
             return_tensors="pt"
         ).to(image.device)
