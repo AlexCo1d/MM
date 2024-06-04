@@ -344,7 +344,7 @@ class Former_Llama(Blip2Base):
                 top_p=top_p,
                 temperature=temperature,
                 num_beams=num_beams,
-                max_length=max_length,
+                # max_length=max_length,
                 min_length=min_length,
                 # eos_token_id=self.eos_token_id,
                 repetition_penalty=repetition_penalty,
