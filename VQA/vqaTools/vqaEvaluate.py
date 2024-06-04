@@ -71,7 +71,7 @@ periodStrip = re.compile("(?!<=\d)(\.)(?!\d)")
 commaStrip = re.compile("(\d)(,)(\d)")
 
 
-def compute_vqa_acc(vqa_results: [], epoch=0):
+def compute_vqa_acc(vqa_results: [], epoch=0, args=None):
     """
     :param vqa_results: list : 'image_name':image_names[idx], #获取图片名
                                 "question": questions[idx],  # 当前问题
@@ -86,6 +86,8 @@ def compute_vqa_acc(vqa_results: [], epoch=0):
                     'CLOSED': CLOSED
                     }
     """
+    if args is None:
+        args = {}
     open_list = []
     closed_list = []
     for item in vqa_results:
