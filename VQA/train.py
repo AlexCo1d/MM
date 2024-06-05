@@ -143,7 +143,7 @@ def main(args):
         msg = model_without_ddp.load_state_dict(state_dict, strict=False)
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
-        if 'optimizer' in checkpoint:
+        if 'optimizer' in checkpoint and args.load_optim:
             optimizer.load_state_dict(checkpoint['optimizer'])
         if 'epoch' in checkpoint:
             start_epoch = checkpoint['epoch'] + 1
@@ -205,6 +205,8 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_use', default='radvqa', help='choose medical vqa dataset(radvqa, pathvqa, slake)')
     parser.add_argument('--dataset_path', help='path to the dataset')
     parser.add_argument('--checkpoint', default='')
+    parser.add_argument('--load_optim', action='store_true')
+    parser.set_defaults(load_optim=False)
     parser.add_argument('--vit_path', default='',
                         help='path for loading pretrained ViT model')
     parser.add_argument('--LLM_path', default='', type=str, help='path for loading pretrained LLM model')
