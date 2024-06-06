@@ -7,7 +7,6 @@
 import numpy as np
 from transformers import BertTokenizer
 
-from model.submodule.bert.xbert import BertLMHeadModel
 
 """
 Requires Transformer 4.28 and above, implementation may change according the Llama implementation
@@ -111,6 +110,7 @@ class Former_Llama(Blip2Base):
         self.qformer_text_input = qformer_text_input
         self.classifier_vqa = classifier_vqa
         if self.classifier_vqa:
+            from model.submodule.bert.xbert import BertLMHeadModel
             self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config)
 
     def concat_text_input_output(self, input_ids, input_atts, output_ids, output_atts):

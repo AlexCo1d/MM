@@ -150,7 +150,6 @@ def main(args):
             start_epoch = checkpoint['epoch'] + 1
 
 
-    acc_list = []
 
     start_time = time.time()
     if args.evaluate:
@@ -162,6 +161,7 @@ def main(args):
         print(f'{args.dataset_use} acc: {acc}')
     else:
         print("\nStart training\n")
+        acc_list = []
         for epoch in range(start_epoch, args.epochs):
             if args.distributed:
                 train_loader.sampler.set_epoch(epoch)
