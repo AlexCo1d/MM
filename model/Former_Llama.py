@@ -41,6 +41,7 @@ class Former_Llama(Blip2Base):
             apply_lemmatizer=False,
             tokenizer_config='../model/submodule/bert/bert-base-uncased',
             qformer_text_input=True,
+            classifier_vqa=False,
     ):
         super().__init__()
         from transformers import LlamaTokenizer
@@ -105,6 +106,7 @@ class Former_Llama(Blip2Base):
         self._lemmatizer = None
 
         self.qformer_text_input = qformer_text_input
+        self.classifier_vqa = classifier_vqa
 
     def concat_text_input_output(self, input_ids, input_atts, output_ids, output_atts):
         input_part_targets_len = []
@@ -130,8 +132,13 @@ class Former_Llama(Blip2Base):
         llm_tokens['attention_mask'] = torch.stack(llm_tokens['attention_mask'])
         return llm_tokens, input_part_targets_len
 
-    def forward(self, samples):
+    def forward(self, samples, dataloader=None):
+        if self.classifier_vqa:
+            return self.forward_cls_llm(samples, dataloader=dataloader)
+        else:
+            return self.forward_gen_llm(samples)
 
+    def forward_gen_llm(self, samples):
         image = samples["image"].to(self.device)
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
@@ -206,7 +213,7 @@ class Former_Llama(Blip2Base):
             inputs_embeds = torch.cat([inputs_llm, inputs_embeds], dim=1)
             attention_mask = torch.cat([atts_llm, llm_tokens['attention_mask']], dim=1)
 
-            outputs= self.llm_model(
+            outputs = self.llm_model(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
                 return_dict=True,
@@ -217,8 +224,22 @@ class Former_Llama(Blip2Base):
 
             return loss
 
+    def forward_cls_llm(self, samples, dataloader=None):
+        pass
+
     @torch.no_grad()
     def predict_answers(
+            self,
+            samples,
+            dataloader=None
+    ):
+        if self.classifier_vqa:
+            return self.predict_answers_cls(samples, dataloader)
+        else:
+            return self.predict_answers_gen(samples)
+
+    @torch.no_grad()
+    def predict_answers_gen(
             self,
             samples,
             use_nucleus_sampling=False,
@@ -339,17 +360,17 @@ class Former_Llama(Blip2Base):
             outputs = self.llm_model.generate(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
-                max_new_tokens = 50,
-                do_sample=use_nucleus_sampling,
-                top_p=top_p,
-                temperature=temperature,
-                num_beams=num_beams,
-                # max_length=max_length,
-                min_length=min_length,
-                # eos_token_id=self.eos_token_id,
-                repetition_penalty=repetition_penalty,
-                length_penalty=length_penalty,
-                num_return_sequences=num_captions,
+                max_new_tokens=50,
+                # do_sample=use_nucleus_sampling,
+                # top_p=top_p,
+                # temperature=temperature,
+                # num_beams=num_beams,
+                # # max_length=max_length,
+                # min_length=min_length,
+                # # eos_token_id=self.eos_token_id,
+                # repetition_penalty=repetition_penalty,
+                # length_penalty=length_penalty,
+                # num_return_sequences=num_captions,
             )
 
         outputs[outputs == 0] = 2  # convert output id 0 to 2 (eos_token_id)
@@ -357,6 +378,14 @@ class Former_Llama(Blip2Base):
         output_text = [text.strip() for text in output_text]
 
         return output_text
+
+
+    def predict_answers_cls(
+            self,
+            samples,
+            dataloader
+    ):
+        pass
 
     def predict_answer(
             self,

@@ -34,7 +34,7 @@ def train(model, data_loader, optimizer, epoch, device, args):
     print_freq = 10
     for i, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
         lr_sched.adjust_learning_rate(optimizer, i / len(data_loader) + epoch, args)
-        loss = model(b)
+        loss = model(b, dataloader=data_loader)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -69,7 +69,7 @@ def evaluation(model, data_loader, device, args):
 
     for n, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
 
-        text_output = model.predict_answers(b)
+        text_output = model.predict_answers(b, dataloader=data_loader)
         for idx, answer in enumerate(text_output):
             # 构造结果字典
             result_dict = {
@@ -92,7 +92,7 @@ def main(args):
 
     #### Loading Dataset ####
     print('Creating vqa {} datasets'.format(args.dataset_use))
-    train_dataset, test_dataset = create_dataset(args.dataset_use, args.dataset_path)
+    train_dataset, test_dataset = create_dataset(args)
     print('train dataset size: ', len(train_dataset))
     print('test dataset size: ', len(test_dataset))
 
@@ -119,7 +119,8 @@ def main(args):
 
     #### Creating Model ####
     print("Creating model")
-    model = Former_Llama(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '', freeze_vit=True)
+    model = Former_Llama(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
+                         freeze_vit=True, classifier_vqa=args.classifer_vqa)
     model = model.to(device)
     # print(model)
 
@@ -210,6 +211,8 @@ if __name__ == '__main__':
     parser.add_argument('--vit_path', default='',
                         help='path for loading pretrained ViT model')
     parser.add_argument('--LLM_path', default='', type=str, help='path for loading pretrained LLM model')
+    parser.add_argument('--claasifer_vqa', action='store_true')
+    parser.set_defaults(claasifer_vqa=False)
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--evaluate', action='store_true')
     parser.set_defaults(evaluate=False)

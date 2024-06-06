@@ -14,7 +14,7 @@ from PIL import Image
 
 class VQA_Dataset(Dataset):
     def __init__(self, data_path, transform, img_tokens=32, img_root='',
-                 seq_length=512, voc_size=32000, mode='train'):
+                 seq_length=512, voc_size=32000, mode='train', answer_list:bool = False):
         max_caption_length = 100
         max_answer_length = 50
         with open(os.path.join(data_path, f'{mode}.json')) as f:
@@ -23,6 +23,10 @@ class VQA_Dataset(Dataset):
         self.transform = transform
         self.data_path = data_path
         self.img_root = img_root
+
+        if answer_list:
+            with open(os.path.join(data_path, f'answer_list.json')) as f:
+                self.answer_list = json.load(f)
 
         # answer_list = [item['answer'] for item in self.data]
         # make it unique.
@@ -69,7 +73,7 @@ class VQA_Dataset(Dataset):
         # label = torch.tensor(label.input_ids).unsqueeze(0)
 
         if self.mode == 'train':
-            item =  {
+            item = {
                 'text_input': pre_text,
                 'text_output': Anwser,
                 'image': image,
@@ -120,7 +124,8 @@ class VQA_Dataset(Dataset):
     #     }
 
 
-def create_dataset(dataset, data_path):
+def create_dataset(args):
+    dataset, data_path = args.dataset_use, args.dataset_path
     normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
     img_size = 224
     train_transform = transforms.Compose([
@@ -138,24 +143,24 @@ def create_dataset(dataset, data_path):
 
     # vqa_rad
     if dataset == 'radvqa':
-        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='VQA_RAD Image Folder')
-        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='VQA_RAD Image Folder')
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='VQA_RAD Image Folder', answer_list=args.classifier_vqa)
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='VQA_RAD Image Folder', answer_list=args.classifier_vqa)
         return train_dataset, test_dataset
 
     # pathvqa
     elif dataset == 'pathvqa':
-        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='images')
-        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='images')
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='images', answer_list=args.classifier_vqa)
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='images', answer_list=args.classifier_vqa)
         return train_dataset, test_dataset
     # slake
     elif dataset == 'slake':
-        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='imgs')
-        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='imgs')
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='imgs', answer_list=args.classifier_vqa)
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='imgs', answer_list=args.classifier_vqa)
         return train_dataset, test_dataset
 
     elif dataset == 'pmcvqa':
-        train_dataset = VQA_Dataset(data_path, train_transform, mode='train')
-        test_dataset = VQA_Dataset(data_path, test_transform, mode='test')
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', answer_list=args.classifier_vqa)
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', answer_list=args.classifier_vqa)
         return train_dataset, test_dataset
 
 
