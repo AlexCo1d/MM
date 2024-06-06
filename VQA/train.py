@@ -151,19 +151,18 @@ def main(args):
 
 
     acc_list = []
-    print("\nStart training\n")
+
     start_time = time.time()
-
-    for epoch in range(start_epoch, args.epochs):
-        if args.evaluate:
-            vqa_result = evaluation(model, test_loader, device, args)
-            json.dump(vqa_result,
-                      open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
-            acc = compute_vqa_acc(vqa_result, epoch, args=args)
-            print(f'{args.dataset_use} acc: {acc}')
-            break
-
-        if not args.evaluate:
+    if args.evaluate:
+        print("\nStart evaluation\n")
+        vqa_result = evaluation(model, test_loader, device, args)
+        json.dump(vqa_result,
+                  open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
+        acc = compute_vqa_acc(vqa_result, args=args)
+        print(f'{args.dataset_use} acc: {acc}')
+    else:
+        print("\nStart training\n")
+        for epoch in range(start_epoch, args.epochs):
             if args.distributed:
                 train_loader.sampler.set_epoch(epoch)
 
@@ -171,34 +170,36 @@ def main(args):
 
             train(model, train_loader, optimizer, epoch, device, args)
 
-        if utils.is_main_process():
+            if utils.is_main_process():
 
-            save_obj = {
-                'model': model_without_ddp.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'epoch': epoch,
-            }
-            prefix = args.checkpoint.split('/')[-1].split('.')[0]
-            # for evaluation and output the result
-            if args.output_dir and epoch >= 20 and (epoch % args.eval_freq == 0 or epoch == args.epochs - 1):
-                torch.save(save_obj, os.path.join(args.output_dir, '%s_rad_%02d.pth' % (prefix, epoch)))
-                # vqa_result = evaluation(model, test_loader, device, args)
-                # json.dump(vqa_result,
-                #           open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                # acc = compute_vqa_acc(vqa_result, epoch, args=args)
-                # acc_list.append({'epoch:':epoch,'acc:':acc})
-            # torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
+                save_obj = {
+                    'model': model_without_ddp.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'epoch': epoch,
+                }
+                prefix = args.checkpoint.split('/')[-1].split('.')[0]
+                # for evaluation and output the result
+                if args.output_dir and epoch >= 20 and (epoch % args.eval_freq == 0 or epoch == args.epochs - 1):
+                    torch.save(save_obj, os.path.join(args.output_dir, '%s_rad_%02d.pth' % (prefix, epoch)))
+                    # vqa_result = evaluation(model, test_loader, device, args)
+                    # json.dump(vqa_result,
+                    #           open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
+                    # acc = compute_vqa_acc(vqa_result, epoch, args=args)
+                    # acc_list.append({'epoch:':epoch,'acc:':acc})
+                # torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
-        if args.distributed:
-            dist.barrier()
+            if args.distributed:
+                dist.barrier()
+
+        # print the epoch with best acc in acc_list
+        json.dump(acc_list,
+                  open(os.path.join(args.result_dir, 'vqa_metric.json'), 'w'))
+        # print("Best acc: ", max(acc_list, key=lambda x: x[1][0]))
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
-    # print the epoch with best acc in acc_list
-    json.dump(acc_list,
-              open(os.path.join(args.result_dir, 'vqa_metric.json'), 'w'))
-    # print("Best acc: ", max(acc_list, key=lambda x: x[1][0]))
+
 
 
 if __name__ == '__main__':
