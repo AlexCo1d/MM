@@ -202,7 +202,7 @@ class Former_Llama(Blip2Base):
                 if pretext_length < len(text_output_ids[i]):
                     text_output_ids[i][:pretext_length] = -100
 
-            padding = torch.full((bs, query_tokens.size(1)), -100, dtype=text_input_tokens.input_ids.dtype)
+            padding = torch.full((bs, query_tokens.size(1)), -100, dtype=text_input_tokens.input_ids.dtype).to(image.device)
 
             labels = torch.cat([padding, text_output_ids], dim=1)
 
