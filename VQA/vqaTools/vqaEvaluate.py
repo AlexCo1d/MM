@@ -149,6 +149,8 @@ def pre_answer(answer):
         '',
         answer.lower(),
     ).replace(' \t', ' ')
+    answer = processPunctuation(answer)
+    answer = processDigitArticle(answer)
     answer = answer.replace('x ray', 'xray').replace('x-ray', 'xray')
     answer = answer.replace(' - ', '-')
     return answer
