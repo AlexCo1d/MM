@@ -43,7 +43,6 @@ class Blip2Base(nn.Module):
             model = get_ViT(vit_path, img_size, drop_path_rate=drop_path_rate)
             return model, nn.Identity()
         else:
-            print('load eva VIT model')
             visual_encoder= create_eva_vit_g(vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision)
             ln_vision = LayerNorm(visual_encoder.num_features)
         return visual_encoder, ln_vision
