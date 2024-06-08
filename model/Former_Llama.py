@@ -271,7 +271,7 @@ class Former_Llama(Blip2Base):
         answer_output = self.text_decoder(answer.input_ids,
                                           attention_mask=answer.attention_mask,
                                           encoder_hidden_states=query_output.last_hidden_state,
-                                          encoder_attention_mask=query_output.attentions,
+                                          encoder_attention_mask=query_atts,
                                           labels=answer_targets,
                                           return_dict=True,
                                           reduction='none',
