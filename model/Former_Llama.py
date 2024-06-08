@@ -77,43 +77,43 @@ class Former_Llama(Blip2Base):
         else:
             self.Qformer.resize_token_embeddings(len(self.tokenizer))
         self.Qformer.cls = None
-
-        self.llm_tokenizer = LlamaTokenizer.from_pretrained(llm_model, use_fast=False, truncation_side="left")
-        self.llm_model = LlamaForCausalLM.from_pretrained(
-            llm_model, torch_dtype=torch.float16
-        )
-        self.llm_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        self.llm_tokenizer.add_special_tokens({'bos_token': '</s>'})
-        self.llm_tokenizer.add_special_tokens({'eos_token': '</s>'})
-        self.llm_tokenizer.add_special_tokens({'unk_token': '</s>'})
-        # self.llm_tokenizer.pad_token = self.llm_tokenizer.unk_token
-
-        self.llm_model.resize_token_embeddings(len(self.llm_tokenizer))
-
-        # self.eos_token_id = self.llm_tokenizer(
-        #     self.llm_tokenizer.eos_token, add_special_tokens=False
-        # ).input_ids[0]
-
-        for name, param in self.llm_model.named_parameters():
-            param.requires_grad = False
-
-        self.llm_proj = nn.Linear(
-            self.Qformer.config.hidden_size, self.llm_model.config.hidden_size
-        )
-
-        self.max_txt_len = max_txt_len
-        self.max_output_txt_len = max_output_txt_len
-        self.prompt = prompt
-        prompt_tokens = self.llm_tokenizer(self.prompt, return_tensors="pt")
-        self.prompt_length = prompt_tokens.attention_mask.sum(1)
-
-        self._lemmatizer = None
-
         self.qformer_text_input = qformer_text_input
         self.classifier_vqa = classifier_vqa
+
         if self.classifier_vqa:
             from model.submodule.bert.xbert import BertLMHeadModel
             self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config)
+        else:
+            self.llm_tokenizer = LlamaTokenizer.from_pretrained(llm_model, use_fast=False, truncation_side="left")
+            self.llm_model = LlamaForCausalLM.from_pretrained(
+                llm_model, torch_dtype=torch.float16
+            )
+            self.llm_tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+            self.llm_tokenizer.add_special_tokens({'bos_token': '</s>'})
+            self.llm_tokenizer.add_special_tokens({'eos_token': '</s>'})
+            self.llm_tokenizer.add_special_tokens({'unk_token': '</s>'})
+            # self.llm_tokenizer.pad_token = self.llm_tokenizer.unk_token
+
+            self.llm_model.resize_token_embeddings(len(self.llm_tokenizer))
+
+            # self.eos_token_id = self.llm_tokenizer(
+            #     self.llm_tokenizer.eos_token, add_special_tokens=False
+            # ).input_ids[0]
+
+            for name, param in self.llm_model.named_parameters():
+                param.requires_grad = False
+
+            self.llm_proj = nn.Linear(
+                self.Qformer.config.hidden_size, self.llm_model.config.hidden_size
+            )
+
+            self.max_txt_len = max_txt_len
+            self.max_output_txt_len = max_output_txt_len
+            self.prompt = prompt
+            prompt_tokens = self.llm_tokenizer(self.prompt, return_tensors="pt")
+            self.prompt_length = prompt_tokens.attention_mask.sum(1)
+
+            self._lemmatizer = None
 
     def concat_text_input_output(self, input_ids, input_atts, output_ids, output_atts):
         input_part_targets_len = []
