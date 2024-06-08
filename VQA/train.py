@@ -7,9 +7,9 @@ import argparse
 import os
 import sys
 
+from VQA.pmc_eval import evaluation_pmc
 from model.Former_Llama import Former_Llama
 
-sys.path.append("..")
 import time
 import datetime
 import json
@@ -59,8 +59,8 @@ def evaluation(model, data_loader, device, args):
     """
     # test
     if args.distributed:
-        model = model.module
-    model.eval()
+        t_model = model.module
+        t_model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Generate VQA test result:'
     print_freq = 10
@@ -69,7 +69,7 @@ def evaluation(model, data_loader, device, args):
 
     for n, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
 
-        text_output = model.predict_answers(b, dataloader=data_loader)
+        text_output = t_model.predict_answers(b, dataloader=data_loader)
         for idx, answer in enumerate(text_output):
             # 构造结果字典
             result_dict = {
@@ -154,11 +154,14 @@ def main(args):
     start_time = time.time()
     if args.evaluate:
         print("\nStart evaluation\n")
-        vqa_result = evaluation(model, test_loader, device, args)
-        json.dump(vqa_result,
-                  open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
-        acc = compute_vqa_acc(vqa_result, args=args)
-        print(f'{args.dataset_use} acc: {acc}')
+        if args.dataset_use != 'pmcvqa':
+            vqa_result = evaluation(model, test_loader, device, args)
+            json.dump(vqa_result,
+                      open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
+            acc = compute_vqa_acc(vqa_result, args=args)
+            print(f'{args.dataset_use} acc: {acc}')
+        else:
+            evaluation_pmc(model, test_loader, device, args)
     else:
         print("\nStart training\n")
         acc_list = []

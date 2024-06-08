@@ -147,7 +147,6 @@ class PMC_Dataset(VQA_Dataset):
         Choice_B = sample['Choice B']
         Choice_C = sample['Choice C']
         Choice_D = sample['Choice D']
-        caption = sample['Caption']
         choice_list = [Choice_A, Choice_B, Choice_C, Choice_D]
         Anwser = sample['Anwser']
 
@@ -157,50 +156,23 @@ class PMC_Dataset(VQA_Dataset):
         image = self.transform(img)
 
             # Question_id = np.array(self.tokenizer(Question)['input_ids'])
-        if self.mode == 'Train':
-            pre_text, final_o = self.random_answer(Question, choice_list, Anwser, caption)
+        if self.mode == 'train':
+            pre_text, final_o = self.random_answer(Question, Anwser)
 
-
-
-            if len(input_ids) < self.seq_length:
-                input_ids = np.pad(input_ids, (0, self.seq_length - len(input_ids)), 'constant', constant_values=0)
-            else:
-                input_ids = input_ids[:self.seq_length]
-
-            # attention = np.array(self.attn_padding + final_o['attention_mask'])
-            label = copy.deepcopy(input_ids)
-            label[label == 0] = -100
-            if pre_text != '':
-                pre_text = self.tokenizer(pre_text)
-                if len(pre_text['input_ids']) < len(label):
-                    # label = np.array(label)
-                    label[:len(pre_text['input_ids'])] = -100
-            label = label.tolist()
-            if not self.no_image:
-                label = np.array(self.img_padding + label)
-
-                item = {
-                    'input_ids': input_ids,
-                    'images': image,
-                    'labels': label,
-                }
-            else:
-                label = np.array(label)
-                item = {
-                    'input_ids': input_ids,
-                    'labels': label,
-                }
+            item = {
+                'image': image,
+                'text_input': pre_text,
+                'text_output': Anwser,
+            }
             return item
-
-        if self.mode == 'Test':
+        if self.mode == 'test':
             Combined_choice = ''
             # random.shuffle(choice_list)
             reflect = {0: ' A:', 1: ' B:', 2: ' C:', 3: ' D:'}
             for i, choice in enumerate(choice_list):
                 if Anwser == choice:
-                    Anwser = Anwser.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:',
-                                                                                                  reflect[i]).replace(
-                        ' D:', reflect[i])
+                    Anwser = Anwser.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:',reflect[
+                        i]).replace(' D:', reflect[i])
                 if Choice_A == choice:
                     Choice_A = Choice_A.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:', reflect[
                         i]).replace(' D:', reflect[i])
@@ -213,32 +185,23 @@ class PMC_Dataset(VQA_Dataset):
                 if Choice_D == choice:
                     Choice_D = Choice_D.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:', reflect[
                         i]).replace(' D:', reflect[i])
-                Combined_choice = Combined_choice + choice.replace(' A:', reflect[i]).replace(' B:',
-                                                                                              reflect[i]).replace(' C:',
-                                                                                                                  reflect[
-                                                                                                                      i]).replace(
-                    ' D:', reflect[i])
-            if not self.no_image:
-                item = {
-                    'input_ids': 'Question: ' + Question + 'Choices:' + Combined_choice + 'The Answer is:',
-                    'img_path': sample['Figure_path'],
-                    'images': image,
-                    'labels': Anwser,
-                    'Choice_A': Choice_A,
-                    'Choice_B': Choice_B,
-                    'Choice_C': Choice_C,
-                    'Choice_D': Choice_D,
-                }
-            else:
-                item = {
-                    'input_ids': 'Question: ' + Question + 'Choices:' + Combined_choice + 'The Answer is:',
-                    'img_path': sample['Figure_path'],
-                    'labels': Anwser,
-                    'Choice_A': Choice_A,
-                    'Choice_B': Choice_B,
-                    'Choice_C': Choice_C,
-                    'Choice_D': Choice_D,
-                }
+                Combined_choice = (Combined_choice +
+                                   choice.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:',reflect[i]).replace(' D:', reflect[i]))
+
+            item = {
+                'question': Question,
+                'text_input': 'Question: '+ Question + ' Choices:' + Combined_choice +' The Answer is:',
+                'text_output': Anwser,
+                'image': image,
+                'image_name': sample['Figure_path'],
+                'label': sample['Answer_label'],
+                'Choice_A': Choice_A,
+                'Choice_B': Choice_B,
+                'Choice_C': Choice_C,
+                'Choice_D': Choice_D,
+            }
+            return item
+
 
 
 
