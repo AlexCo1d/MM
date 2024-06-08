@@ -38,7 +38,7 @@ class Former_Llama(Blip2Base):
             num_query_token=32,
             llm_model="",
             prompt="",
-            max_txt_len=128,
+            max_txt_len=256,
             max_output_txt_len=256,
             vit_type="eva_vit",
             vit_path="",
@@ -79,6 +79,7 @@ class Former_Llama(Blip2Base):
         self.Qformer.cls = None
         self.qformer_text_input = qformer_text_input
         self.classifier_vqa = classifier_vqa
+        self.max_txt_len = max_txt_len
 
         if self.classifier_vqa:
             from model.submodule.bert.xbert import BertLMHeadModel
@@ -107,7 +108,6 @@ class Former_Llama(Blip2Base):
                 self.Qformer.config.hidden_size, self.llm_model.config.hidden_size
             )
 
-            self.max_txt_len = max_txt_len
             self.max_output_txt_len = max_output_txt_len
             self.prompt = prompt
             prompt_tokens = self.llm_tokenizer(self.prompt, return_tensors="pt")
