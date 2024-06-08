@@ -21,5 +21,8 @@
   "use_cache": true,
   "vocab_size": 30522,
   "output_hidden_states": true,
-  "output_attentions": true
+  "output_attentions": true,
+
+  "fusion_layer": 6,
+  "encoder_width": 768
 }
