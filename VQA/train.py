@@ -236,9 +236,9 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--start_epoch', default=-1, type=int)
     parser.add_argument('--eval_freq', default=10, type=int)
-    parser.add_argument('--min_lr', type=float, default=1e-7, metavar='LR',
+    parser.add_argument('--min_lr', type=float, default=5e-7, metavar='LR',
                         help='lower lr bound for cyclic schedulers that hit 0')
-    parser.add_argument('--warmup_epochs', type=int, default=40, metavar='N',
+    parser.add_argument('--warmup_epochs', type=int, default=20, metavar='N',
                         help='epochs to warmup LR')
     args = parser.parse_args()
 
