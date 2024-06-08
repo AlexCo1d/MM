@@ -137,6 +137,7 @@ def main(args):
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
 
+    start_epoch = 0
     if args.checkpoint:
         checkpoint = torch.load(args.checkpoint, map_location='cpu')
         state_dict = checkpoint['model']
