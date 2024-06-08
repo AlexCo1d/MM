@@ -73,7 +73,7 @@ def evaluation(model, data_loader, device, args):
         for idx, answer in enumerate(text_output):
             # 构造结果字典
             result_dict = {
-                'image_name':b['image_name'][idx], #获取图片名
+                'image_name': b['image_name'][idx],  #获取图片名
                 "question": b['text_input'][idx],  # 当前问题
                 "pred": text_output[idx],  # 预测的答案
                 "answer": b['text_output'][idx],  # 实际答案
@@ -81,6 +81,7 @@ def evaluation(model, data_loader, device, args):
             }
             result.append(result_dict)
     return result
+
 
 def main(args):
     if args.distributed:
@@ -126,7 +127,6 @@ def main(args):
 
     eff_batch_size = args.batch_size * misc.get_world_size()
 
-
     optimizer = torch.optim.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.05)
 
     start_epoch = 0
@@ -148,8 +148,8 @@ def main(args):
             optimizer.load_state_dict(checkpoint['optimizer'])
         if 'epoch' in checkpoint:
             start_epoch = checkpoint['epoch'] + 1
-
-
+        if args.start_epoch != -1:
+            start_epoch = args.start_epoch
 
     start_time = time.time()
     if args.evaluate:
@@ -204,7 +204,6 @@ def main(args):
     print('Training time {}'.format(total_time_str))
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_use', default='radvqa', help='choose medical vqa dataset(radvqa, pathvqa, slake)')
@@ -235,6 +234,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=2e-5, metavar='LR',
                         help='learning rate (absolute lr)')
     parser.add_argument('--epochs', default=200, type=int)
+    parser.add_argument('--start_epoch', default=-1, type=int)
     parser.add_argument('--eval_freq', default=10, type=int)
     parser.add_argument('--min_lr', type=float, default=1e-7, metavar='LR',
                         help='lower lr bound for cyclic schedulers that hit 0')
