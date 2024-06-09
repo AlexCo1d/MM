@@ -9,7 +9,6 @@ import copy
 import numpy as np
 from transformers import BertTokenizer
 
-
 """
 Requires Transformer 4.28 and above, implementation may change according the Llama implementation
 """
@@ -231,7 +230,6 @@ class Former_Llama(Blip2Base):
 
             return loss
 
-
     def forward_cls_llm(self, samples, dataloader=None):
         image = samples["image"].to(self.device)
         with self.maybe_autocast():
@@ -267,7 +265,7 @@ class Former_Llama(Blip2Base):
             encoder_attention_mask=image_atts,
             return_dict=True,
         )
-        raise ValueError(f'query_output.last_hidden_state: {query_output.last_hidden_state.size()}')
+        query_atts = torch.ones(query_output.last_hidden_state.size()[:-1], dtype=torch.long).to(image.device)
 
         answer_output = self.text_decoder(answer.input_ids,
                                           attention_mask=answer.attention_mask,
@@ -772,7 +770,6 @@ class Former_Llama(Blip2Base):
 
         return output_class_ranks
 
-
     def _lemmatize(self, answers):
         def apply(answer):
             doc = self.lemmatizer(answer)
@@ -864,4 +861,3 @@ def tile(x, dim, n_tile):
     x = x.repeat(*(repeat_idx))
     order_index = torch.LongTensor(np.concatenate([init_dim * np.arange(n_tile) + i for i in range(init_dim)]))
     return torch.index_select(x, dim, order_index.to(x.device))
-
