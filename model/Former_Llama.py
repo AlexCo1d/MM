@@ -276,7 +276,7 @@ class Former_Llama(Blip2Base):
                                           reduction='none',
                                           )
 
-        return answer_output.loss.sum()/bs
+        return answer_output.loss.sum() / bs
 
     @torch.no_grad()
     def predict_answers(
@@ -398,6 +398,7 @@ class Former_Llama(Blip2Base):
 
         return output_text
 
+    @torch.no_grad()
     def predict_answers_cls(
             self,
             samples,
@@ -467,7 +468,7 @@ class Former_Llama(Blip2Base):
 
         query_output.last_hidden_state = tile(query_output.last_hidden_state, 0, k)
         query_atts = tile(query_atts, 0, k)
-
+        torch.cuda.empty_cache()
         output = self.text_decoder(input_ids,
                                    attention_mask=input_atts,
                                    encoder_hidden_states=query_output.last_hidden_state,
