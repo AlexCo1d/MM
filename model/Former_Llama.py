@@ -276,7 +276,7 @@ class Former_Llama(Blip2Base):
                                           reduction='none',
                                           )
 
-        return answer_output.loss
+        return answer_output.loss.sum()/bs
 
     @torch.no_grad()
     def predict_answers(
