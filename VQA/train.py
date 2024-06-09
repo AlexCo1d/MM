@@ -114,7 +114,7 @@ def main(args):
     train_loader = torch.utils.data.DataLoader(train_dataset, sampler=sampler_train, batch_size=args.batch_size,
                                                num_workers=args.num_workers,
                                                pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, sampler=sampler_test, batch_size=args.batch_size,
+    test_loader = torch.utils.data.DataLoader(test_dataset, sampler=sampler_test, batch_size=args.eval_batch_size,
                                               num_workers=args.num_workers,
                                               pin_memory=True)
 
@@ -218,6 +218,7 @@ if __name__ == '__main__':
     parser.add_argument('--classifier_vqa', action='store_true')
     parser.set_defaults(classifier_vqa=False)
     parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--eval_batch_size', default=16, type=int)
     parser.add_argument('--evaluate', action='store_true')
     parser.set_defaults(evaluate=False)
     parser.add_argument('--device', default='cuda')
