@@ -440,9 +440,10 @@ class Former_Llama(Blip2Base):
         answer_atts = answer_tokens.attention_mask
         start_ids = answer_ids[0, 0].repeat(num_ques, 1)  # bos token
 
+        query_atts = torch.ones(query_output.last_hidden_state.size()[:-1], dtype=torch.long).to(image.device)
         start_output = self.text_decoder(start_ids,
                                          encoder_hidden_states=query_output.last_hidden_state,
-                                         encoder_attention_mask=query_output.attention_mask,
+                                         encoder_attention_mask=query_atts,
                                          return_dict=True,
                                          reduction='none')
         logits = start_output.logits[:, 0, :]
