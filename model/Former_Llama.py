@@ -466,12 +466,12 @@ class Former_Llama(Blip2Base):
                                             -100)
 
         query_output.last_hidden_state = tile(query_output.last_hidden_state, 0, k)
-        query_output.attention_mask = tile(query_output.attention_mask, 0, k)
+        query_atts = tile(query_atts, 0, k)
 
         output = self.text_decoder(input_ids,
                                    attention_mask=input_atts,
                                    encoder_hidden_states=query_output.last_hidden_state,
-                                   encoder_attention_mask=query_output.attention_mask,
+                                   encoder_attention_mask=query_atts,
                                    labels=targets_ids,
                                    return_dict=True,
                                    reduction='none')
