@@ -287,3 +287,49 @@ import re
 # df = df[df['report_content'].notna()]
 # df.to_csv(os.path.join(path,'./training_mv.csv'), index=False)
 
+from model.submodule.bert.xbert import BertLMHeadModel
+tokenizer_config='../model/submodule/bert/bert-base-uncased'
+text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config)
+import torch
+from transformers import BertTokenizer
+from model.submodule.bert.xbert import BertLMHeadModel
+
+# 配置和初始化模型和tokenizer
+tokenizer_config = '../model/submodule/bert/bert-base-uncased'
+text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config)
+tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
+
+# 随机生成输入数据
+batch_size = 2
+seq_length = 16
+hidden_size = text_decoder.config.hidden_size
+
+# 随机生成输入id和attention mask
+input_ids = torch.randint(0, tokenizer.vocab_size, (batch_size, seq_length)).to(torch.int64)
+attention_mask = torch.randint(0, 2, (batch_size, seq_length)).to(torch.int64)
+
+# 随机生成encoder hidden states
+encoder_hidden_states = torch.randn(batch_size, 32, hidden_size)
+device = torch.device('cpu')
+# 随机生成encoder attention mask
+encoder_attention_mask = torch.ones((batch_size, 32)).to(torch.int64)
+query_atts = torch.ones(encoder_hidden_states.size()[:-1], dtype=torch.long).to(device)
+# 设置模型设备
+
+text_decoder.to(device)
+input_ids = input_ids.to(device)
+attention_mask = attention_mask.to(device)
+encoder_hidden_states = encoder_hidden_states.to(device)
+encoder_attention_mask = encoder_attention_mask.to(device)
+
+# 前向传播测试
+outputs = text_decoder(
+    input_ids,
+    attention_mask=attention_mask,
+    encoder_hidden_states=encoder_hidden_states,
+    encoder_attention_mask=encoder_attention_mask,
+    labels=input_ids,
+    return_dict=True,
+    reduction='none'
+)
+print(outputs.loss)

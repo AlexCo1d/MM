@@ -267,6 +267,7 @@ class Former_Llama(Blip2Base):
             encoder_attention_mask=image_atts,
             return_dict=True,
         )
+        print('!!!!',query_output.last_hidden_state.size())
 
         answer_output = self.text_decoder(answer.input_ids,
                                           attention_mask=answer.attention_mask,
