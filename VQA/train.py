@@ -121,7 +121,7 @@ def main(args):
     #### Creating Model ####
     print("Creating model")
     model = Former_Llama(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
-                         freeze_vit=True, classifier_vqa=args.classifier_vqa)
+                         freeze_vit=True, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora)
     model = model.to(device)
     # print(model)
 
@@ -217,6 +217,9 @@ if __name__ == '__main__':
     parser.add_argument('--LLM_path', default='', type=str, help='path for loading pretrained LLM model')
     parser.add_argument('--classifier_vqa', action='store_true')
     parser.set_defaults(classifier_vqa=False)
+    parser.add_argument('--is_lora', action='store_true')
+    parser.set_defaults(is_lora=False)
+
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--eval_batch_size', default=16, type=int)
     parser.add_argument('--evaluate', action='store_true')

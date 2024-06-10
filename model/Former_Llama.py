@@ -19,6 +19,14 @@ import torch.nn.functional as F
 import torch
 from torch.cuda.amp import autocast as autocast
 import torch.nn as nn
+from peft import (
+    get_peft_model,
+    LoraConfig,
+    PrefixTuningConfig,
+    PromptEncoderConfig,
+    PromptTuningConfig,
+    TaskType,
+)
 
 import transformers
 
@@ -40,6 +48,7 @@ class Former_Llama(Blip2Base):
             max_txt_len=256,
             max_output_txt_len=256,
             vit_type="eva_vit",
+            is_lora=False,
             vit_path="",
             apply_lemmatizer=False,
             tokenizer_config='../model/submodule/bert/bert-base-uncased',
@@ -100,8 +109,16 @@ class Former_Llama(Blip2Base):
             #     self.llm_tokenizer.eos_token, add_special_tokens=False
             # ).input_ids[0]
 
-            for name, param in self.llm_model.named_parameters():
-                param.requires_grad = False
+            if is_lora:
+                peft_config = LoraConfig(
+                    task_type=TaskType.CAUSAL_LM, inference_mode=False,
+                    r=8,
+                    lora_alpha=32, lora_dropout=0.1
+                )
+                self.llm_model = get_peft_model(self.llm_model, peft_config)
+            else:
+                for name, param in self.llm_model.named_parameters():
+                    param.requires_grad = False
 
             self.llm_proj = nn.Linear(
                 self.Qformer.config.hidden_size, self.llm_model.config.hidden_size
