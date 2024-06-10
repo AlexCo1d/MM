@@ -16,9 +16,7 @@ from PIL import Image
 
 class VQA_Dataset(Dataset):
     def __init__(self, data_path, transform, img_tokens=32, img_root='',
-                 seq_length=512, voc_size=32000, mode='train', answer_list_flag:bool = False):
-        max_caption_length = 100
-        max_answer_length = 50
+                 seq_length=512, voc_size=32000, mode='train', answer_list_flag: bool = False):
         if os.path.exists(os.path.join(data_path, f'{mode}.json')):
             with open(os.path.join(data_path, f'{mode}.json')) as f:
                 self.data = json.load(f)
@@ -35,7 +33,6 @@ class VQA_Dataset(Dataset):
                     self.answer_list = [str(item) for item in self.answer_list]
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
-
 
         # answer_list = [item['answer'] for item in self.data]
         # make it unique.
@@ -61,37 +58,37 @@ class VQA_Dataset(Dataset):
     def __getitem__(self, idx):
         sample = self.data[idx]
         Question = sample['question']
-        Anwser = sample['answer']
-        Anwser = pre_answer(Anwser)
-        at = 'CLOSED' if (Anwser == 'yes' or Anwser == 'no') else 'OPEN'
+        Answer = sample['answer']
+        Answer = pre_answer(Answer)
+        at = 'CLOSED' if (Answer == 'yes' or Answer == 'no') else 'OPEN'
         Question = pre_question(Question)
         ##### read image pathes #####
         img_path = os.path.join(self.data_path, self.img_root, sample['image_name'])
         img = PIL.Image.open(img_path).convert('RGB')
         image = self.transform(img)
 
-        pre_text, final_o = self.random_answer(Question, Anwser)
+        pre_text, final_o = self.random_answer(Question, Answer)
         # final_o = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=50, return_tensors="pt")
         # input_ids = final_o.input_ids
         # attention_mask = final_o.attention_mask
         # input_ids = torch.tensor(input_ids).unsqueeze(0)
         # attention_mask = torch.tensor(attention_mask).unsqueeze(0)
 
-        # label = self.tokenizer(Anwser, padding='longest', truncation=True, max_length=50, return_tensors="pt")
+        # label = self.tokenizer(Answer, padding='longest', truncation=True, max_length=50, return_tensors="pt")
         # labels_att = torch.tensor(label.attention_mask).unsqueeze(0)
         # label = torch.tensor(label.input_ids).unsqueeze(0)
 
         if self.mode == 'train':
             item = {
                 'text_input': pre_text,
-                'text_output': Anwser,
+                'text_output': Answer,
                 'image': image,
             }
         # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
             item = {
                 'text_input': pre_text,
-                'text_output': Anwser,
+                'text_output': Answer,
                 'image': image,
                 'answer_type': at,
                 'image_name': sample['image_name']
@@ -131,11 +128,14 @@ class VQA_Dataset(Dataset):
     #         'question': questions,
     #         'answer': answers
     #     }
+
+
 class PMC_Dataset(VQA_Dataset):
     def __init__(self, data_path, transform, img_root='',
                  seq_length=512, voc_size=32000, mode='train', answer_list_flag: bool = False):
         super().__init__(data_path, transform, mode=mode, img_root=img_root)
         self.data = pd.read_csv(os.path.join(data_path, f'{mode}.csv'))
+
     def __len__(self):
         return len(self.data)
 
@@ -147,21 +147,21 @@ class PMC_Dataset(VQA_Dataset):
         Choice_C = sample['Choice C']
         Choice_D = sample['Choice D']
         choice_list = [Choice_A, Choice_B, Choice_C, Choice_D]
-        Anwser = sample['Anwser']
+        Answer = sample['Answer']
 
         ##### read image pathes #####
         img_path = os.path.join(self.data_path, self.img_root, sample['Figure_path'])
         img = PIL.Image.open(img_path).convert('RGB')
         image = self.transform(img)
 
-            # Question_id = np.array(self.tokenizer(Question)['input_ids'])
+        # Question_id = np.array(self.tokenizer(Question)['input_ids'])
         if self.mode == 'train':
-            pre_text, final_o = self.random_answer(Question, Anwser)
+            pre_text, final_o = self.random_answer(Question, Answer)
 
             item = {
                 'image': image,
                 'text_input': pre_text,
-                'text_output': Anwser,
+                'text_output': Answer,
             }
             return item
         if self.mode == 'test':
@@ -169,8 +169,8 @@ class PMC_Dataset(VQA_Dataset):
             # random.shuffle(choice_list)
             reflect = {0: ' A:', 1: ' B:', 2: ' C:', 3: ' D:'}
             for i, choice in enumerate(choice_list):
-                if Anwser == choice:
-                    Anwser = Anwser.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:',reflect[
+                if Answer == choice:
+                    Answer = Answer.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:', reflect[
                         i]).replace(' D:', reflect[i])
                 if Choice_A == choice:
                     Choice_A = Choice_A.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:', reflect[
@@ -185,12 +185,13 @@ class PMC_Dataset(VQA_Dataset):
                     Choice_D = Choice_D.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:', reflect[
                         i]).replace(' D:', reflect[i])
                 Combined_choice = (Combined_choice +
-                                   choice.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:',reflect[i]).replace(' D:', reflect[i]))
+                                   choice.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:', reflect[
+                                       i]).replace(' D:', reflect[i]))
 
             item = {
                 'question': Question,
-                'text_input': 'Question: '+ Question + ' Choices:' + Combined_choice +' The Answer is:',
-                'text_output': Anwser,
+                'text_input': 'Question: ' + Question + ' Choices:' + Combined_choice + ' The Answer is:',
+                'text_output': Answer,
                 'image': image,
                 'image_name': sample['Figure_path'],
                 'label': sample['Answer_label'],
@@ -200,8 +201,6 @@ class PMC_Dataset(VQA_Dataset):
                 'Choice_D': Choice_D,
             }
             return item
-
-
 
 
 def create_dataset(args):
@@ -223,24 +222,32 @@ def create_dataset(args):
 
     # vqa_rad
     if dataset == 'radvqa':
-        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='VQA_RAD Image Folder', answer_list_flag=args.classifier_vqa)
-        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='VQA_RAD Image Folder', answer_list_flag=args.classifier_vqa)
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='VQA_RAD Image Folder',
+                                    answer_list_flag=args.classifier_vqa)
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='VQA_RAD Image Folder',
+                                   answer_list_flag=args.classifier_vqa)
         return train_dataset, test_dataset
 
     # pathvqa
     elif dataset == 'pathvqa':
-        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='images', answer_list_flag=args.classifier_vqa)
-        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='images', answer_list_flag=args.classifier_vqa)
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='images',
+                                    answer_list_flag=args.classifier_vqa)
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='images',
+                                   answer_list_flag=args.classifier_vqa)
         return train_dataset, test_dataset
     # slake
     elif dataset == 'slake':
-        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='imgs', answer_list_flag=args.classifier_vqa)
-        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='imgs', answer_list_flag=args.classifier_vqa)
+        train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='imgs',
+                                    answer_list_flag=args.classifier_vqa)
+        test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='imgs',
+                                   answer_list_flag=args.classifier_vqa)
         return train_dataset, test_dataset
 
     elif dataset == 'pmcvqa':
-        train_dataset = PMC_Dataset(data_path, train_transform, mode='train', img_root='images', answer_list_flag=args.classifier_vqa)
-        test_dataset = PMC_Dataset(data_path, test_transform, mode='test', img_root='images', answer_list_flag=args.classifier_vqa)
+        train_dataset = PMC_Dataset(data_path, train_transform, mode='train', img_root='images',
+                                    answer_list_flag=args.classifier_vqa)
+        test_dataset = PMC_Dataset(data_path, test_transform, mode='test', img_root='images',
+                                   answer_list_flag=args.classifier_vqa)
         return train_dataset, test_dataset
 
 
