@@ -19,8 +19,9 @@ class VQA_Dataset(Dataset):
                  seq_length=512, voc_size=32000, mode='train', answer_list_flag:bool = False):
         max_caption_length = 100
         max_answer_length = 50
-        with open(os.path.join(data_path, f'{mode}.json')) as f:
-            self.data = json.load(f)
+        if os.path.exists(os.path.join(data_path, f'{mode}.json')):
+            with open(os.path.join(data_path, f'{mode}.json')) as f:
+                self.data = json.load(f)
         self.mode = mode
         self.transform = transform
         self.data_path = data_path
