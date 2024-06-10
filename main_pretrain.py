@@ -97,7 +97,7 @@ def get_args_parser():
                         help='path for loading pretrained ViT model')
     parser.add_argument('--vit_type', type=str, default='eva_vit',
                         help='type of ViT model to use')
-    parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
+    parser.add_argument('--start_epoch', default=-1, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--num_workers', default=10, type=int)
     parser.add_argument('--pin_mem', action='store_true',
