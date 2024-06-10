@@ -162,7 +162,6 @@ class Former_Llama(Blip2Base):
             return self.forward_gen_llm(samples)
 
     def forward_gen_llm(self, samples):
-        torch.cuda.empty_cache()
         image = samples["image"].to(self.device)
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
@@ -236,7 +235,6 @@ class Former_Llama(Blip2Base):
             inputs_embeds = self.llm_model.get_input_embeddings()(llm_tokens['input_ids'])
             inputs_embeds = torch.cat([inputs_llm, inputs_embeds], dim=1)
             attention_mask = torch.cat([atts_llm, llm_tokens['attention_mask']], dim=1)
-            torch.cuda.empty_cache()
             outputs = self.llm_model(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
@@ -397,7 +395,7 @@ class Former_Llama(Blip2Base):
             outputs = self.llm_model.generate(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
-                max_new_tokens=50,
+                # max_new_tokens=50,
                 # do_sample=use_nucleus_sampling,
                 # top_p=top_p,
                 # temperature=temperature,
