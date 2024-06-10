@@ -148,7 +148,8 @@ class PMC_Dataset(VQA_Dataset):
         Choice_D = sample['Choice D']
         choice_list = [Choice_A, Choice_B, Choice_C, Choice_D]
         Answer = sample['Answer']
-
+        Answer = pre_answer(Answer)
+        Question = pre_question(Question)
         ##### read image pathes #####
         img_path = os.path.join(self.data_path, self.img_root, sample['Figure_path'])
         img = PIL.Image.open(img_path).convert('RGB')
