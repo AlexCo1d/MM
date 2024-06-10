@@ -38,7 +38,7 @@ class Former_Llama(Blip2Base):
             llm_model="",
             prompt="",
             max_txt_len=256,
-            max_output_txt_len=512,
+            max_output_txt_len=256,
             vit_type="eva_vit",
             vit_path="",
             apply_lemmatizer=False,
