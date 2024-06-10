@@ -135,8 +135,6 @@ class PMC_Dataset(VQA_Dataset):
                  seq_length=512, voc_size=32000, mode='train', answer_list_flag: bool = False):
         super().__init__(data_path, transform, mode=mode, img_root=img_root)
         self.data = pd.read_csv(os.path.join(data_path, f'{mode}.csv'))
-        self.mode = mode
-        self.transform = transform
     def __len__(self):
         return len(self.data)
 
@@ -151,7 +149,7 @@ class PMC_Dataset(VQA_Dataset):
         Anwser = sample['Anwser']
 
         ##### read image pathes #####
-        img_path = os.path.join(self.img_root , sample['Figure_path'])
+        img_path = os.path.join(self.data_path, self.img_root, sample['Figure_path'])
         img = PIL.Image.open(img_path).convert('RGB')
         image = self.transform(img)
 
