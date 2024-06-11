@@ -138,10 +138,9 @@ def main(args):
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         if args.deepspeed:
-            model, optimizer, _, _ = deepspeed.initialize(args=args, model=model,
+            model, optimizer, _, _ = deepspeed.initialize(args=args, model=model, config=args.deepspeed_config,
                                                           model_parameters=model.parameters(),
-                                                          optimizer=optimizer,
-                                                          config=args.deepspeed_config)
+                                                          optimizer=optimizer)
 
         model_without_ddp = model.module
 
