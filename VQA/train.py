@@ -7,8 +7,6 @@ import argparse
 import os
 import sys
 
-import deepspeed
-
 from VQA.pmc_eval import evaluation_pmc
 from model.Former_Llama import Former_Llama
 
@@ -138,6 +136,7 @@ def main(args):
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         if args.deepspeed:
+            import deepspeed
             model, optimizer, _, _ = deepspeed.initialize(args=args, model=model, config=args.deepspeed_config,
                                                           model_parameters=model.parameters(),
                                                           optimizer=optimizer)
