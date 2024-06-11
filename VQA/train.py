@@ -7,6 +7,8 @@ import argparse
 import os
 import sys
 
+import deepspeed
+
 from VQA.pmc_eval import evaluation_pmc
 from model.Former_Llama import Former_Llama
 
@@ -135,6 +137,12 @@ def main(args):
     if args.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        if args.deepspeed:
+            model, optimizer, _, _ = deepspeed.initialize(args=args, model=model,
+                                                          model_parameters=model.parameters(),
+                                                          optimizer=optimizer,
+                                                          config=args.deepspeed_config)
+
         model_without_ddp = model.module
 
     start_epoch = 0
@@ -245,6 +253,12 @@ if __name__ == '__main__':
                         help='lower lr bound for cyclic schedulers that hit 0')
     parser.add_argument('--warmup_epochs', type=int, default=20, metavar='N',
                         help='epochs to warmup LR')
+
+    # deepspeed
+    parser.add_argument('--deepspeed', action='store_true', help='use DeepSpeed for distributed training')
+    parser.set_defaults(deepspeed=False)
+    parser.add_argument('--deepspeed_config', type=str, default='./ds_config.json', help='DeepSpeed configuration file')
+
     args = parser.parse_args()
 
     args.result_dir = os.path.join(args.output_dir, 'result')
