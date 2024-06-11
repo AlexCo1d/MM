@@ -20,6 +20,7 @@ import torch
 from torch.cuda.amp import autocast as autocast
 import torch.nn as nn
 
+
 import transformers
 
 from model.submodule.BLIP.BLIPBase import (Blip2Base, disabled_train)
@@ -81,8 +82,7 @@ class Former_Llama(Blip2Base):
         self.classifier_vqa = classifier_vqa
         self.max_txt_len = max_txt_len
 
-        # if self.classifier_vqa:
-        if False:
+        if self.classifier_vqa:
             from model.submodule.bert.xbert import BertLMHeadModel
             self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config)
         else:
@@ -343,20 +343,20 @@ class Former_Llama(Blip2Base):
         #     prompt = [p.format(', '.join(samples['ocr_tokens'][i][:30])) for i, p in enumerate(prompt)]
 
         query_tokens = self.query_tokens.expand(bs, -1, -1)
-        if self.qformer_text_input:
-            # remove ocr tokens in q_former (for eval textvqa)
-            # qformer_prompt = prompt
-            # qformer_prompt = ['Question: ' + qp.split(' Question: ')[1] for qp in qformer_prompt]
 
-            text_Qformer = self.tokenizer(
-                samples["text_input"],
-                padding='longest',
-                truncation=True,
-                max_length=self.max_txt_len,
-                return_tensors="pt",
-            ).to(image.device)
-            query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
-            Qformer_atts = torch.cat([query_atts, text_Qformer.attention_mask], dim=1)
+        # remove ocr tokens in q_former (for eval textvqa)
+        # qformer_prompt = prompt
+        # qformer_prompt = ['Question: ' + qp.split(' Question: ')[1] for qp in qformer_prompt]
+
+        text_Qformer = self.tokenizer(
+            samples["text_input"],
+            padding='longest',
+            truncation=True,
+            max_length=self.max_txt_len,
+            return_tensors="pt",
+        ).to(image.device)
+        query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
+        Qformer_atts = torch.cat([query_atts, text_Qformer.attention_mask], dim=1)
 
         image = image.half()
         with self.maybe_autocast():
@@ -364,15 +364,15 @@ class Former_Llama(Blip2Base):
         image_embeds = image_embeds.float()
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
 
-        if self.qformer_text_input:
-            query_output = self.Qformer.bert(
-                text_Qformer.input_ids,
-                attention_mask=Qformer_atts,
-                query_embeds=query_tokens,
-                encoder_hidden_states=image_embeds,
-                encoder_attention_mask=image_atts,
-                return_dict=True,
-            )
+
+        query_output = self.Qformer.bert(
+            text_Qformer.input_ids,
+            attention_mask=Qformer_atts,
+            query_embeds=query_tokens,
+            encoder_hidden_states=image_embeds,
+            encoder_attention_mask=image_atts,
+            return_dict=True,
+        )
         # else:
         #     query_output = self.Qformer.bert(
         #         query_embeds=query_tokens,
@@ -461,11 +461,11 @@ class Former_Llama(Blip2Base):
         start_ids = answer_ids[0, 0].repeat(num_ques, 1)  # bos token
 
         query_atts = torch.ones(query_output.last_hidden_state.size()[:-1], dtype=torch.long).to(image.device)
-        start_output = self.llm_model(start_ids,
-                                      encoder_hidden_states=query_output.last_hidden_state,
-                                      encoder_attention_mask=query_atts,
-                                      return_dict=True,
-                                      reduction='none')
+        start_output = self.text_decoder(start_ids,
+                                         encoder_hidden_states=query_output.last_hidden_state,
+                                         encoder_attention_mask=query_atts,
+                                         return_dict=True,
+                                         reduction='none')
         logits = start_output.logits[:, 0, :]
 
         answer_first_token = answer_ids[:, 1]
@@ -487,13 +487,13 @@ class Former_Llama(Blip2Base):
 
         query_output.last_hidden_state = tile(query_output.last_hidden_state, 0, k)
         query_atts = tile(query_atts, 0, k)
-        output = self.llm_model(input_ids,
-                                attention_mask=input_atts,
-                                encoder_hidden_states=query_output.last_hidden_state,
-                                encoder_attention_mask=query_atts,
-                                labels=targets_ids,
-                                return_dict=True,
-                                reduction='none')
+        output = self.text_decoder(input_ids,
+                                   attention_mask=input_atts,
+                                   encoder_hidden_states=query_output.last_hidden_state,
+                                   encoder_attention_mask=query_atts,
+                                   labels=targets_ids,
+                                   return_dict=True,
+                                   reduction='none')
 
         answer_loss = output.loss
         answer_loss = answer_loss.view(input_ids.size(0), -1)
