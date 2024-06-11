@@ -152,7 +152,7 @@ def pre_answer(answer):
     answer = processPunctuation(answer)
     answer = processDigitArticle(answer)
     answer = answer.replace('x ray', 'xray').replace('x-ray', 'xray')
-    answer = answer.replace(' - ', '-')
+    answer = answer.replace(' - ', '-').replace('-','')
     return answer
 
 def main():
