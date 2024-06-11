@@ -25,7 +25,7 @@ class VQA_Dataset(Dataset):
         self.data_path = data_path
         self.img_root = img_root
 
-        if answer_list_flag:
+        if mode == 'test':
             try:
                 with open(os.path.join(data_path, f'answer_list.json')) as f:
                     self.answer_list = json.load(f)

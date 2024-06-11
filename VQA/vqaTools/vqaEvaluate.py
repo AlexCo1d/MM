@@ -1,3 +1,4 @@
+import difflib
 import os
 import argparse
 import re
@@ -71,7 +72,7 @@ periodStrip = re.compile("(?!<=\d)(\.)(?!\d)")
 commaStrip = re.compile("(\d)(,)(\d)")
 
 
-def compute_vqa_acc(vqa_results: [], epoch=0, args=None):
+def compute_vqa_acc(vqa_results: [], epoch=0, args=None, dataloader= None):
     """
     :param vqa_results: list : 'image_name':image_names[idx], #获取图片名
                                 "question": questions[idx],  # 当前问题
@@ -90,6 +91,8 @@ def compute_vqa_acc(vqa_results: [], epoch=0, args=None):
         args = {}
     open_list = []
     closed_list = []
+    if dataloader is not None:
+        answer_list = dataloader.dataset.answer_list
     for item in vqa_results:
         gt = item['answer']
         pred = item['pred']
@@ -100,7 +103,8 @@ def compute_vqa_acc(vqa_results: [], epoch=0, args=None):
         pred = pre_answer(pred)
         gt = pre_answer(gt)
         if type == 'OPEN':
-            open_list.append(int(gt == pred))
+            sim = pre_answer(get_most_similar(answer_list, pred))
+            open_list.append(int(gt == sim))
         else:
             closed_list.append(int(gt == pred))
 
@@ -154,6 +158,19 @@ def pre_answer(answer):
     answer = answer.replace('x ray', 'xray').replace('x-ray', 'xray')
     answer = answer.replace(' - ', '-').replace('-','')
     return answer
+
+def get_most_similar(answer_list, pred):
+    most_similar_str = None
+    most_similar_index = None
+    highest_similarity = -1
+    for i, str in enumerate(answer_list):
+        similarity = difflib.SequenceMatcher(None, str, pred)
+        if similarity > highest_similarity:
+            most_similar_str = str
+            most_similar_index = i
+            highest_similarity = similarity
+    return most_similar_str
+
 
 def main():
     parser = argparse.ArgumentParser()
