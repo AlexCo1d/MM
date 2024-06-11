@@ -163,10 +163,10 @@ def get_most_similar(answer_list, pred):
     most_similar_str = None
     most_similar_index = None
     highest_similarity = -1
-    for i, str in enumerate(answer_list):
-        similarity = difflib.SequenceMatcher(None, str, pred).ratio()
+    for i, s in enumerate(answer_list):
+        similarity = difflib.SequenceMatcher(None, s, pred).ratio()
         if similarity > highest_similarity:
-            most_similar_str = str
+            most_similar_str = str(s)
             most_similar_index = i
             highest_similarity = similarity
     return most_similar_str
