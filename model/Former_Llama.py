@@ -19,14 +19,7 @@ import torch.nn.functional as F
 import torch
 from torch.cuda.amp import autocast as autocast
 import torch.nn as nn
-from peft import (
-    get_peft_model,
-    LoraConfig,
-    PrefixTuningConfig,
-    PromptEncoderConfig,
-    PromptTuningConfig,
-    TaskType,
-)
+
 
 import transformers
 
@@ -110,6 +103,14 @@ class Former_Llama(Blip2Base):
             # ).input_ids[0]
 
             if is_lora:
+                from peft import (
+                    get_peft_model,
+                    LoraConfig,
+                    PrefixTuningConfig,
+                    PromptEncoderConfig,
+                    PromptTuningConfig,
+                    TaskType,
+                )
                 peft_config = LoraConfig(
                     task_type=TaskType.CAUSAL_LM, inference_mode=False,
                     r=8,
