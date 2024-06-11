@@ -163,6 +163,7 @@ class Former_Llama(Blip2Base):
             return self.forward_gen_llm(samples)
 
     def forward_gen_llm(self, samples):
+        torch.cuda.empty_cache()
         image = samples["image"].to(self.device)
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
