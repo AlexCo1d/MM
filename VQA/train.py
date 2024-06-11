@@ -7,6 +7,8 @@ import argparse
 import os
 import sys
 
+import transformers
+
 from VQA.pmc_eval import evaluation_pmc
 from model.Former_Llama import Former_Llama
 
@@ -127,7 +129,7 @@ def main(args):
 
     eff_batch_size = args.batch_size * misc.get_world_size()
 
-    optimizer = torch.optim.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.02, betas=(0.9, 0.98))
+    optimizer = transformers.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.02, betas=(0.9, 0.98))
 
     start_epoch = 0
 
