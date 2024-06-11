@@ -4,6 +4,8 @@ import argparse
 import re
 import json
 
+import Levenshtein
+
 contractions = {"aint": "ain't", "arent": "aren't", "cant": "can't", "couldve": "could've",
                 "couldnt": "couldn't",
                 "couldn'tve": "couldn't've", "couldnt've": "couldn't've", "didnt": "didn't",
@@ -104,6 +106,7 @@ def compute_vqa_acc(vqa_results: [], epoch=0, args=None, dataloader= None):
         gt = pre_answer(gt)
         if type == 'OPEN':
             sim = pre_answer(get_most_similar(answer_list, pred))
+            print('pred:', pred, ' gt:', gt, ' sim:', sim)
             open_list.append(int(gt == sim))
         else:
             closed_list.append(int(gt == pred))
@@ -164,7 +167,7 @@ def get_most_similar(answer_list, pred):
     most_similar_index = None
     highest_similarity = -1
     for i, s in enumerate(answer_list):
-        similarity = difflib.SequenceMatcher(None, s, pred).ratio()
+        similarity = Levenshtein.ratio(s, pred)
         if similarity > highest_similarity:
             most_similar_str = str(s)
             most_similar_index = i
