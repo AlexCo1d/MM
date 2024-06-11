@@ -20,7 +20,6 @@ import torch
 from torch.cuda.amp import autocast as autocast
 import torch.nn as nn
 
-
 import transformers
 
 from model.submodule.BLIP.BLIPBase import (Blip2Base, disabled_train)
@@ -82,7 +81,8 @@ class Former_Llama(Blip2Base):
         self.classifier_vqa = classifier_vqa
         self.max_txt_len = max_txt_len
 
-        if self.classifier_vqa:
+        # if self.classifier_vqa:
+        if False:
             from model.submodule.bert.xbert import BertLMHeadModel
             self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config)
         else:
@@ -398,7 +398,7 @@ class Former_Llama(Blip2Base):
             outputs = self.llm_model.generate(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
-                # max_new_tokens=50,
+                max_new_tokens=50,
                 # do_sample=use_nucleus_sampling,
                 # top_p=top_p,
                 # temperature=temperature,
@@ -461,11 +461,11 @@ class Former_Llama(Blip2Base):
         start_ids = answer_ids[0, 0].repeat(num_ques, 1)  # bos token
 
         query_atts = torch.ones(query_output.last_hidden_state.size()[:-1], dtype=torch.long).to(image.device)
-        start_output = self.text_decoder(start_ids,
-                                         encoder_hidden_states=query_output.last_hidden_state,
-                                         encoder_attention_mask=query_atts,
-                                         return_dict=True,
-                                         reduction='none')
+        start_output = self.llm_model(start_ids,
+                                      encoder_hidden_states=query_output.last_hidden_state,
+                                      encoder_attention_mask=query_atts,
+                                      return_dict=True,
+                                      reduction='none')
         logits = start_output.logits[:, 0, :]
 
         answer_first_token = answer_ids[:, 1]
@@ -487,13 +487,13 @@ class Former_Llama(Blip2Base):
 
         query_output.last_hidden_state = tile(query_output.last_hidden_state, 0, k)
         query_atts = tile(query_atts, 0, k)
-        output = self.text_decoder(input_ids,
-                                   attention_mask=input_atts,
-                                   encoder_hidden_states=query_output.last_hidden_state,
-                                   encoder_attention_mask=query_atts,
-                                   labels=targets_ids,
-                                   return_dict=True,
-                                   reduction='none')
+        output = self.llm_model(input_ids,
+                                attention_mask=input_atts,
+                                encoder_hidden_states=query_output.last_hidden_state,
+                                encoder_attention_mask=query_atts,
+                                labels=targets_ids,
+                                return_dict=True,
+                                reduction='none')
 
         answer_loss = output.loss
         answer_loss = answer_loss.view(input_ids.size(0), -1)
