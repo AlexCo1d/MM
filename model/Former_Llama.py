@@ -192,7 +192,7 @@ class Former_Llama(Blip2Base):
         inputs_llm = self.llm_proj(query_output.last_hidden_state[:, :query_tokens.size(1), :])
         atts_llm = torch.ones(inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
 
-        with self.maybe_autocast():
+        with self.maybe_autocast(dtype=torch.bfloat16):
             self.llm_tokenizer.padding_side = "right"
             self.llm_tokenizer.truncation_side = 'left'
             text_input_tokens = self.llm_tokenizer(

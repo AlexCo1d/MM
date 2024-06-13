@@ -244,12 +244,12 @@ if __name__ == '__main__':
     parser.add_argument('--distributed', default=True, type=bool)
     parser.add_argument('--output_dir', default='./output_dir', type=str)
     parser.add_argument('--num_workers', default=10, type=int)
-    parser.add_argument('--lr', type=float, default=3e-5, metavar='LR',
+    parser.add_argument('--lr', type=float, default=2e-5, metavar='LR',
                         help='learning rate (absolute lr)')
     parser.add_argument('--epochs', default=200, type=int)
     parser.add_argument('--start_epoch', default=-1, type=int)
     parser.add_argument('--eval_freq', default=10, type=int)
-    parser.add_argument('--min_lr', type=float, default=5e-7, metavar='LR',
+    parser.add_argument('--min_lr', type=float, default=2e-7, metavar='LR',
                         help='lower lr bound for cyclic schedulers that hit 0')
     parser.add_argument('--warmup_epochs', type=int, default=20, metavar='N',
                         help='epochs to warmup LR')
