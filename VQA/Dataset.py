@@ -51,8 +51,8 @@ class VQA_Dataset(Dataset):
 
     def random_answer(self, Question, Answer):
         Answer = str(Answer)
-        pre_text = 'Question: ' + Question + ' The Answer is: '
-        final_o = 'Question: ' + Question + ' The Answer is:' + Answer
+        pre_text = 'Question: ' + Question + 'The Answer is:'
+        final_o = 'Question: ' + Question + 'The Answer is: ' + Answer
         return pre_text, final_o
 
     def __getitem__(self, idx):
