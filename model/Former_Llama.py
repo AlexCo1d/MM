@@ -397,7 +397,7 @@ class Former_Llama(Blip2Base):
 
             outputs = self.llm_model.generate(
                 inputs_embeds=inputs_embeds,
-                attention_mask=attention_mask,
+                # attention_mask=attention_mask,
                 max_new_tokens=50,
                 do_sample=use_nucleus_sampling,
                 top_p=top_p,
