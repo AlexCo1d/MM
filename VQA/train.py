@@ -229,7 +229,7 @@ if __name__ == '__main__':
     parser.set_defaults(is_lora=False)
 
     parser.add_argument('--batch_size', default=32, type=int)
-    parser.add_argument('--eval_batch_size', default=16, type=int)
+    parser.add_argument('--eval_batch_size', default=5, type=int)
     parser.add_argument('--evaluate', action='store_true')
     parser.set_defaults(evaluate=False)
     parser.add_argument('--device', default='cuda')
