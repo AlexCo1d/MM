@@ -83,6 +83,7 @@ class VQA_Dataset(Dataset):
                 'text_input': pre_text,
                 'text_output': Answer,
                 'image': image,
+                'answer_type': at,
             }
         # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
@@ -91,7 +92,7 @@ class VQA_Dataset(Dataset):
                 'text_output': Answer,
                 'image': image,
                 'answer_type': at,
-                'image_name': sample['image_name']
+                # 'image_name': sample['image_name']
             }
 
         return item
