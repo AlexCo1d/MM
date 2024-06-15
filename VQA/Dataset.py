@@ -4,7 +4,7 @@ import re
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, ConcatDataset
 from torchvision import transforms
 import json
 import PIL
@@ -227,7 +227,7 @@ def create_dataset(args):
                                     answer_list_flag=args.classifier_vqa)
         test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='VQA_RAD Image Folder',
                                    answer_list_flag=args.classifier_vqa)
-        return train_dataset, test_dataset
+        return ConcatDataset([train_dataset, test_dataset]), test_dataset
 
     # pathvqa
     elif dataset == 'pathvqa':
