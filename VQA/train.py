@@ -201,8 +201,8 @@ def main(args):
                     json.dump(vqa_result,
                               open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
                     acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=epoch)
-                    print({'epoch:':epoch,'acc:':acc})
-                    json.dump({'epoch:':epoch,'acc:':dict(list(acc.items())[1:])},
+                    print({'acc:':acc})
+                    json.dump({'acc:':acc},
                               open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
                 torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
