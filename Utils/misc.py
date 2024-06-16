@@ -336,7 +336,7 @@ def load_model(args, model_without_ddp, optimizer, loss_scaler):
 
 def set_requires_grad_llm(model, value: bool):
     if hasattr(model, 'llm_model'):
-        for param in model.llm_model.parameters():
+        for name, param in model.llm_model.named_parameters():
             param.requires_grad = value
         print("Set llm_model requires_grad to %s" % value)
 
