@@ -71,7 +71,7 @@ def evaluation(model, data_loader, device, args):
 
     for n, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
 
-        text_output = t_model.predict_answers(b, dataloader=data_loader).cpu()
+        text_output = t_model.predict_answers(b, dataloader=data_loader)
         for idx, answer in enumerate(text_output):
             # 构造结果字典
             result_dict = {
