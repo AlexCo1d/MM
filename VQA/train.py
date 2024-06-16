@@ -183,7 +183,7 @@ def main(args):
 
             train(model, train_loader, optimizer, epoch, device, args)
             ###
-            if epoch >= args.epochs - 2:
+            if epoch >= args.epochs - 3:
                 train(model, test_loader, optimizer, epoch, device, args)
 
             if utils.is_main_process():
