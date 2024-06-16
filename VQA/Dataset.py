@@ -229,7 +229,7 @@ def create_dataset(args):
                                     answer_list_flag=args.classifier_vqa)
         test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='VQA_RAD Image Folder',
                                    answer_list_flag=args.classifier_vqa)
-        return train_dataset, test_dataset
+
 
     # pathvqa
     elif dataset == 'pathvqa':
@@ -237,21 +237,21 @@ def create_dataset(args):
                                     answer_list_flag=args.classifier_vqa)
         test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='images',
                                    answer_list_flag=args.classifier_vqa)
-        return train_dataset, test_dataset
+
     # slake
     elif dataset == 'slake':
         train_dataset = VQA_Dataset(data_path, train_transform, mode='train', img_root='imgs',
                                     answer_list_flag=args.classifier_vqa)
         test_dataset = VQA_Dataset(data_path, test_transform, mode='test', img_root='imgs',
                                    answer_list_flag=args.classifier_vqa)
-        return train_dataset, test_dataset
+
 
     elif dataset == 'pmcvqa':
         train_dataset = PMC_Dataset(data_path, train_transform, mode='train', img_root='images',
                                     answer_list_flag=args.classifier_vqa)
         test_dataset = PMC_Dataset(data_path, test_transform, mode='test', img_root='images',
                                    answer_list_flag=args.classifier_vqa)
-        return train_dataset, test_dataset
+    return train_dataset, test_dataset, ConcatDataset([train_dataset, test_dataset])
 
 
 def pre_question(question):

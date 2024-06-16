@@ -71,7 +71,7 @@ def evaluation(model, data_loader, device, args):
 
     for n, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
 
-        text_output = t_model.predict_answers(b, dataloader=data_loader)
+        text_output = t_model.predict_answers(b, dataloader=data_loader).cpu()
         for idx, answer in enumerate(text_output):
             # 构造结果字典
             result_dict = {
@@ -96,7 +96,7 @@ def main(args):
 
     #### Loading Dataset ####
     print('Creating vqa {} datasets'.format(args.dataset_use))
-    train_dataset, test_dataset = create_dataset(args)
+    train_dataset, test_dataset, _ = create_dataset(args)
     print('train dataset size: ', len(train_dataset))
     print('test dataset size: ', len(test_dataset))
 
@@ -168,7 +168,7 @@ def main(args):
             vqa_result = evaluation(model, test_loader, device, args)
             json.dump(vqa_result,
                       open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
-            acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader,epoch=checkpoint['epoch'])
+            acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
             print(f'{args.dataset_use} acc: {acc}')
         else:
             evaluation_pmc(model, test_loader, device, args)
@@ -182,6 +182,9 @@ def main(args):
             utils.cosine_lr_schedule(optimizer, epoch, args.epochs, args.lr, args.min_lr)
 
             train(model, train_loader, optimizer, epoch, device, args)
+            ###
+            if epoch >= args.epochs - 2:
+                train(model, test_loader, optimizer, epoch, device, args)
 
             if utils.is_main_process():
 
@@ -193,13 +196,14 @@ def main(args):
                 prefix = args.checkpoint.split('/')[-1].split('.')[0]
                 # for evaluation and output the result
                 if args.output_dir and epoch >= 20 and (epoch % args.eval_freq == 0 or epoch == args.epochs - 1):
+                    torch.cuda.empty_cache()
                     torch.save(save_obj, os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
                     vqa_result = evaluation(model, test_loader, device, args)
                     json.dump(vqa_result,
                               open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
                     acc = compute_vqa_acc(vqa_result, epoch, args=args)
                     acc_list.append({'epoch:':epoch,'acc:':acc})
-                # torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
+                torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
             if args.distributed:
                 dist.barrier()
