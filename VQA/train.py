@@ -111,7 +111,7 @@ def main(args):
         print("Sampler_train = %s" % str(sampler_train))
     else:
         sampler_train = torch.utils.data.RandomSampler(train_dataset)
-        sampler_test = torch.utils.data.RandomSampler(test_dataset)
+        sampler_test = torch.utils.data.SequentialSampler(test_dataset)
 
     train_loader = torch.utils.data.DataLoader(train_dataset, sampler=sampler_train, batch_size=args.batch_size,
                                                num_workers=args.num_workers,
