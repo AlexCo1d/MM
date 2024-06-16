@@ -174,7 +174,6 @@ def main(args):
             evaluation_pmc(model, test_loader, device, args)
     else:
         print("\nStart training\n")
-        acc_list = []
         for epoch in range(start_epoch, args.epochs):
             if args.distributed:
                 train_loader.sampler.set_epoch(epoch)
@@ -203,16 +202,12 @@ def main(args):
                               open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
                     acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
                     print({'epoch:':epoch,'acc:':acc})
-                    acc_list.append({'epoch:':epoch,'acc:':acc})
+                    json.dump({'epoch:':epoch,'acc:':acc},
+                              open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
                 torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
             if args.distributed:
                 dist.barrier()
-
-        # print the epoch with best acc in acc_list
-        json.dump(acc_list,
-                  open(os.path.join(args.result_dir, 'vqa_metric.json'), 'w'))
-        # print("Best acc: ", max(acc_list, key=lambda x: x[1][0]))
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
