@@ -82,6 +82,7 @@ def evaluation(model, data_loader, device, args):
                 "answer_type": b['answer_type'][idx]  # 答案类型
             }
             result.append(result_dict)
+    t_model.train()
     return result
 
 
@@ -108,7 +109,7 @@ def main(args):
         sampler_test = torch.utils.data.DistributedSampler(
             test_dataset, num_replicas=num_tasks, rank=global_rank, shuffle=False
         )
-        print("Sampler_train = %s" % str(sampler_train))
+        # print("Sampler_train = %s" % str(sampler_train))
     else:
         sampler_train = torch.utils.data.RandomSampler(train_dataset)
         sampler_test = torch.utils.data.SequentialSampler(test_dataset)
@@ -193,11 +194,11 @@ def main(args):
                 # for evaluation and output the result
                 if args.output_dir and epoch >= 20 and (epoch % args.eval_freq == 0 or epoch == args.epochs - 1):
                     torch.save(save_obj, os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
-                    # vqa_result = evaluation(model, test_loader, device, args)
-                    # json.dump(vqa_result,
-                    #           open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                    # acc = compute_vqa_acc(vqa_result, epoch, args=args)
-                    # acc_list.append({'epoch:':epoch,'acc:':acc})
+                    vqa_result = evaluation(model, test_loader, device, args)
+                    json.dump(vqa_result,
+                              open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
+                    acc = compute_vqa_acc(vqa_result, epoch, args=args)
+                    acc_list.append({'epoch:':epoch,'acc:':acc})
                 # torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
             if args.distributed:
