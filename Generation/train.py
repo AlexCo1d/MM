@@ -9,8 +9,9 @@ import sys
 
 import transformers
 
+from Generation.eval import compute_metrics
 from VQA.pmc_eval import evaluation_pmc
-from model.Former_Llama import Former_Llama
+from model.Former_Caption_Llama import Former_Llama_Cap
 
 import time
 import datetime
@@ -22,8 +23,6 @@ import utils
 import Utils.misc as misc
 import Utils.lr_sched as lr_sched
 from Dataset import create_dataset
-from model.Former_T5 import Former_T5
-from vqaTools.vqaEvaluate import compute_vqa_acc
 
 
 def train(model, data_loader, optimizer, epoch, device, args):
@@ -86,6 +85,7 @@ def evaluation(model, data_loader, device, args):
     return result
 
 
+
 def main(args):
     if args.distributed:
         utils.init_distributed_mode(args)
@@ -123,8 +123,8 @@ def main(args):
 
     #### Creating Model ####
     print("Creating model")
-    model = Former_Llama(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
-                         freeze_vit=True, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=False)
+    model = Former_Llama_Cap(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
+                             freeze_vit=True, is_lora=args.is_lora)
     model = model.to(device)
     # print(model)
 
@@ -165,11 +165,11 @@ def main(args):
     if args.evaluate:
         print("\nStart evaluation\n")
         if args.dataset_use != 'pmcvqa':
-            vqa_result = evaluation(model, test_loader, device, args)
-            json.dump(vqa_result,
-                      open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
-            acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
-            print(f'{args.dataset_use} acc: {acc}')
+            gen_result = evaluation(model, test_loader, device, args)
+            json.dump(gen_result,
+                      open(os.path.join(args.result_dir, 'gen_result_%s.json' % (args.dataset_use)), 'w'))
+            metrics = compute_metrics(gen_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
+            print(f'{args.dataset_use} acc: {metrics}')
         else:
             evaluation_pmc(model, test_loader, device, args)
     else:
@@ -198,13 +198,14 @@ def main(args):
                 # for evaluation and output the result
                 if args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch == args.epochs - 1):
                     torch.cuda.empty_cache()
-                    torch.save(save_obj, os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
-                    vqa_result = evaluation(model, test_loader, device, args)
-                    json.dump(vqa_result,
+                    torch.save(save_obj,
+                               os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
+                    gen_result = evaluation(model, test_loader, device, args)
+                    json.dump(gen_result,
                               open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                    acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=epoch)
-                    print({'acc:':acc})
-                    json.dump({'acc:':acc},
+                    metrics = compute_metrics(gen_result, args=args, dataloader=test_loader, epoch=epoch)
+                    print({'results:': metrics})
+                    json.dump({'results:': metrics},
                               open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
                 torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 

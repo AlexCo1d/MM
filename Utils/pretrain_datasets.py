@@ -141,7 +141,7 @@ class MIMICDataset(Dataset):
 
 def pre_caption(caption, max_words):
     caption = re.sub(
-        r"([,.'!?\"()*#:;~])",
+        r"([_,.'!?\"()*#:;~])",
         '',
         caption.lower(),
     ).replace('-', ' ').replace('/', ' ').replace('<person>', 'person')
