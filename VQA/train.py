@@ -201,7 +201,7 @@ def main(args):
                     vqa_result = evaluation(model, test_loader, device, args)
                     json.dump(vqa_result,
                               open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                    acc = compute_vqa_acc(vqa_result, epoch, args=args)
+                    acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
                     acc_list.append({'epoch:':epoch,'acc:':acc})
                 torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
