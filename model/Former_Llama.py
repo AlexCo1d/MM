@@ -189,7 +189,7 @@ class Former_Llama(Blip2Base):
                 encoder_hidden_states=image_embeds,
                 encoder_attention_mask=image_atts,
                 return_dict=True,
-            )
+            ).to(image.device)
             inputs_llm = self.llm_proj(query_output.last_hidden_state[:, :query_tokens.size(1), :])
         else:
             query_output = self.Qformer.bert(
@@ -232,7 +232,7 @@ class Former_Llama(Blip2Base):
             # do not apply loss to the padding
             targets = llm_tokens['input_ids'].masked_fill(
                 llm_tokens['input_ids'] == self.llm_tokenizer.pad_token_id, -100
-            )
+            ).to(image.device)
 
             # do not apply loss to the text input (i.e., instruction)
             for i, l in enumerate(input_part_targets_len):
