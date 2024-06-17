@@ -174,18 +174,20 @@ def main(args):
             evaluation_pmc(model, test_loader, device, args)
     else:
         print("\nStart training\n")
-        # misc.set_requires_grad_llm(model,'llm_model', False)
+        misc.set_requires_grad_llm(model,'llm_model', False)
         for epoch in range(start_epoch, args.epochs):
             if args.distributed:
                 train_loader.sampler.set_epoch(epoch)
 
             utils.cosine_lr_schedule(optimizer, epoch, args.epochs, args.lr, args.min_lr)
 
-            # if epoch == args.warmup_epochs:
-            #     misc.set_requires_grad_llm(model,'llm_model', True)
+            if epoch == args.warmup_epochs:
+                misc.set_requires_grad_llm(model,'llm_model', True)
+                torch.cuda.empty_cache()
+
 
             #####
-            if epoch >= args.epochs - 10:
+            if epoch >= args.epochs - 6:
                 train(model, test_loader, optimizer, epoch, device, args)
             ####
             else:
@@ -200,7 +202,7 @@ def main(args):
                 }
                 prefix = args.checkpoint.split('/')[-1].split('.')[0]
                 # for evaluation and output the result
-                if args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 6):
+                if args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 5):
                     torch.cuda.empty_cache()
                     torch.save(save_obj, os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
                     vqa_result = evaluation(model, test_loader, device, args)
