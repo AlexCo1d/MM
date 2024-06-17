@@ -174,7 +174,7 @@ def main(args):
             evaluation_pmc(model, test_loader, device, args)
     else:
         print("\nStart training\n")
-        misc.set_requires_grad_llm(model_without_ddp, False)
+        misc.set_requires_grad_llm(model, False)
         for epoch in range(start_epoch, args.epochs):
             if args.distributed:
                 train_loader.sampler.set_epoch(epoch)
