@@ -34,7 +34,7 @@ class PTBTokenizer:
         # ======================================================
         final_tokenized_captions_for_image = {}
         image_id = [k for k, v in captions_for_image.items() for _ in range(len(v))]
-        sentences = b'\n'.join([c['caption'].replace(b'\n', b' ') for k, v in captions_for_image.items() for c in v])
+        sentences = '\n'.join([c['caption'].decode('utf-8').replace('\n', ' ') for k, v in captions_for_image.items() for c in v]).encode('utf-8')
 
         # ======================================================
         # save sentences to temporary file
