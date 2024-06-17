@@ -11,13 +11,18 @@ import numpy as np
 import pdb
 import math
 
+from Generation.tokenizer.ptbtokenizer import PTBTokenizer
+
+
 def compute_metrics(gen_result:{}, args, dataloader, epoch):
     bleu_scores = []
     rouge_scores = []
     meteor_scores = []
+    cider_scores = []
     rouge = Rouge()  # Initialize the Rouge metric
     smoothie = SmoothingFunction().method4
-
+    cider=Cider()
+    tokenizer = PTBTokenizer()
     for i, item in enumerate(gen_result):
         gt= pre_caption(item['gt'])
         gen = pre_caption(item['gen'])
@@ -39,6 +44,12 @@ def compute_metrics(gen_result:{}, args, dataloader, epoch):
         # Compute METEOR score
         meteor_score = pymeteor.meteor(gt, gen)
         meteor_scores.append(meteor_score)
+        gt=tokenizer.tokenize({0: [{'image_id': 0, 'caption': gt}]})
+        gen=tokenizer.tokenize({0: [{'image_id': 0, 'caption': gen}]})
+        cider_score, _ = cider.compute_score(gt, gen)
+        print(f"Image {i} CIDEr Score: {cider_score}")
+
+
 
     # Here you can compute average scores or handle results as needed
     avg_bleu = sum(bleu_scores) / len(bleu_scores)
