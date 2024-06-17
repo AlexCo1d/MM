@@ -9,7 +9,7 @@ import sys
 
 import transformers
 
-from Generation.eval import compute_metrics
+from Generation.metric_eval import compute_metrics
 from VQA.pmc_eval import evaluation_pmc
 from model.Former_Caption_Llama import Former_Llama_Cap
 
@@ -74,11 +74,8 @@ def evaluation(model, data_loader, device, args):
         for idx, answer in enumerate(text_output):
             # 构造结果字典
             result_dict = {
-                'image_name': b['image_name'][idx],  #获取图片名
-                "question": b['text_input'][idx],  # 当前问题
-                "pred": text_output[idx],  # 预测的答案
-                "answer": b['text_output'][idx],  # 实际答案
-                "answer_type": b['answer_type'][idx]  # 答案类型
+                "gen": text_output[idx],  # 预测的答案
+                "gt": b['text_output'][idx],  # 实际答案
             }
             result.append(result_dict)
     t_model.train()

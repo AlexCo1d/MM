@@ -36,7 +36,10 @@ class Gen_Dataset(Dataset):
         text = sample['report_content']
         text = pre_caption(text)
         ##### read image pathes #####
-        img_path = os.path.join(self.data_path, self.img_root, sample['image_path'])
+        if self.img_root == '':
+            img_path = os.path.join(sample['image_path'])
+        else:
+            img_path = os.path.join(self.data_path, self.img_root, sample['image_path'])
         img = PIL.Image.open(img_path).convert('RGB')
         image = self.transform(img)
 
@@ -81,15 +84,11 @@ def create_dataset(args):
 
     # vqa_rad
     if dataset == 'iu':
-        train_dataset = Gen_Dataset(data_path, train_transform, mode='train', img_root='images',
-                                    answer_list_flag=args.classifier_vqa)
-        test_dataset = Gen_Dataset(data_path, test_transform, mode='test', img_root='images',
-                                   answer_list_flag=args.classifier_vqa)
+        train_dataset = Gen_Dataset(data_path, train_transform, mode='train', img_root='images')
+        test_dataset = Gen_Dataset(data_path, test_transform, mode='test', img_root='images')
     elif dataset == 'mimic':
-        train_dataset = Gen_Dataset(data_path, train_transform, mode='train',
-                                    answer_list_flag=args.classifier_vqa)
-        test_dataset = Gen_Dataset(data_path, test_transform, mode='test',
-                                   answer_list_flag=args.classifier_vqa)
+        train_dataset = Gen_Dataset(data_path, train_transform, mode='train')
+        test_dataset = Gen_Dataset(data_path, test_transform, mode='test')
     return train_dataset, test_dataset, ConcatDataset([train_dataset, test_dataset])
 
 
@@ -98,7 +97,7 @@ def pre_caption(caption, max_words):
         r"([_,.'!?\"()*#:;~])",
         '',
         caption.lower(),
-    ).replace('-', ' ').replace('/', ' ').replace('<person>', 'person')
+    ).replace('-', ' ').replace('/', ' ').replace('<person>', 'person').replace('xxxx','')
 
     caption = re.sub(
         r"\s{2,}",
