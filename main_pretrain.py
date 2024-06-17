@@ -198,9 +198,12 @@ def main(args):
 
     print(f"Start training for {args.epochs} epochs")
     start_time = time.time()
+    misc.set_requires_grad_llm(model, 'visual_encoder', False)
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             data_loader_train.sampler.set_epoch(epoch)
+        if epoch == args.warmup_epochs:
+            misc.set_requires_grad_llm(model, 'visual_encoder', True)
         train_stats = train_one_epoch(
             model, data_loader_train,
             optimizer, device, epoch, loss_scaler,

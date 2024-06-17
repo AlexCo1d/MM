@@ -334,13 +334,15 @@ def load_model(args, model_without_ddp, optimizer, loss_scaler):
                 loss_scaler.load_state_dict(checkpoint['scaler'])
             print("With optim & sched!")
 
-def set_requires_grad_llm(model, value: bool):
-    flag=False
+
+def set_requires_grad_llm(model, module: str = 'llm_model', value: bool = False):
+    flag = False
     for name, param in model.module.named_parameters():
-        if 'llm_model' in name:
-            flag=True
+        if module in name:
+            flag = True
             param.requires_grad = value
     if flag: print("Set llm_model requires_grad to %s" % value)
+
 
 def all_reduce_mean(x):
     world_size = get_world_size()
