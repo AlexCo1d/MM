@@ -335,10 +335,12 @@ def load_model(args, model_without_ddp, optimizer, loss_scaler):
             print("With optim & sched!")
 
 def set_requires_grad_llm(model, value: bool):
-    if hasattr(model, 'llm_model'):
-        for name, param in model.module.llm_model.named_parameters():
+    flag=False
+    for name, param in model.module.named_parameters():
+        if 'llm_model' in name:
+            flag=True
             param.requires_grad = value
-        print("Set llm_model requires_grad to %s" % value)
+    if flag: print("Set llm_model requires_grad to %s" % value)
 
 def all_reduce_mean(x):
     world_size = get_world_size()
