@@ -14,7 +14,7 @@ import math
 from Generation.tokenizer.ptbtokenizer import PTBTokenizer
 
 
-def compute_metrics(gen_result:{}, args, dataloader, epoch):
+def compute_metrics(gen_result:{}, args=None, dataloader=None, epoch=0):
     bleu_scores = []
     rouge_scores = []
     meteor_scores = []
