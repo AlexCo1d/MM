@@ -181,7 +181,7 @@ def main(args):
 
             utils.cosine_lr_schedule(optimizer, epoch, args.epochs, args.lr, args.min_lr)
             if epoch == args.warmup_epochs:
-                misc.set_requires_grad_llm(model_without_ddp, True)
+                misc.set_requires_grad_llm(model, True)
 
             #####
             if epoch >= args.epochs - 10:
