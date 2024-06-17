@@ -44,8 +44,8 @@ def compute_metrics(gen_result:{}, args=None, dataloader=None, epoch=0):
         # Compute METEOR score
         meteor_score = pymeteor.meteor(gt, gen)
         meteor_scores.append(meteor_score)
-        gt=tokenizer.tokenize({0: [{u'image_id': 0, u'caption': gt}]})
-        gen=tokenizer.tokenize({0: [{u'image_id': 0, u'caption': gen}]})
+        gt=tokenizer.tokenize({0: [{u'image_id': 0, u'caption': gt.encode('utf-8')}]})
+        gen=tokenizer.tokenize({0: [{u'image_id': 0, u'caption': gen.encode('utf-8')}]})
         cider_score, _ = cider.compute_score(gt, gen)
         print(f"Image {i} CIDEr Score: {cider_score}")
 
