@@ -172,10 +172,8 @@ class Former_Llama(Blip2Base):
 
         bs = image.size(0)
         query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)
-
-        query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
-
         if self.instruct:
+            query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
             text_Qformer = self.tokenizer(
                 samples["text_input"],
                 padding='longest',

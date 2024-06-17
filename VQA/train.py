@@ -137,7 +137,7 @@ def main(args):
     model_without_ddp = model
     if args.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters = True)
         if args.deepspeed:
             import deepspeed
             model, optimizer, _, _ = deepspeed.initialize(args=args, model=model, config=args.deepspeed_config,
@@ -174,14 +174,16 @@ def main(args):
             evaluation_pmc(model, test_loader, device, args)
     else:
         print("\nStart training\n")
-        # misc.set_requires_grad_llm(model, False)
+        misc.set_requires_grad_llm(model, False)
         for epoch in range(start_epoch, args.epochs):
             if args.distributed:
                 train_loader.sampler.set_epoch(epoch)
 
             utils.cosine_lr_schedule(optimizer, epoch, args.epochs, args.lr, args.min_lr)
-            # if epoch == args.warmup_epochs:
-            #     misc.set_requires_grad_llm(model, True)
+
+            if epoch == args.warmup_epochs:
+                misc.set_requires_grad_llm(model, True)
+
             #####
             if epoch >= args.epochs - 10:
                 train(model, test_loader, optimizer, epoch, device, args)
