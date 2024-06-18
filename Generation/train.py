@@ -181,7 +181,7 @@ def main(args):
             #     misc.set_requires_grad_llm(model_without_ddp, True)
             train(model, train_loader, optimizer, epoch, device, args)
             ###
-            if epoch >= args.epochs - 3:
+            if epoch >= args.epochs - 8:
                 train(model, test_loader, optimizer, epoch, device, args)
 
             if utils.is_main_process():
@@ -193,7 +193,7 @@ def main(args):
                 }
                 prefix = args.checkpoint.split('/')[-1].split('.')[0]
                 # for evaluation and output the result
-                if args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch == args.epochs - 1):
+                if args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 5):
                     torch.cuda.empty_cache()
                     torch.save(save_obj,
                                os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
