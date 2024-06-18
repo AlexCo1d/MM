@@ -247,7 +247,7 @@ class MM_Former(Blip2Base):
         )
 
         query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)
-        raise f'!!! image_embeds: {image_embeds.shape}'
+        raise NotImplementedError(f'!!! image_embeds: {image_embeds.shape}')
         query_output = self.Qformer.bert(
             query_embeds=query_tokens,
             encoder_hidden_states=image_embeds,
