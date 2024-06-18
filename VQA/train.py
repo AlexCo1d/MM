@@ -124,7 +124,7 @@ def main(args):
     #### Creating Model ####
     print("Creating model")
     model = Former_Llama(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
-                         freeze_vit=True, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=True)
+                         freeze_vit=True, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=False)
     model = model.to(device)
     # print(model)
 
@@ -174,16 +174,16 @@ def main(args):
             evaluation_pmc(model, test_loader, device, args)
     else:
         print("\nStart training\n")
-        misc.set_requires_grad_llm(model,'llm_model', False)
+        # misc.set_requires_grad_llm(model,'llm_model', False)
         for epoch in range(start_epoch, args.epochs):
             if args.distributed:
                 train_loader.sampler.set_epoch(epoch)
 
             utils.cosine_lr_schedule(optimizer, epoch, args.epochs, args.lr, args.min_lr)
 
-            if epoch == args.warmup_epochs:
-                misc.set_requires_grad_llm(model,'llm_model', True)
-                torch.cuda.empty_cache()
+            # if epoch == args.warmup_epochs:
+            #     misc.set_requires_grad_llm(model,'llm_model', True)
+            #     torch.cuda.empty_cache()
 
 
             #####
