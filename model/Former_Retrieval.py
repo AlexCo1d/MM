@@ -115,7 +115,7 @@ class Former_RT(MM_Former):
 
             return sim
 
-    def forward(self, data_loader, k_test=128):
+    def forward(self, data_loader, k_test=64):
         """
         Compute similarity i2t, t2i matrix for the given data loader.
         """
