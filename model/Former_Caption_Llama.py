@@ -117,7 +117,7 @@ class Former_Llama_Cap(Blip2Base):
         self.llm_proj = nn.Sequential(
             nn.Linear(self.Qformer.config.hidden_size, self.Qformer.config.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.llm_model.config.hidden_size, self.llm_model.config.hidden_size),
+            nn.Linear(self.Qformer.config.hidden_size, self.llm_model.config.hidden_size),
         )
 
         self.max_output_txt_len = max_output_txt_len
