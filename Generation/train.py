@@ -181,7 +181,7 @@ def main(args):
             #     misc.set_requires_grad_llm(model_without_ddp, True)
             train(model, train_loader, optimizer, epoch, device, args)
             ###
-            if epoch >= args.epochs - 8:
+            if epoch >= args.epochs - 5 or epoch <= args.warmup_epochs:
                 train(model, test_loader, optimizer, epoch, device, args)
 
             if utils.is_main_process():
