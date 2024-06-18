@@ -170,7 +170,7 @@ class ViT(nn.Module):
         x = self.pos_drop(x)
 
         for i, blk in enumerate(self.blocks):
-            x = blk(x, register_blk == i)
+            x = blk(x, 11 == i)
         x = self.norm(x)
 
         return x
