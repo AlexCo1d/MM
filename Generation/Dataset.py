@@ -92,7 +92,7 @@ def create_dataset(args):
     return train_dataset, test_dataset, ConcatDataset([train_dataset, test_dataset])
 
 
-def pre_caption(caption, max_words=60):
+def pre_caption(caption, max_words=256):
     caption = re.sub(
         r"([_,.'!?\"()*#:;~])",
         '',

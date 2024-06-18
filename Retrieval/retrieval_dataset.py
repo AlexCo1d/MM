@@ -5,6 +5,8 @@ import torchvision.transforms as transforms
 from PIL import Image
 from torch.utils.data import Dataset
 
+from Utils.pretrain_datasets import pre_caption
+
 
 class retrieval_dataset(Dataset):
     def __init__(self, data_path):
@@ -15,6 +17,7 @@ class retrieval_dataset(Dataset):
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
         self.data = pd.read_csv(os.path.join(data_path, 'df_200.csv'))
+
     def __len__(self):
         return len(self.data)
 
@@ -23,6 +26,7 @@ class retrieval_dataset(Dataset):
         img_path = os.path.join(self.data_path, sample['Path'])
         img = Image.open(img_path).convert('RGB')
         report = sample['report_content']
+        report = pre_caption(report, 256)
         item = {
             'image': self.transform(img),
             'text': report,
