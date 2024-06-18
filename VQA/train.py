@@ -124,7 +124,7 @@ def main(args):
     #### Creating Model ####
     print("Creating model")
     model = Former_Llama(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
-                         freeze_vit=True, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=False)
+                         freeze_vit=True, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=True)
     model = model.to(device)
     # print(model)
 
