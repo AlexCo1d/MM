@@ -130,8 +130,8 @@ def main(args):
 
     eff_batch_size = args.batch_size * misc.get_world_size()
 
-    optimizer = transformers.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.02, betas=(0.9, 0.98)) if not args.deep_speed else \
-        None
+    optimizer = transformers.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.02, betas=(0.9, 0.98)) \
+        if not args.deepspeed else None
 
     start_epoch = 0
 
