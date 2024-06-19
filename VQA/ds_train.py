@@ -35,14 +35,13 @@ def train(model, data_loader, optimizer, epoch, device, args):
     header = 'Train Epoch: [{}]'.format(epoch)
     print_freq = 10
     for i, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
-        lr_sched.adjust_learning_rate(optimizer, i / len(data_loader) + epoch, args)
+        # lr_sched.adjust_learning_rate(optimizer, i / len(data_loader) + epoch, args)
         loss = model(b, dataloader=data_loader)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        model.backward(loss)
+        model.step()
 
         metric_logger.update(loss=loss.item())
-        metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+        # metric_logger.update(lr=optimizer.param_groups[0]["lr"])
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
@@ -87,8 +86,8 @@ def evaluation(model, data_loader, device, args):
 
 
 def main(args):
-    if args.distributed:
-        utils.init_distributed_mode(args)
+    # if args.distributed:
+    #     utils.init_distributed_mode(args)
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
     # fix the seed for reproducibility
@@ -130,46 +129,29 @@ def main(args):
 
     eff_batch_size = args.batch_size * misc.get_world_size()
 
-    optimizer = transformers.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.02, betas=(0.9, 0.98)) \
-        if not args.deepspeed else None
+    optimizer = None
 
     start_epoch = 0
 
-    model_without_ddp = model
     if args.distributed:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
         if args.deepspeed:
             import deepspeed
-            model, optimizer, _, _ = deepspeed.initialize(args=args, model=model, optimizer=optimizer)
-
-        model_without_ddp = model.module
+            model, optimizer, _, _ = deepspeed.initialize(args=args, model=model, model_parameters=model.parameters())
 
     start_epoch = 0
     if args.checkpoint:
-        checkpoint = torch.load(args.checkpoint, map_location='cpu')
-
-        msg = model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
-        print('load checkpoint from %s' % args.checkpoint)
-        print(msg)
-        if 'optimizer' in checkpoint and args.load_optim:
-            optimizer.load_state_dict(checkpoint['optimizer'])
-        if 'epoch' in checkpoint:
-            start_epoch = checkpoint['epoch'] + 1
-        if args.start_epoch != -1:
-            start_epoch = args.start_epoch
-
+        model.load_checkpoint(args.checkpoint, load_module_only=True)
     start_time = time.time()
     if args.evaluate:
         print("\nStart evaluation\n")
-        if args.dataset_use != 'pmcvqa':
-            vqa_result = evaluation(model, test_loader, device, args)
-            json.dump(vqa_result,
-                      open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
-            acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
-            print(f'{args.dataset_use} acc: {acc}')
-        else:
-            evaluation_pmc(model, test_loader, device, args)
+        # if args.dataset_use != 'pmcvqa':
+        #     vqa_result = evaluation(model, test_loader, device, args)
+        #     json.dump(vqa_result,
+        #               open(os.path.join(args.result_dir, 'vqa_result_%s.json' % (args.dataset_use)), 'w'))
+        #     acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
+        #     print(f'{args.dataset_use} acc: {acc}')
+        # else:
+        #     evaluation_pmc(model, test_loader, device, args)
     else:
         print("\nStart training\n")
         for epoch in range(start_epoch, args.epochs):
@@ -183,28 +165,23 @@ def main(args):
             #     train(model, test_loader, optimizer, epoch, device, args)
 
             train(model, train_loader, optimizer, epoch, device, args)
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
             if utils.is_main_process() and args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 1 or epoch % 10 == 0):
-
-                save_obj = {
-                    'model': model_without_ddp.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'epoch': epoch,
-                }
-                prefix = args.checkpoint.split('/')[-1].split('.')[0]
-                # for evaluation and output the result
-
-                torch.save(save_obj,
-                           os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
-
-                if args.dataset_use != 'pmcvqa':
-                    vqa_result = evaluation(model, test_loader, device, args)
-                    json.dump(vqa_result,
-                              open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                    acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=epoch)
-                    print({'acc:': acc})
-                    json.dump({'acc:': acc},
-                              open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
+                #
+                # prefix = args.checkpoint.split('/')[-1].split('.')[0]
+                # # for evaluation and output the result
+                #
+                # torch.save(save_obj,
+                #            os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
+                model.save_checkpoint(args.output_dir)
+                # if args.dataset_use != 'pmcvqa':
+                #     vqa_result = evaluation(model, test_loader, device, args)
+                #     json.dump(vqa_result,
+                #               open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
+                #     acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=epoch)
+                #     print({'acc:': acc})
+                #     json.dump({'acc:': acc},
+                #               open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
                 #
                 # torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
