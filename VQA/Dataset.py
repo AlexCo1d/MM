@@ -205,13 +205,13 @@ class PMC_Dataset(VQA_Dataset):
                                    choice.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:', reflect[
                                        i]).replace(' D:', reflect[i]))
             text ='Question: ' + Question + ' Choices:' + Combined_choice + ' The Answer is:',
-            text = self.tokenizer(text, padding='longest', truncation=True, max_length=self.max_txt_length,
+            pre_text = self.tokenizer('Question: ' + Question, padding='longest', truncation=True, max_length=self.max_txt_length,
                                   return_tensors="pt")
             item = {
                 'question': Question,
                 'text_input': text,
-                'text_input_ids': text.input_ids,
-                'text_input_att': text.attention_mask,
+                'text_input_ids': pre_text.input_ids,
+                'text_input_att': pre_text.attention_mask,
                 'text_output': Answer,
                 'image': image,
                 'image_name': sample['Figure_path'],
