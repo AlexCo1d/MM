@@ -53,8 +53,8 @@ class Former_Llama(Blip2Base):
         from transformers import LlamaTokenizer
         from model.submodule.LLM.modeling_llama import LlamaForCausalLM
 
-        # self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
-        # self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
+        self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
+        self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
                                                                        use_grad_checkpoint, vit_precision,
