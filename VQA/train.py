@@ -140,9 +140,7 @@ def main(args):
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
         if args.deepspeed:
             import deepspeed
-            model, optimizer, _, _ = deepspeed.initialize(args=args, model=model,
-                                                          model_parameters=model.parameters(),
-                                                          optimizer=optimizer)
+            model, optimizer, _, _ = deepspeed.initialize(args=args, model=model,optimizer=optimizer)
 
         model_without_ddp = model.module
 
