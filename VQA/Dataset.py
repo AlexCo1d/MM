@@ -8,7 +8,7 @@ from torch.utils.data import Dataset, ConcatDataset
 from torchvision import transforms
 import json
 import PIL
-from transformers import BertTokenizer
+from transformers import BertTokenizer, LlamaTokenizer
 
 from Utils.randaugment import RandomAugment
 from PIL import Image
@@ -16,7 +16,7 @@ from PIL import Image
 
 class VQA_Dataset(Dataset):
     def __init__(self, data_path, transform, img_tokens=32, img_root='',
-                 seq_length=512, voc_size=32000, mode='train', answer_list_flag: bool = False):
+                 max_txt_length=512, voc_size=32000, mode='train', answer_list_flag: bool = False):
         if os.path.exists(os.path.join(data_path, f'{mode}.json')):
             with open(os.path.join(data_path, f'{mode}.json')) as f:
                 self.data = json.load(f)
@@ -24,6 +24,9 @@ class VQA_Dataset(Dataset):
         self.transform = transform
         self.data_path = data_path
         self.img_root = img_root
+        self.max_txt_length = max_txt_length
+        self.tokenizer = BertTokenizer.from_pretrained('../model/submodule/bert/bert-base-uncased')
+        self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
         if mode == 'test':
             try:
@@ -68,6 +71,8 @@ class VQA_Dataset(Dataset):
         image = self.transform(img)
 
         pre_text, final_o = self.random_answer(Question, Answer)
+        text = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=self.max_txt_length,
+                              return_tensors="pt")
         # final_o = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=50, return_tensors="pt")
         # input_ids = final_o.input_ids
         # attention_mask = final_o.attention_mask
@@ -82,6 +87,8 @@ class VQA_Dataset(Dataset):
             item = {
                 'text_input': pre_text,
                 'text_output': Answer,
+                'text_input_ids': text.input_ids,
+                'text_input_att': text.attention_mask,
                 'image': image,
                 'answer_type': at,
                 'image_name': sample['image_name']
@@ -91,6 +98,8 @@ class VQA_Dataset(Dataset):
             item = {
                 'text_input': pre_text,
                 'text_output': Answer,
+                'text_input_ids': text.input_ids,
+                'text_input_att': text.attention_mask,
                 'image': image,
                 'answer_type': at,
                 'image_name': sample['image_name']

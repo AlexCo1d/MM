@@ -294,7 +294,28 @@ class MM_Former(Blip2Base):
             self.text_proj(text_output.last_hidden_state[:, 0, :]), dim=-1
         )
 
+        if self.distill:
+            query_output_m = self.Qformer_m.bert(
+                query_embeds=query_tokens,
+                encoder_hidden_states=image_embeds,
+                encoder_attention_mask=image_atts,
+                use_cache=True,
+                return_dict=True,
+            )
+            image_feats_m = F.normalize(
+                self.vision_proj_m(query_output_m.last_hidden_state), dim=-1
+            )
+            text_output_m = self.Qformer_m.bert(
+                text_tokens.input_ids,
+                attention_mask=text_tokens.attention_mask,
+                return_dict=True,
+            )
+            text_feat_m = F.normalize(
+                self.text_proj_m(text_output_m.last_hidden_state[:, 0, :]), dim=-1
+            )
+
         ###============== GLobal Image-text Contrastive ===================###
+        loss_itc= get
         image_feats_all = concat_all_gather(
             image_feats
         )  # [batch_size*num_gpu, num_query_tokens, embed_dim]

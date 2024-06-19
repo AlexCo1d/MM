@@ -139,6 +139,9 @@ def main(args):
     if args.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
+        torch.backends.cudnn.enabled = True
+        torch.backends.cudnn.benchmark = True
+
         if args.deepspeed:
             import deepspeed
             model, optimizer, _, _ = deepspeed.initialize(args=args, model=model, optimizer=optimizer)
@@ -183,7 +186,7 @@ def main(args):
             #     train(model, test_loader, optimizer, epoch, device, args)
 
             train(model, train_loader, optimizer, epoch, device, args)
-            torch.cuda.empty_cache()
+
             if utils.is_main_process() and args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 1 or epoch % 10 == 0):
 
                 save_obj = {

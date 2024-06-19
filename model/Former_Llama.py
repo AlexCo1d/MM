@@ -53,8 +53,8 @@ class Former_Llama(Blip2Base):
         from transformers import LlamaTokenizer
         from model.submodule.LLM.modeling_llama import LlamaForCausalLM
 
-        self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
-        self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
+        # self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
+        # self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
                                                                        use_grad_checkpoint, vit_precision,
@@ -169,7 +169,7 @@ class Former_Llama(Blip2Base):
             return self.forward_gen_llm(samples)
 
     def forward_gen_llm(self, samples):
-        torch.cuda.empty_cache()
+        # torch.cuda.empty_cache()
         image = samples["image"].to(self.device)
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
@@ -179,16 +179,11 @@ class Former_Llama(Blip2Base):
         query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)
         if self.instruct:
             query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
-            text_Qformer = self.tokenizer(
-                samples["text_input"],
-                padding='longest',
-                truncation=True,
-                max_length=self.max_txt_len,
-                return_tensors="pt",
-            ).to(image.device)
-            Qformer_atts = torch.cat([query_atts, text_Qformer.attention_mask], dim=1)
+            text_Qformer_attention_mask=samples['text_input_attention_mask'].to(image.device)
+            text_Qformer_input_ids = samples['text_input_input_ids'].to(image.device)
+            Qformer_atts = torch.cat([query_atts, text_Qformer_attention_mask], dim=1)
             query_output = self.Qformer.bert(
-                text_Qformer.input_ids,
+                text_Qformer_input_ids,
                 attention_mask=Qformer_atts,
                 query_embeds=query_tokens,
                 encoder_hidden_states=image_embeds,
@@ -234,6 +229,8 @@ class Former_Llama(Blip2Base):
                 text_output_tokens.attention_mask,
             )
 
+            del text_input_tokens, text_output_tokens
+
             # do not apply loss to the padding
             targets = llm_tokens['input_ids'].masked_fill(
                 llm_tokens['input_ids'] == self.llm_tokenizer.pad_token_id, -100
@@ -252,7 +249,7 @@ class Former_Llama(Blip2Base):
             inputs_embeds = self.llm_model.get_input_embeddings()(llm_tokens['input_ids'])
             inputs_embeds = torch.cat([inputs_llm, inputs_embeds], dim=1)
             attention_mask = torch.cat([atts_llm, llm_tokens['attention_mask']], dim=1)
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
             outputs = self.llm_model(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
@@ -363,15 +360,11 @@ class Former_Llama(Blip2Base):
         # qformer_prompt = prompt
         # qformer_prompt = ['Question: ' + qp.split(' Question: ')[1] for qp in qformer_prompt]
 
-        text_Qformer = self.tokenizer(
-            samples["text_input"],
-            padding='longest',
-            truncation=True,
-            max_length=self.max_txt_len,
-            return_tensors="pt",
-        ).to(image.device)
+        text_Qformer_attention_mask = samples['text_input_attention_mask'].to(image.device)
+        text_Qformer_input_ids = samples['text_input_input_ids'].to(image.device)
+
         query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
-        Qformer_atts = torch.cat([query_atts, text_Qformer.attention_mask], dim=1)
+        Qformer_atts = torch.cat([query_atts, text_Qformer_attention_mask], dim=1)
 
         image = image.half()
         with self.maybe_autocast():
@@ -379,22 +372,22 @@ class Former_Llama(Blip2Base):
         image_embeds = image_embeds.float()
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
 
-
-        query_output = self.Qformer.bert(
-            text_Qformer.input_ids,
-            attention_mask=Qformer_atts,
-            query_embeds=query_tokens,
-            encoder_hidden_states=image_embeds,
-            encoder_attention_mask=image_atts,
-            return_dict=True,
-        )
-        # else:
-        #     query_output = self.Qformer.bert(
-        #         query_embeds=query_tokens,
-        #         encoder_hidden_states=image_embeds,
-        #         encoder_attention_mask=image_atts,
-        #         return_dict=True,
-        #     )
+        if self.instruct:
+            query_output = self.Qformer.bert(
+                text_Qformer_input_ids,
+                attention_mask=Qformer_atts,
+                query_embeds=query_tokens,
+                encoder_hidden_states=image_embeds,
+                encoder_attention_mask=image_atts,
+                return_dict=True,
+            )
+        else:
+            query_output = self.Qformer.bert(
+                query_embeds=query_tokens,
+                encoder_hidden_states=image_embeds,
+                encoder_attention_mask=image_atts,
+                return_dict=True,
+            )
 
         inputs_llm = self.llm_proj(query_output.last_hidden_state[:, :query_tokens.size(1), :])
         atts_llm = torch.ones(inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
