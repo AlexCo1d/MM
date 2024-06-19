@@ -1,6 +1,7 @@
 import datetime
 import logging
 import time
+from copy import deepcopy
 
 import numpy as np
 import torch
@@ -31,8 +32,7 @@ class MM_Former(Blip2Base):
                  vit_path='',
                  vit_type='eva_vit',
                  tokenizer_config='./model/submodule/bert/bert-base-uncased',
-                 decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
-                 mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), norm_pix_loss=True, mv=False,
+                 distill=False, queue_size=65536, mv=False,
                  freeze_vit=True,
                  local_contrastive_loss=False,
                  c_embed_dim=256, num_query_token=32, cross_attention_freq=2, **kwargs):
@@ -55,7 +55,7 @@ class MM_Former(Blip2Base):
             self.text_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
 
         self.mv = mv
-
+        self.distill = distill
         # Qformer part
         self.Qformer, self.query_tokens = self.init_Qformer(
             num_query_token, self.visual_encoder.num_features, cross_attention_freq, tokenizer_config=tokenizer_config
@@ -75,7 +75,26 @@ class MM_Former(Blip2Base):
 
         self.temp = nn.Parameter(0.07 * torch.ones([]))
         self.temp1 = nn.Parameter(0.07 * torch.ones([]))
-        self.max_txt_len = 50
+        self.max_txt_len = 256
+
+        if self.distill:
+            self.vision_proj_m = deepcopy(self.vision_proj)
+            self.text_proj_m = deepcopy(self.text_proj)
+            self.Qformer_m = deepcopy(self.Qformer)
+            self.model_pairs = [[self.Qformer, self.Qformer_m],
+                                [self.vision_proj, self.vision_proj_m],
+                                [self.text_proj, self.text_proj_m]]
+
+            self.register_buffer("image_queue", torch.randn(embed_dim, queue_size))
+            self.register_buffer("text_queue", torch.randn(embed_dim, queue_size))
+            self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
+
+            self.image_queue = nn.functional.normalize(self.image_queue, dim=0)
+            self.text_queue = nn.functional.normalize(self.text_queue, dim=0)
+
+            self.copy_params()
+            self.alpha = 0.5
+            self.momentum = 0.995
 
     def forward_local_contrastive_loss(self, img_features, ids, words_emb):
         """
@@ -683,6 +702,43 @@ class MM_Former(Blip2Base):
             text_embeds_proj=text_features,
             multimodal_embeds=multimodal_embeds,
         )
+
+    @torch.no_grad()
+    def copy_params(self):
+        for model_pair in self.model_pairs:
+            for param, param_m in zip(model_pair[0].parameters(), model_pair[1].parameters()):
+                param_m.data.copy_(param.data)  # initialize
+                param_m.requires_grad = False  # not update by gradient
+
+    @torch.no_grad()
+    def _momentum_update(self):
+        for model_pair in self.model_pairs:
+            for param, param_m in zip(model_pair[0].parameters(), model_pair[1].parameters()):
+                param_m.data = param_m.data * self.momentum + param.data * (1. - self.momentum)
+
+    @torch.no_grad()
+    def _dequeue_and_enqueue(self, image_feat, text_feat):
+        # gather keys before updating queue
+        if dist.is_available() and dist.is_initialized():
+            image_feats = concat_all_gather(image_feat)
+            text_feats = concat_all_gather(text_feat)
+        else:
+            image_feats = image_feat
+            text_feats = text_feat
+        # image_feats = concat_all_gather(image_feat)
+        # text_feats = concat_all_gather(text_feat)
+
+        batch_size = image_feats.shape[0]
+
+        ptr = int(self.queue_ptr)
+        assert self.queue_size % batch_size == 0  # for simplicity
+
+        # replace the keys at ptr (dequeue and enqueue)
+        self.image_queue[:, ptr:ptr + batch_size] = image_feats.T
+        self.text_queue[:, ptr:ptr + batch_size] = text_feats.T
+        ptr = (ptr + batch_size) % self.queue_size  # move pointer
+
+        self.queue_ptr[0] = ptr
 
     @classmethod
     def from_config(cls, cfg):

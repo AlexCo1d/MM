@@ -199,13 +199,14 @@ def main(args):
 
                 torch.save(save_obj,
                            os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
-                vqa_result = evaluation(model, test_loader, device, args)
-                json.dump(vqa_result,
-                          open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=epoch)
-                print({'acc:': acc})
-                json.dump({'acc:': acc},
-                          open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
+                if args.dataset_use != 'pmcvqa':
+                    vqa_result = evaluation(model, test_loader, device, args)
+                    json.dump(vqa_result,
+                              open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
+                    acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=epoch)
+                    print({'acc:': acc})
+                    json.dump({'acc:': acc},
+                              open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
 
                 torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
