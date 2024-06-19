@@ -139,8 +139,6 @@ def main(args):
     if args.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
-        torch.backends.cudnn.enabled = True
-        torch.backends.cudnn.benchmark = True
 
         if args.deepspeed:
             import deepspeed
