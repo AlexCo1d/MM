@@ -123,8 +123,8 @@ def main(args):
 
     #### Creating Model ####
     print("Creating model")
-    model = Former_Llama(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
-                         freeze_vit=True, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=False)
+    model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
+                         freeze_vit=args.freeze_vit, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=True)
     model = model.to(device)
     # print(model)
 
@@ -137,7 +137,7 @@ def main(args):
     model_without_ddp = model
     if args.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters = True)
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
         if args.deepspeed:
             import deepspeed
             model, optimizer, _, _ = deepspeed.initialize(args=args, model=model, config=args.deepspeed_config,
@@ -181,11 +181,10 @@ def main(args):
             utils.cosine_lr_schedule(optimizer, epoch, args.epochs, args.lr, args.min_lr)
 
             #####
-            if epoch >= args.epochs - 8:
-                train(model, test_loader, optimizer, epoch, device, args)
-            ####
-            else:
-                train(model, train_loader, optimizer, epoch, device, args)
+            # if epoch >= args.epochs - 8:
+            #     train(model, test_loader, optimizer, epoch, device, args)
+
+            train(model, train_loader, optimizer, epoch, device, args)
 
             if utils.is_main_process():
 
@@ -198,13 +197,14 @@ def main(args):
                 # for evaluation and output the result
                 if args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 5):
                     torch.cuda.empty_cache()
-                    torch.save(save_obj, os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
+                    torch.save(save_obj,
+                               os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
                     vqa_result = evaluation(model, test_loader, device, args)
                     json.dump(vqa_result,
                               open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
                     acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=epoch)
-                    print({'acc:':acc})
-                    json.dump({'acc:':acc},
+                    print({'acc:': acc})
+                    json.dump({'acc:': acc},
                               open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
                 torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
@@ -223,13 +223,19 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint', default='')
     parser.add_argument('--load_optim', action='store_true')
     parser.set_defaults(load_optim=False)
-    parser.add_argument('--vit_path', default='',
-                        help='path for loading pretrained ViT model')
+
+
     parser.add_argument('--LLM_path', default='', type=str, help='path for loading pretrained LLM model')
-    parser.add_argument('--classifier_vqa', action='store_true')
-    parser.set_defaults(classifier_vqa=False)
     parser.add_argument('--is_lora', action='store_true')
     parser.set_defaults(is_lora=False)
+    parser.add_argument('--classifier_vqa', action='store_true')
+    parser.set_defaults(classifier_vqa=False)
+
+    parser.add_argument('--vit_path', default='',
+                        help='path for loading pretrained ViT model')
+    parser.add_argument('--img_size', default=224, type=int)
+    parser.add_argument('--freeze_vit', action='store_true')
+    parser.set_defaults(freeze_vit=False)
 
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--eval_batch_size', default=5, type=int)

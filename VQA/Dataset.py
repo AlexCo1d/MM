@@ -209,7 +209,7 @@ class PMC_Dataset(VQA_Dataset):
 def create_dataset(args):
     dataset, data_path = args.dataset_use, args.dataset_path
     normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-    img_size = 224
+    img_size = args.img_size
     train_transform = transforms.Compose([
         transforms.RandomResizedCrop(img_size, scale=(0.6, 1.0), interpolation=Image.BICUBIC),
         RandomAugment(2, 7, isPIL=True, augs=['Identity', 'AutoContrast', 'Equalize', 'Brightness', 'Sharpness',
