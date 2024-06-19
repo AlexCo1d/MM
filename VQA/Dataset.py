@@ -178,7 +178,6 @@ class PMC_Dataset(VQA_Dataset):
                 'text_input_ids': text.input_ids,
                 'text_input_att': text.attention_mask,
                 'image': image,
-                'image_name': sample['image_name']
             }
             return item
         if self.mode == 'test':
