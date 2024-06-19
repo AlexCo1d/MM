@@ -194,7 +194,7 @@ class Former_Llama(Blip2Base):
                 encoder_hidden_states=image_embeds,
                 encoder_attention_mask=image_atts,
                 return_dict=True,
-            ).to(image.device)
+            )
             inputs_llm = self.llm_proj(query_output.last_hidden_state[:, :query_tokens.size(1), :])
         else:
             query_output = self.Qformer.bert(
