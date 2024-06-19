@@ -186,7 +186,7 @@ def main(args):
 
             train(model, train_loader, optimizer, epoch, device, args)
             torch.cuda.empty_cache()
-            if utils.is_main_process() and args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 5):
+            if utils.is_main_process() and args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 1 or epoch % 10 == 0):
 
                 save_obj = {
                     'model': model_without_ddp.state_dict(),
