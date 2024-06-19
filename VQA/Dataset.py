@@ -71,8 +71,6 @@ class VQA_Dataset(Dataset):
         image = self.transform(img)
 
         pre_text, final_o = self.random_answer(Question, Answer)
-        text = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=self.max_txt_length,
-                              return_tensors="pt")
         # final_o = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=50, return_tensors="pt")
         # input_ids = final_o.input_ids
         # attention_mask = final_o.attention_mask
@@ -87,8 +85,6 @@ class VQA_Dataset(Dataset):
             item = {
                 'text_input': pre_text,
                 'text_output': Answer,
-                'text_input_ids': text.input_ids,
-                'text_input_att': text.attention_mask,
                 'image': image,
                 'answer_type': at,
                 'image_name': sample['image_name']
@@ -98,8 +94,6 @@ class VQA_Dataset(Dataset):
             item = {
                 'text_input': pre_text,
                 'text_output': Answer,
-                'text_input_ids': text.input_ids,
-                'text_input_att': text.attention_mask,
                 'image': image,
                 'answer_type': at,
                 'image_name': sample['image_name']
@@ -169,14 +163,10 @@ class PMC_Dataset(VQA_Dataset):
         # Question_id = np.array(self.tokenizer(Question)['input_ids'])
         if self.mode == 'train':
             pre_text, final_o = self.random_answer(Question, Answer)
-            text = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=self.max_txt_length,
-                                  return_tensors="pt")
 
             item = {
                 'text_input': pre_text,
                 'text_output': Answer,
-                'text_input_ids': text.input_ids,
-                'text_input_att': text.attention_mask,
                 'image': image,
             }
             return item
@@ -204,13 +194,9 @@ class PMC_Dataset(VQA_Dataset):
                                    choice.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:', reflect[
                                        i]).replace(' D:', reflect[i]))
             text ='Question: ' + Question + ' Choices:' + Combined_choice + ' The Answer is:',
-            pre_text = self.tokenizer('Question: ' + Question, padding='longest', truncation=True, max_length=self.max_txt_length,
-                                  return_tensors="pt")
             item = {
                 'question': Question,
                 'text_input': text,
-                'text_input_ids': pre_text.input_ids,
-                'text_input_att': pre_text.attention_mask,
                 'text_output': Answer,
                 'image': image,
                 'image_name': sample['Figure_path'],

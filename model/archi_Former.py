@@ -96,6 +96,13 @@ class MM_Former(Blip2Base):
             self.alpha = 0.5
             self.momentum = 0.995
 
+
+    def forward_global_contrastive_loss(self, image_feats, text_feat, image_feats_m, text_feat_m):
+        image_feats_all = concat_all_gather(
+            image_feats
+        )
+
+
     def forward_local_contrastive_loss(self, img_features, ids, words_emb):
         """
         :param ids: caption_ids from tokenizer
@@ -315,7 +322,7 @@ class MM_Former(Blip2Base):
             )
 
         ###============== GLobal Image-text Contrastive ===================###
-        loss_itc= get
+        loss_itc= self.forward_global_contrastive_loss(image_feats, text_feat, image_feats_m, text_feat_m)
         image_feats_all = concat_all_gather(
             image_feats
         )  # [batch_size*num_gpu, num_query_tokens, embed_dim]
