@@ -237,7 +237,7 @@ class Former_Llama(Blip2Base):
             # do not apply loss to the padding
             targets = llm_tokens['input_ids'].masked_fill(
                 llm_tokens['input_ids'] == self.llm_tokenizer.pad_token_id, -100
-            ).to(image.device)
+            )
 
             # do not apply loss to the text input (i.e., instruction)
             for i, l in enumerate(input_part_targets_len):
