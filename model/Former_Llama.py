@@ -121,6 +121,7 @@ class Former_Llama(Blip2Base):
             else:
                 for name, param in self.llm_model.named_parameters():
                     param.requires_grad = False
+                self.llm_model = self.llm_model.eval()
 
             # self.llm_proj = nn.Linear(
             #     self.Qformer.config.hidden_size, self.llm_model.config.hidden_size
@@ -207,6 +208,8 @@ class Former_Llama(Blip2Base):
 
         atts_llm = torch.ones(inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
 
+        del image_embeds, image_atts  # 清理不再使用的变量
+
         with self.maybe_autocast():
             self.llm_tokenizer.padding_side = "right"
             self.llm_tokenizer.truncation_side = 'left'
@@ -254,6 +257,8 @@ class Former_Llama(Blip2Base):
             inputs_embeds = self.llm_model.get_input_embeddings()(llm_tokens['input_ids'])
             inputs_embeds = torch.cat([inputs_llm, inputs_embeds], dim=1)
             attention_mask = torch.cat([atts_llm, llm_tokens['attention_mask']], dim=1)
+            del llm_tokens, atts_llm, inputs_llm  # 清理不再使用的变量
+
             torch.cuda.empty_cache()
             outputs = self.llm_model(
                 inputs_embeds=inputs_embeds,
