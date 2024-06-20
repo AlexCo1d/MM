@@ -31,11 +31,8 @@ class Blip2Base(nn.Module):
         encoder_config.add_cross_attention = True
         encoder_config.cross_attention_freq = cross_attention_freq
         encoder_config.query_length = num_query_token
-        Qformer = QFormer.BertLMHeadModel(config=encoder_config)
-        if checkpoint:
-            print('load Qformer from checkpoint!')
-            incompatible_keys=Qformer.load_state_dict(torch.load(os.path.join(tokenizer_config, 'pytorch_model.bin')), strict=False)
-            print(incompatible_keys)
+        Qformer = QFormer.BertLMHeadModel.from_pretrained(tokenizer_config, config=encoder_config)
+
 
 
         query_tokens = nn.Parameter(
