@@ -61,7 +61,8 @@ class MM_Former(Blip2Base):
         self.distill = distill
         # Qformer part
         self.Qformer, self.query_tokens = self.init_Qformer(
-            num_query_token, self.visual_encoder.num_features, cross_attention_freq, tokenizer_config=tokenizer_config, checkpoint=checkpoint
+            num_query_token, self.visual_encoder.num_features, cross_attention_freq, tokenizer_config=tokenizer_config,
+            checkpoint=checkpoint
         )
 
         self.Qformer.resize_token_embeddings(len(self.tokenizer))
@@ -318,13 +319,16 @@ class MM_Former(Blip2Base):
             )
 
         ###============== GLobal Image-text Contrastive ===================###
-        if self.distill:
             with torch.no_grad():
                 self._momentum_update()
-                image_feats_all = torch.cat([image_feats_m.permute(2,1,0), self.image_queue.clone().detach()], dim=2)  # [c_embed_dim, num_query, queue_size+bs]
-                text_feat_all = torch.cat([text_feat_m.t(), self.text_queue.clone().detach()], dim=1)   # [c_embed_dim, queue_size+bs]
-                sim_i2t_m = torch.einsum('b q d, d z -> b z q', image_feats_m, text_feat_all).max(-1)[0] / self.temp   # [bs, queue_size+bs]
-                sim_t2i_m = torch.einsum('b d, d q z -> b z q',text_feat_m, image_feats_all).max(-1)[0] / self.temp   # [bs, queue_size+bs]
+                image_feats_all = torch.cat([image_feats_m.permute(2, 1, 0), self.image_queue.clone().detach()],
+                                            dim=2)  # [c_embed_dim, num_query, queue_size+bs]
+                text_feat_all = torch.cat([text_feat_m.t(), self.text_queue.clone().detach()],
+                                          dim=1)  # [c_embed_dim, queue_size+bs]
+                sim_i2t_m = torch.einsum('b q d, d z -> b z q', image_feats_m, text_feat_all).max(-1)[
+                                0] / self.temp  # [bs, queue_size+bs]
+                sim_t2i_m = torch.einsum('b d, d q z -> b z q', text_feat_m, image_feats_all).max(-1)[
+                                0] / self.temp  # [bs, queue_size+bs]
 
                 sim_targets = torch.zeros(sim_i2t_m.size()).to(image.device)
                 sim_targets.fill_diagonal_(1)
@@ -332,7 +336,7 @@ class MM_Former(Blip2Base):
                 sim_i2t_targets = self.alpha * F.softmax(sim_i2t_m, dim=1) + (1 - self.alpha) * sim_targets
                 sim_t2i_targets = self.alpha * F.softmax(sim_t2i_m, dim=1) + (1 - self.alpha) * sim_targets
 
-            sim_i2t= torch.einsum('b q d, d z -> b z q', image_feats, text_feat_all).max(-1)[0] / self.temp
+            sim_i2t = torch.einsum('b q d, d z -> b z q', image_feats, text_feat_all).max(-1)[0] / self.temp
             sim_t2i = torch.einsum('b d, d q z -> b z q', text_feat, image_feats_all).max(-1)[0] / self.temp
 
             loss_i2t = -torch.sum(
@@ -424,9 +428,9 @@ class MM_Former(Blip2Base):
             targets_mv = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(image.device)
 
             inter_view_loss = (
-                               F.cross_entropy(sim_i1_i2, targets_mv, label_smoothing=0.1)
-                               + F.cross_entropy(sim_i2_i1, targets_mv, label_smoothing=0.1)
-                       ) / 2
+                                      F.cross_entropy(sim_i1_i2, targets_mv, label_smoothing=0.1)
+                                      + F.cross_entropy(sim_i2_i1, targets_mv, label_smoothing=0.1)
+                              ) / 2
             loss.append(inter_view_loss)
 
         ###============== Image-text Matching ===================###
@@ -502,7 +506,7 @@ class MM_Former(Blip2Base):
             dim=0,
         ).to(image.device)
         loss_itm = F.cross_entropy(logits, itm_labels)
-
+        loss.append(loss_itm)
         ##================= Image Captioning ========================##
         decoder_input_ids = text_tokens.input_ids.clone()
         decoder_input_ids[:, 0] = self.tokenizer.bos_token_id
@@ -514,21 +518,42 @@ class MM_Former(Blip2Base):
             image.device
         )
         attention_mask = torch.cat([query_atts, text_tokens.attention_mask], dim=1)
-        lm_output = self.Qformer(
-            decoder_input_ids,
-            attention_mask=attention_mask,
-            past_key_values=query_output.past_key_values,
-            return_dict=True,
-            labels=labels,
-        )
 
-        loss_mlm = lm_output.loss
+        if self.distill:
+            with torch.no_grad():
+                logits_m = self.Qformer_m(decoder_input_ids,
+                                          attention_mask=attention_mask,
+                                          encoder_hidden_states=query_output_m.past_key_values,
+                                          encoder_attention_mask=image_atts,
+                                          return_dict=True,
+                                          return_logits=True,
+                                          )
+            mlm_output = self.Qformer(
+                decoder_input_ids,
+                attention_mask=attention_mask,
+                past_key_values=query_output.past_key_values,
+                return_dict=True,
+                labels=labels,
+                soft_labels=F.softmax(logits_m, dim=-1),
+                alpha=self.alpha
+            )
+        else:
+            mlm_output = self.Qformer(
+                decoder_input_ids,
+                attention_mask=attention_mask,
+                past_key_values=query_output.past_key_values,
+                return_dict=True,
+                labels=labels,
+            )
+
+        loss_mlm = mlm_output.loss
+        loss.append(loss_mlm)
+
         ###============== Local Image-text Contrastive ===================###
         if self.local_contrastive_loss:
             loss_local = self.forward_local_contrastive_loss(image_embeds, text_tokens.input_ids, text_output)
             loss.append(loss_local)
-        loss.append(loss_itm)
-        loss.append(loss_mlm)
+
         return loss
 
     @torch.no_grad()
