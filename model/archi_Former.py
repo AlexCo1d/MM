@@ -35,7 +35,7 @@ class MM_Former(Blip2Base):
                  distill=False, queue_size=65536, mv=False,
                  freeze_vit=True,
                  local_contrastive_loss=False,
-                 c_embed_dim=256, num_query_token=32, cross_attention_freq=2, checkpoint=False, **kwargs):
+                 c_embed_dim=256, num_query_token=32, cross_attention_freq=2, checkpoint=True, **kwargs):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})

@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import os.path
 
 import torch
 from torch import nn
@@ -23,14 +24,19 @@ class Blip2Base(nn.Module):
 
     @classmethod
     def init_Qformer(cls, num_query_token, vision_width, cross_attention_freq=2,
-                     tokenizer_config='./model/submodule/bert/bert-base-uncased', checkpoint=False):
+                     tokenizer_config='./model/submodule/bert/bert-base-uncased', checkpoint=True):
         encoder_config = QFormer.BertConfig.from_pretrained(tokenizer_config)
         encoder_config.encoder_width = vision_width
         # insert cross-attention layer every other block
         encoder_config.add_cross_attention = True
         encoder_config.cross_attention_freq = cross_attention_freq
         encoder_config.query_length = num_query_token
-        Qformer = QFormer.BertLMHeadModel(config=encoder_config) if checkpoint else QFormer.BertLMHeadModel.from_pretrained(tokenizer_config)
+        Qformer = QFormer.BertLMHeadModel(config=encoder_config)
+        if checkpoint:
+            print('load Qformer from checkpoint!')
+            incompatible_keys=Qformer.load_state_dict(torch.load(os.path.join(tokenizer_config, 'pytorch_model.bin')), strict=False)
+            print(incompatible_keys)
+
 
         query_tokens = nn.Parameter(
             torch.zeros(1, num_query_token, encoder_config.hidden_size)
