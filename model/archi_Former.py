@@ -78,7 +78,7 @@ class MM_Former(Blip2Base):
 
         self.temp = nn.Parameter(0.07 * torch.ones([]))
         self.temp1 = nn.Parameter(0.07 * torch.ones([]))
-        self.max_txt_len = 100
+        self.max_txt_len = 80
 
         if self.distill:
             self.vision_proj_m = deepcopy(self.vision_proj)
