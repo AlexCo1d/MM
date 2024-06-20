@@ -185,7 +185,7 @@ def main(args):
 
             train(model, train_loader, optimizer, epoch, device, args)
 
-            if utils.is_main_process() and args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 1 or epoch % 10 == 0):
+            if utils.is_main_process() and args.output_dir:
 
                 save_obj = {
                     'model': model_without_ddp.state_dict(),
@@ -194,20 +194,21 @@ def main(args):
                 }
                 prefix = args.checkpoint.split('/')[-1].split('.')[0]
                 # for evaluation and output the result
+                if epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 1 or epoch % 10 == 0):
+                    torch.save(save_obj,
+                               os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
 
-                torch.save(save_obj,
-                           os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
+                    if args.dataset_use != 'pmcvqa':
+                        vqa_result = evaluation(model, test_loader, device, args)
+                        json.dump(vqa_result,
+                                  open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
+                        acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=epoch)
+                        print({'acc:': acc})
+                        json.dump({'acc:': acc},
+                                  open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
+                else:
 
-                if args.dataset_use != 'pmcvqa':
-                    vqa_result = evaluation(model, test_loader, device, args)
-                    json.dump(vqa_result,
-                              open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                    acc = compute_vqa_acc(vqa_result, args=args, dataloader=test_loader, epoch=epoch)
-                    print({'acc:': acc})
-                    json.dump({'acc:': acc},
-                              open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
-                #
-                # torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
+                    torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
             if args.distributed:
                 dist.barrier()
