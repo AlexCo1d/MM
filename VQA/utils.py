@@ -174,8 +174,8 @@ class MetricLogger(object):
             '[{0' + space_fmt + '}/{1}]',
             'eta: {eta}',
             '{meters}',
-            'time: {time}',
-            'data: {data}'
+            'total_time: {time}',
+            'data_time: {data}'
         ]
         if torch.cuda.is_available():
             log_msg.append('max mem: {memory:.0f}')

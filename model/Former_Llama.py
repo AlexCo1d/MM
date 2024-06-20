@@ -195,6 +195,7 @@ class Former_Llama(Blip2Base):
                 return_dict=True,
             )
             inputs_llm = self.llm_proj(query_output.last_hidden_state[:, :query_tokens.size(1), :])
+            del text_Qformer, Qformer_atts
         else:
             query_output = self.Qformer.bert(
                 query_embeds=query_tokens,
