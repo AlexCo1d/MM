@@ -22,23 +22,23 @@ class Blip2Base(nn.Module):
             return contextlib.nullcontext()
 
     @classmethod
-    def init_Qformer(cls, num_query_token, vision_width, cross_attention_freq=2, tokenizer_config='./model/submodule/bert/bert-base-uncased', query_required=True):
+    def init_Qformer(cls, num_query_token, vision_width, cross_attention_freq=2,
+                     tokenizer_config='./model/submodule/bert/bert-base-uncased', checkpoint=False):
         encoder_config = QFormer.BertConfig.from_pretrained(tokenizer_config)
         encoder_config.encoder_width = vision_width
         # insert cross-attention layer every other block
         encoder_config.add_cross_attention = True
         encoder_config.cross_attention_freq = cross_attention_freq
         encoder_config.query_length = num_query_token
-        Qformer = QFormer.BertLMHeadModel(config=encoder_config)
-        if query_required:
-            query_tokens = nn.Parameter(
-                torch.zeros(1, num_query_token, encoder_config.hidden_size)
-            )
-            query_tokens.data.normal_(mean=0.0, std=encoder_config.initializer_range)
+        Qformer = QFormer.BertLMHeadModel(config=encoder_config) if not checkpoint else QFormer.BertLMHeadModel.from_pretrained(tokenizer_config)
 
-            return Qformer, query_tokens
-        else:
-            return Qformer
+        query_tokens = nn.Parameter(
+            torch.zeros(1, num_query_token, encoder_config.hidden_size)
+        )
+        query_tokens.data.normal_(mean=0.0, std=encoder_config.initializer_range)
+
+        return Qformer, query_tokens
+
 
     def init_vision_encoder(self, vit_path, img_size, drop_path_rate, use_grad_checkpoint, precision, encoder='eva_vit'):
         if encoder!='eva_vit':

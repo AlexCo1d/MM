@@ -35,12 +35,14 @@ class MM_Former(Blip2Base):
                  distill=False, queue_size=65536, mv=False,
                  freeze_vit=True,
                  local_contrastive_loss=False,
-                 c_embed_dim=256, num_query_token=32, cross_attention_freq=2, **kwargs):
+                 c_embed_dim=256, num_query_token=32, cross_attention_freq=2, checkpoint=False, **kwargs):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
         # VIT encoder part
-        self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate, use_grad_checkpoint, vit_precision, encoder=vit_type)
+        self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
+                                                                       use_grad_checkpoint, vit_precision,
+                                                                       encoder=vit_type)
         if freeze_vit:
             for name, param in self.visual_encoder.named_parameters():
                 param.requires_grad = False
@@ -51,14 +53,15 @@ class MM_Former(Blip2Base):
         # Loss options
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
-            self.vision_local_embedding = local_conloss.LocalEmbedding(self.visual_encoder.num_features, 2048, embed_dim)
+            self.vision_local_embedding = local_conloss.LocalEmbedding(self.visual_encoder.num_features, 2048,
+                                                                       embed_dim)
             self.text_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
 
         self.mv = mv
         self.distill = distill
         # Qformer part
         self.Qformer, self.query_tokens = self.init_Qformer(
-            num_query_token, self.visual_encoder.num_features, cross_attention_freq, tokenizer_config=tokenizer_config
+            num_query_token, self.visual_encoder.num_features, cross_attention_freq, tokenizer_config=tokenizer_config, checkpoint=checkpoint
         )
 
         self.Qformer.resize_token_embeddings(len(self.tokenizer))
@@ -85,8 +88,8 @@ class MM_Former(Blip2Base):
                                 [self.vision_proj, self.vision_proj_m],
                                 [self.text_proj, self.text_proj_m]]
 
-            self.register_buffer("image_queue", torch.randn(embed_dim, queue_size))
-            self.register_buffer("text_queue", torch.randn(embed_dim, queue_size))
+            self.register_buffer("image_queue", torch.randn(c_embed_dim, num_query_token, queue_size))
+            self.register_buffer("text_queue", torch.randn(c_embed_dim, queue_size))
             self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
 
             self.image_queue = nn.functional.normalize(self.image_queue, dim=0)
@@ -95,13 +98,6 @@ class MM_Former(Blip2Base):
             self.copy_params()
             self.alpha = 0.5
             self.momentum = 0.995
-
-
-    def forward_global_contrastive_loss(self, image_feats, text_feat, image_feats_m, text_feat_m):
-        image_feats_all = concat_all_gather(
-            image_feats
-        )
-
 
     def forward_local_contrastive_loss(self, img_features, ids, words_emb):
         """
@@ -322,42 +318,70 @@ class MM_Former(Blip2Base):
             )
 
         ###============== GLobal Image-text Contrastive ===================###
-        loss_itc= self.forward_global_contrastive_loss(image_feats, text_feat, image_feats_m, text_feat_m)
-        image_feats_all = concat_all_gather(
-            image_feats
-        )  # [batch_size*num_gpu, num_query_tokens, embed_dim]
-        text_feat_all = concat_all_gather(text_feat)  # [batch_size*num_gpu, embed_dim]
+        if self.distill:
+            with torch.no_grad():
+                self._momentum_update()
+                image_feats_all = torch.cat([image_feats_m.permute(2,1,0), self.image_queue.clone().detach()], dim=2)  # [c_embed_dim, num_query, queue_size+bs]
+                text_feat_all = torch.cat([text_feat_m.t(), self.text_queue.clone().detach()], dim=1)   # [c_embed_dim, queue_size+bs]
+                sim_i2t_m = torch.einsum('b q d, d z -> b z q', image_feats_m, text_feat_all).max(-1)[0] / self.temp   # [bs, queue_size+bs]
+                sim_t2i_m = torch.einsum('b d, d q z -> b z q',text_feat_m, image_feats_all).max(-1)[0] / self.temp   # [bs, queue_size+bs]
 
-        sim_q2t = torch.matmul(
-            image_feats.unsqueeze(1), text_feat_all.unsqueeze(-1)
-        ).squeeze()
-        # [batch_size, batch_size*num_gpu, num_query_tokens]
+                sim_targets = torch.zeros(sim_i2t_m.size()).to(image.device)
+                sim_targets.fill_diagonal_(1)
 
-        # image-text similarity: aggregate across all query tokens
-        sim_i2t, _ = sim_q2t.max(-1)
-        sim_i2t = sim_i2t / self.temp
+                sim_i2t_targets = self.alpha * F.softmax(sim_i2t_m, dim=1) + (1 - self.alpha) * sim_targets
+                sim_t2i_targets = self.alpha * F.softmax(sim_t2i_m, dim=1) + (1 - self.alpha) * sim_targets
 
-        # text-query similarity: [batch_size, batch_size*num_gpu, num_query_tokens]
-        sim_t2q = torch.matmul(
-            text_feat.unsqueeze(1).unsqueeze(1), image_feats_all.permute(0, 2, 1)
-        ).squeeze()
+            sim_i2t= torch.einsum('b q d, d z -> b z q', image_feats, text_feat_all).max(-1)[0] / self.temp
+            sim_t2i = torch.einsum('b d, d q z -> b z q', text_feat, image_feats_all).max(-1)[0] / self.temp
 
-        # text-image similarity: aggregate across all query tokens
-        sim_t2i, _ = sim_t2q.max(-1)
-        sim_t2i = sim_t2i / self.temp  # [batch_size, batch_size*num_gpu]
+            loss_i2t = -torch.sum(
+                F.log_softmax(sim_i2t, dim=1) * sim_i2t_targets, dim=1
+            ).mean()
+            loss_t2i = -torch.sum(
+                F.log_softmax(sim_t2i, dim=1) * sim_t2i_targets, dim=1
+            ).mean()
 
-        rank = dist.get_rank()
-        # rank=0
-        bs = image.size(0)
+            loss_itc = (loss_i2t + loss_t2i) / 2
+            loss.append(loss_itc)
+            self._dequeue_and_enqueue(image_feats_m, text_feat_m)
+        else:
+            image_feats_all = concat_all_gather(
+                image_feats
+            )  # [batch_size*num_gpu, num_query_tokens, embed_dim]
+            text_feat_all = concat_all_gather(text_feat)  # [batch_size*num_gpu, embed_dim]
 
-        targets = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(
-            image.device
-        )
+            sim_q2t = torch.matmul(
+                image_feats.unsqueeze(1), text_feat_all.unsqueeze(-1)
+            ).squeeze()
+            # [batch_size, batch_size*num_gpu, num_query_tokens]
 
-        loss_itc = (
-                           F.cross_entropy(sim_i2t, targets, label_smoothing=0.1)
-                           + F.cross_entropy(sim_t2i, targets, label_smoothing=0.1)
-                   ) / 2
+            # image-text similarity: aggregate across all query tokens
+            sim_i2t, _ = sim_q2t.max(-1)
+            sim_i2t = sim_i2t / self.temp
+
+            # text-query similarity: [batch_size, batch_size*num_gpu, num_query_tokens]
+            sim_t2q = torch.matmul(
+                text_feat.unsqueeze(1).unsqueeze(1), image_feats_all.permute(0, 2, 1)
+            ).squeeze()
+
+            # text-image similarity: aggregate across all query tokens
+            sim_t2i, _ = sim_t2q.max(-1)
+            sim_t2i = sim_t2i / self.temp  # [batch_size, batch_size*num_gpu]
+
+            rank = dist.get_rank()
+            # rank=0
+            bs = image.size(0)
+
+            targets = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(
+                image.device
+            )
+
+            loss_itc = (
+                               F.cross_entropy(sim_i2t, targets, label_smoothing=0.1)
+                               + F.cross_entropy(sim_t2i, targets, label_smoothing=0.1)
+                       ) / 2
+            loss.append(loss_itc)
 
         ###============== Multiview Contrastive ===================###
         if self.mv:
@@ -400,9 +424,9 @@ class MM_Former(Blip2Base):
             targets_mv = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(image.device)
 
             inter_view_loss = (
-                               F.cross_entropy(sim_i1_i2, targets_mv, label_smoothing=0.1)
-                               + F.cross_entropy(sim_i2_i1, targets_mv, label_smoothing=0.1)
-                       ) / 2
+                                      F.cross_entropy(sim_i1_i2, targets_mv, label_smoothing=0.1)
+                                      + F.cross_entropy(sim_i2_i1, targets_mv, label_smoothing=0.1)
+                              ) / 2
             loss.append(inter_view_loss)
 
         ###============== Image-text Matching ===================###
@@ -798,8 +822,6 @@ class MM_Former(Blip2Base):
         return model
 
 
-
-
 class GatherLayer(torch.autograd.Function):
     """
     Gather tensors from all workers with support for backward propagation:
@@ -856,6 +878,3 @@ def all_gather_with_grad(tensors):
     tensor_all = GatherLayer.apply(tensors)
 
     return torch.cat(tensor_all, dim=0)
-
-
-

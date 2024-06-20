@@ -425,7 +425,7 @@ class Former_Llama(Blip2Base):
                 min_length=min_length,
                 # eos_token_id=self.eos_token_id,
                 repetition_penalty=repetition_penalty,
-                length_penalty=length_penalty,
+                # length_penalty=length_penalty,
                 num_return_sequences=num_captions,
             )
 
