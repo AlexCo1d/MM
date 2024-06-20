@@ -78,7 +78,7 @@ class MM_Former(Blip2Base):
 
         self.temp = nn.Parameter(0.07 * torch.ones([]))
         self.temp1 = nn.Parameter(0.07 * torch.ones([]))
-        self.max_txt_len = 256
+        self.max_txt_len = 100
 
         if self.distill:
             self.vision_proj_m = deepcopy(self.vision_proj)
@@ -283,7 +283,7 @@ class MM_Former(Blip2Base):
 
         text_tokens = self.tokenizer(
             text,
-            padding="max_length",
+            padding="longest",
             truncation=True,
             max_length=self.max_txt_len,
             return_tensors="pt",
@@ -483,7 +483,7 @@ class MM_Former(Blip2Base):
         image_atts_all = torch.ones(image_embeds_all.size()[:-1], dtype=torch.long).to(
             image.device
         )
-        torch.cuda.empty_cache()
+
         output_itm = self.Qformer.bert(
             text_ids_all,
             query_embeds=query_tokens_itm,

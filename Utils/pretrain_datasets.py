@@ -28,7 +28,7 @@ class MIMICDataset(Dataset):
             self,
             data_root,
             transform,
-            max_caption_length: int = 256,
+            max_caption_length: int = 200,
             mv=False
     ):
         self.mv = mv
@@ -196,7 +196,7 @@ class MediCaTDataset(Dataset):
             data_root,
             transform,
             img_root='figures',
-            max_caption_length: int = 256,
+            max_caption_length: int = 200,
             mv=False
     ):
         self.mv = mv
@@ -250,7 +250,7 @@ class ROCODataset(Dataset):
             data_root,
             transform,
             img_root='images',
-            max_caption_length: int = 256,
+            max_caption_length: int = 200,
             mv=False
     ):
         self.mv = mv
