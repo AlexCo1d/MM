@@ -424,9 +424,9 @@ class MM_Former(Blip2Base):
             targets_mv = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(image.device)
 
             inter_view_loss = (
-                                      F.cross_entropy(sim_i1_i2, targets_mv, label_smoothing=0.1)
-                                      + F.cross_entropy(sim_i2_i1, targets_mv, label_smoothing=0.1)
-                              ) / 2
+                               F.cross_entropy(sim_i1_i2, targets_mv, label_smoothing=0.1)
+                               + F.cross_entropy(sim_i2_i1, targets_mv, label_smoothing=0.1)
+                       ) / 2
             loss.append(inter_view_loss)
 
         ###============== Image-text Matching ===================###
@@ -483,7 +483,7 @@ class MM_Former(Blip2Base):
         image_atts_all = torch.ones(image_embeds_all.size()[:-1], dtype=torch.long).to(
             image.device
         )
-
+        torch.cuda.empty_cache()
         output_itm = self.Qformer.bert(
             text_ids_all,
             query_embeds=query_tokens_itm,

@@ -132,6 +132,8 @@ def main(args):
     torch.manual_seed(seed)
     np.random.seed(seed)
 
+    cudnn.benchmark = True
+
     dataset_train = get_pretrain_dataset(args)
 
     print(dataset_train)
