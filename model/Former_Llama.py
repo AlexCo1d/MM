@@ -8,6 +8,9 @@ import copy
 
 import numpy as np
 from transformers import BertTokenizer
+import torch.distributed as dist
+
+from model.archi_Former import concat_all_gather
 
 """
 Requires Transformer 4.28 and above, implementation may change according the Llama implementation
@@ -48,6 +51,7 @@ class Former_Llama(Blip2Base):
             qformer_text_input=True,
             classifier_vqa=False,
             instruct=True,
+            distill=False
     ):
         super().__init__()
         from transformers import LlamaTokenizer
@@ -83,6 +87,7 @@ class Former_Llama(Blip2Base):
         self.classifier_vqa = classifier_vqa
         self.max_txt_len = max_txt_len
         self.instruct = instruct
+        self.distill=distill
         if self.classifier_vqa:
             from model.submodule.bert.xbert import BertLMHeadModel
             self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config)
@@ -138,6 +143,13 @@ class Former_Llama(Blip2Base):
             self.prompt_length = prompt_tokens.attention_mask.sum(1)
 
             self._lemmatizer = None
+
+        if self.distill:
+            self.Qformer_m = copy.deepcopy(self.Qformer)
+            self.model_pairs = [[self.Qformer, self.Qformer_m]]
+            self.copy_params()
+            self.momentum = 0.995
+            self.alpha=0.4
 
     def concat_text_input_output(self, input_ids, input_atts, output_ids, output_atts):
         input_part_targets_len = []
@@ -206,6 +218,31 @@ class Former_Llama(Blip2Base):
             )
             inputs_llm = self.llm_proj(query_output.last_hidden_state)
 
+        if self.distill:
+            with torch.no_grad():
+                self._momentum_update()
+                image_embeds_m = self.ln_vision(self.visual_encoder_m(image))
+                if self.instruct:
+                    query_output_m = self.Qformer_m.bert(
+                        text_Qformer.input_ids,
+                        attention_mask=Qformer_atts,
+                        query_embeds=query_tokens,
+                        encoder_hidden_states=image_embeds_m,
+                        encoder_attention_mask=image_atts,
+                        return_dict=True,
+                    )
+                    inputs_llm_m = self.llm_proj_m(query_output_m.last_hidden_state[:, :query_tokens.size(1), :])
+                else:
+                    query_output_m = self.Qformer_m.bert(
+                        query_embeds=query_tokens,
+                        encoder_hidden_states=image_embeds_m,
+                        encoder_attention_mask=image_atts,
+                        return_dict=True,
+                    )
+                    inputs_llm_m = self.llm_proj_m(query_output_m.last_hidden_state)
+
+                atts_llm_m=torch.ones(inputs_llm_m.size()[:-1], dtype=torch.long).to(image.device)
+
         atts_llm = torch.ones(inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
 
         del image_embeds, image_atts  # 清理不再使用的变量
@@ -260,16 +297,37 @@ class Former_Llama(Blip2Base):
             del llm_tokens, atts_llm, inputs_llm  # 清理不再使用的变量
 
             torch.cuda.empty_cache()
-            outputs = self.llm_model(
-                inputs_embeds=inputs_embeds,
-                attention_mask=attention_mask,
-                return_dict=True,
-                labels=targets,
-            )
+            if self.distill:
+                with torch.no_grad():
+                    logits_m = self.llm_model(
+                        inputs_embeds=torch.cat([inputs_llm_m, inputs_embeds], dim=1),
+                        attention_mask=torch.cat([atts_llm_m, llm_tokens['attention_mask']], dim=1),
+                        return_dict=True,
+                    ).logits
+                outputs = self.llm_model(
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=attention_mask,
+                    return_dict=True,
+                    labels=targets,
+                    soft_labels=logits_m,
+                    alpha=self.alpha,
+                    reduction='none'
+                )
 
-            loss = outputs.loss
+                loss = outputs.loss
+                return loss
 
-            return loss
+            else:
+                outputs = self.llm_model(
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=attention_mask,
+                    return_dict=True,
+                    labels=targets,
+                )
+
+                loss = outputs.loss
+
+                return loss
 
     def forward_cls_llm(self, samples, dataloader=None):
         image = samples["image"].to(self.device)
@@ -844,6 +902,19 @@ class Former_Llama(Blip2Base):
                 exit(1)
 
         return self._lemmatizer
+
+    @torch.no_grad()
+    def copy_params(self):
+        for model_pair in self.model_pairs:
+            for param, param_m in zip(model_pair[0].parameters(), model_pair[1].parameters()):
+                param_m.data.copy_(param.data)  # initialize
+                param_m.requires_grad = False  # not update by gradient
+
+    @torch.no_grad()
+    def _momentum_update(self):
+        for model_pair in self.model_pairs:
+            for param, param_m in zip(model_pair[0].parameters(), model_pair[1].parameters()):
+                param_m.data = param_m.data * self.momentum + param.data * (1. - self.momentum)
 
     @classmethod
     def from_config(cls, cfg):

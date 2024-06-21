@@ -20,7 +20,7 @@
 """ PyTorch LLaMA model."""
 import math
 from typing import List, Optional, Tuple, Union
-
+import torch.nn.functional as F
 import torch
 import torch.utils.checkpoint
 from torch import nn
@@ -651,6 +651,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         reduction: Optional[str] = "mean",
+        soft_labels=None,
+        alpha=0,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -715,6 +717,12 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             if reduction == "none":
                 # loss = loss.view(logits.size(0), -1).sum(1)
                 loss = loss.view(logits.size(0), -1).mean(1)
+
+            if soft_labels is not None:
+                soft_labels=soft_labels[..., :-1, :].contiguous()
+                loss_distill = -torch.sum(F.log_softmax(shift_logits, dim=-1) * soft_labels, dim=-1)
+                loss_distill = (loss_distill * (shift_labels != -100)).mean(1)
+                loss = (1 - alpha) * loss + alpha * loss_distill
 
         if not return_dict:
             output = (logits,) + outputs[1:]

@@ -97,7 +97,7 @@ class MM_Former(Blip2Base):
             self.text_queue = nn.functional.normalize(self.text_queue, dim=0)
 
             self.copy_params()
-            self.alpha = 0.5
+            self.alpha = 0.4
             self.momentum = 0.995
 
     def forward_local_contrastive_loss(self, img_features, ids, words_emb):
@@ -299,28 +299,29 @@ class MM_Former(Blip2Base):
         )
 
         if self.distill:
-            query_output_m = self.Qformer_m.bert(
-                query_embeds=query_tokens,
-                encoder_hidden_states=image_embeds,
-                encoder_attention_mask=image_atts,
-                use_cache=True,
-                return_dict=True,
-            )
-            image_feats_m = F.normalize(
-                self.vision_proj_m(query_output_m.last_hidden_state), dim=-1
-            )
-            text_output_m = self.Qformer_m.bert(
-                text_tokens.input_ids,
-                attention_mask=text_tokens.attention_mask,
-                return_dict=True,
-            )
-            text_feat_m = F.normalize(
-                self.text_proj_m(text_output_m.last_hidden_state[:, 0, :]), dim=-1
-            )
-
-        ###============== GLobal Image-text Contrastive ===================###
             with torch.no_grad():
                 self._momentum_update()
+                query_output_m = self.Qformer_m.bert(
+                    query_embeds=query_tokens,
+                    encoder_hidden_states=image_embeds,
+                    encoder_attention_mask=image_atts,
+                    use_cache=True,
+                    return_dict=True,
+                )
+                image_feats_m = F.normalize(
+                    self.vision_proj_m(query_output_m.last_hidden_state), dim=-1
+                )
+                text_output_m = self.Qformer_m.bert(
+                    text_tokens.input_ids,
+                    attention_mask=text_tokens.attention_mask,
+                    return_dict=True,
+                )
+                text_feat_m = F.normalize(
+                    self.text_proj_m(text_output_m.last_hidden_state[:, 0, :]), dim=-1
+                )
+
+        ###============== GLobal Image-text Contrastive ===================###
+
                 image_feats_all = torch.cat([image_feats_m.permute(2, 1, 0), self.image_queue.clone().detach()],
                                             dim=2)  # [c_embed_dim, num_query, queue_size+bs]
                 text_feat_all = torch.cat([text_feat_m.t(), self.text_queue.clone().detach()],
@@ -779,6 +780,35 @@ class MM_Former(Blip2Base):
             multimodal_embeds=multimodal_embeds,
         )
 
+    @classmethod
+    def from_config(cls, cfg):
+        vit_model = cfg.get("vit_model", "eva_clip_g")
+        img_size = cfg.get("image_size")
+        num_query_token = cfg.get("num_query_token")
+        cross_attention_freq = cfg.get("cross_attention_freq", 2)
+
+        drop_path_rate = cfg.get("drop_path_rate", 0)
+        use_grad_checkpoint = cfg.get("use_grad_checkpoint", False)
+        vit_precision = cfg.get("vit_precision", "fp16")
+        freeze_vit = cfg.get("freeze_vit", True)
+
+        max_txt_len = cfg.get("max_txt_len", 32)
+
+        model = cls(
+            vit_model=vit_model,
+            img_size=img_size,
+            drop_path_rate=drop_path_rate,
+            use_grad_checkpoint=use_grad_checkpoint,
+            vit_precision=vit_precision,
+            freeze_vit=freeze_vit,
+            num_query_token=num_query_token,
+            cross_attention_freq=cross_attention_freq,
+            max_txt_len=max_txt_len,
+        )
+        model.load_checkpoint_from_config(cfg)
+
+        return model
+
     @torch.no_grad()
     def copy_params(self):
         for model_pair in self.model_pairs:
@@ -815,35 +845,6 @@ class MM_Former(Blip2Base):
         ptr = (ptr + batch_size) % self.queue_size  # move pointer
 
         self.queue_ptr[0] = ptr
-
-    @classmethod
-    def from_config(cls, cfg):
-        vit_model = cfg.get("vit_model", "eva_clip_g")
-        img_size = cfg.get("image_size")
-        num_query_token = cfg.get("num_query_token")
-        cross_attention_freq = cfg.get("cross_attention_freq", 2)
-
-        drop_path_rate = cfg.get("drop_path_rate", 0)
-        use_grad_checkpoint = cfg.get("use_grad_checkpoint", False)
-        vit_precision = cfg.get("vit_precision", "fp16")
-        freeze_vit = cfg.get("freeze_vit", True)
-
-        max_txt_len = cfg.get("max_txt_len", 32)
-
-        model = cls(
-            vit_model=vit_model,
-            img_size=img_size,
-            drop_path_rate=drop_path_rate,
-            use_grad_checkpoint=use_grad_checkpoint,
-            vit_precision=vit_precision,
-            freeze_vit=freeze_vit,
-            num_query_token=num_query_token,
-            cross_attention_freq=cross_attention_freq,
-            max_txt_len=max_txt_len,
-        )
-        model.load_checkpoint_from_config(cfg)
-
-        return model
 
 
 class GatherLayer(torch.autograd.Function):

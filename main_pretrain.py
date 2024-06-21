@@ -60,9 +60,11 @@ def get_args_parser():
     # parser.set_defaults(norm_pix_loss=False)
     parser.add_argument('--mv', action='store_true',
                         help='multiview')
+    parser.add_argument('--distill_model', action='store_true')
     parser.add_argument('--concat', action='store_true',
                         help='Concat multiple datasets')
     parser.set_defaults(concat=False)
+    parser.set_defaults(distill_model=False)
     parser.set_defaults(mv=False)
     # Optimizer parameters
     parser.add_argument('--weight_decay', type=float, default=0.05,
@@ -165,7 +167,7 @@ def main(args):
 
     # define the model
     model = MM_Former(local_contrastive_loss=True, vit_path=args.vit_path if args.resume is None else '',vit_type=args.vit_type,
-                      freeze_vit=True if args.vit_type == 'eva_vit' else False, mv=args.mv)
+                      freeze_vit=True if args.vit_type == 'eva_vit' else False, mv=args.mv, distill=args.distill_model)
 
     model.to(device)
 
