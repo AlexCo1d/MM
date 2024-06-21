@@ -13,7 +13,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint', type=str, default="")
     parser.add_argument('--data_path', type=str, default="")
-
+    parser.add_argument('--vit_type', type=str, default="eva_vit")
     parser.add_argument('--distributed', type=bool, default=True)
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--world_size', default=1, type=int,
@@ -32,7 +32,7 @@ def main():
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
 
-    model = Former_Retrieval.Former_RT()
+    model = Former_Retrieval.Former_RT(vit_type=args.vit_type)
     model = model.to(device)
     model_without_ddp = model
     if args.distributed:
