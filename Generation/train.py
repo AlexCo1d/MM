@@ -161,14 +161,13 @@ def main(args):
     start_time = time.time()
     if args.evaluate:
         print("\nStart evaluation\n")
-        if args.dataset_use != 'pmcvqa':
-            gen_result = evaluation(model, test_loader, device, args)
-            json.dump(gen_result,
-                      open(os.path.join(args.result_dir, 'gen_result_%s.json' % (args.dataset_use)), 'w'))
-            metrics = compute_metrics(gen_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
-            print(f'{args.dataset_use} acc: {metrics}')
-        else:
-            evaluation_pmc(model, test_loader, device, args)
+
+        gen_result = evaluation(model, test_loader, device, args)
+        json.dump(gen_result,
+                  open(os.path.join(args.result_dir, 'gen_result_%s.json' % (args.dataset_use)), 'w'))
+        metrics = compute_metrics(gen_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
+        print(f'{args.dataset_use} acc: {metrics}')
+
     else:
         print("\nStart training\n")
         # misc.set_requires_grad_llm(model_without_ddp, False)

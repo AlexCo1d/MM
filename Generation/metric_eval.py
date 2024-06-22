@@ -1,7 +1,6 @@
 import nltk
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from rouge import Rouge
-from nltk.translate.meteor_score import meteor_score
 import pymeteor.pymeteor as pymeteor
 
 from Generation.Dataset import pre_caption
