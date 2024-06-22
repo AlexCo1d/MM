@@ -124,7 +124,8 @@ def main(args):
     #### Creating Model ####
     print("Creating model")
     model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
-                         freeze_vit=args.freeze_vit, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=True)
+                         freeze_vit=args.freeze_vit, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=True,
+                         max_txt_len=384 if args.dataset_use == 'pmcvqa' else 256)
     model = model.to(device)
     # print(model)
 

@@ -193,7 +193,7 @@ class PMC_Dataset(VQA_Dataset):
                 Combined_choice = (Combined_choice +
                                    choice.replace(' A:', reflect[i]).replace(' B:', reflect[i]).replace(' C:', reflect[
                                        i]).replace(' D:', reflect[i]))
-            text ='Question: ' + Question + ' Choices:' + Combined_choice + ' The Answer is:',
+            text = 'Question: ' + Question + ' Choices:' + Combined_choice + ' The Answer is:',
             item = {
                 'question': Question,
                 'text_input': text,
