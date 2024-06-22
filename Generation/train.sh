@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=2,3;
+export CUDA_VISIBLE_DEVICES=1,2;
 export TORCH_DISTRIBUTED_DEBUG=DETAIL;
 python -m torch.distributed.launch --nnodes=1 --master_port 22437 --nproc_per_node=2 train.py \
 --num_workers 6 \

@@ -209,6 +209,7 @@ def main(args):
                                   open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
                 else:
                     torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
+                del save_obj
 
             if args.distributed:
                 dist.barrier()

@@ -10,7 +10,6 @@ import sys
 import transformers
 
 from Generation.metric_eval import compute_metrics
-from VQA.pmc_eval import evaluation_pmc
 from model.Former_Caption_Llama import Former_Llama_Cap
 
 import time
@@ -180,8 +179,8 @@ def main(args):
             #     misc.set_requires_grad_llm(model_without_ddp, True)
             train(model, train_loader, optimizer, epoch, device, args)
             ###
-            if epoch >= args.epochs - 5 or epoch <= args.warmup_epochs:
-                train(model, test_loader, optimizer, epoch, device, args)
+            # if epoch >= args.epochs - 5 or epoch <= args.warmup_epochs:
+            #     train(model, test_loader, optimizer, epoch, device, args)
 
             if utils.is_main_process():
 
@@ -193,18 +192,19 @@ def main(args):
                 prefix = args.checkpoint.split('/')[-1].split('.')[0]
                 # for evaluation and output the result
                 if args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 5):
-                    torch.cuda.empty_cache()
                     torch.save(save_obj,
                                os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
-                    gen_result = evaluation(model, test_loader, device, args)
-                    json.dump(gen_result,
-                              open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
-                    metrics = compute_metrics(gen_result, args=args, dataloader=test_loader, epoch=epoch)
-                    print({'results:': metrics})
-                    json.dump({'results:': metrics},
-                              open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
-                else:
-                    torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
+
+                #     gen_result = evaluation(model, test_loader, device, args)
+                #     json.dump(gen_result,
+                #               open(os.path.join(args.result_dir, '%s_vqa_result_%s.json' % (prefix, epoch)), 'w'))
+                #     metrics = compute_metrics(gen_result, args=args, dataloader=test_loader, epoch=epoch)
+                #     print({'results:': metrics})
+                #     json.dump({'results:': metrics},
+                #               open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
+                # else:
+                #     torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
+                del save_obj
 
             if args.distributed:
                 dist.barrier()
