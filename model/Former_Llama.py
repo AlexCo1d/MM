@@ -428,11 +428,15 @@ class Former_Llama(Blip2Base):
         # qformer_prompt = prompt
         # qformer_prompt = ['Question: ' + qp.split(' Question: ')[1] for qp in qformer_prompt]
 
-        text_Qformer_attention_mask = samples['text_input_attention_mask'].to(image.device)
-        text_Qformer_input_ids = samples['text_input_input_ids'].to(image.device)
-
+        text_Qformer = self.tokenizer(
+            samples["text_input"],
+            padding='longest',
+            truncation=True,
+            max_length=self.max_txt_len,
+            return_tensors="pt",
+        ).to(image.device)
         query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
-        Qformer_atts = torch.cat([query_atts, text_Qformer_attention_mask], dim=1)
+        Qformer_atts = torch.cat([query_atts, text_Qformer.attention_mask], dim=1)
 
         image = image.half()
         with self.maybe_autocast():
@@ -440,22 +444,14 @@ class Former_Llama(Blip2Base):
         image_embeds = image_embeds.float()
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
 
-        if self.instruct:
-            query_output = self.Qformer.bert(
-                text_Qformer_input_ids,
-                attention_mask=Qformer_atts,
-                query_embeds=query_tokens,
-                encoder_hidden_states=image_embeds,
-                encoder_attention_mask=image_atts,
-                return_dict=True,
-            )
-        else:
-            query_output = self.Qformer.bert(
-                query_embeds=query_tokens,
-                encoder_hidden_states=image_embeds,
-                encoder_attention_mask=image_atts,
-                return_dict=True,
-            )
+        query_output = self.Qformer.bert(
+            text_Qformer.input_ids,
+            attention_mask=Qformer_atts,
+            query_embeds=query_tokens,
+            encoder_hidden_states=image_embeds,
+            encoder_attention_mask=image_atts,
+            return_dict=True,
+        )
 
         inputs_llm = self.llm_proj(query_output.last_hidden_state[:, :query_tokens.size(1), :])
         atts_llm = torch.ones(inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
