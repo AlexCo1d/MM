@@ -60,6 +60,7 @@ def evaluation(model, data_loader, device, args):
     :return: a dict that contains the result of the evaluation {question, pred, answer, answer_type}
     """
     # test
+    model.eval()
     if args.distributed:
         t_model = model.module
         t_model.eval()
@@ -82,7 +83,7 @@ def evaluation(model, data_loader, device, args):
                 "answer_type": b['answer_type'][idx]  # 答案类型
             }
             result.append(result_dict)
-    t_model.train()
+    model.train()
     return result
 
 
