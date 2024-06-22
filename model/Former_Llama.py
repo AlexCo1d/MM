@@ -427,8 +427,9 @@ class Former_Llama(Blip2Base):
         # remove ocr tokens in q_former (for eval textvqa)
         # qformer_prompt = prompt
         # qformer_prompt = ['Question: ' + qp.split(' Question: ')[1] for qp in qformer_prompt]
-        print(len(samples["text_input"]))
-        raise ValueError(samples["text_input"][0])
+        print('!!!',len(samples["text_input"]))
+        print(len(samples['text_output']))
+        raise ValueError('stop')
         text_Qformer = self.tokenizer(
             samples["text_input"],
             padding='longest',
