@@ -501,7 +501,8 @@ class Former_Llama(Blip2Base):
         answer_list = dataloader.dataset.answer_list
         answer_tokens = self.tokenizer(answer_list, padding='longest', return_tensors="pt").to(image.device)
         query_tokens = self.query_tokens.expand(bs, -1, -1)
-
+        print(len(samples["text_input"]))
+        raise ValueError(samples["text_input"][0])
         text_Qformer = self.tokenizer(
             samples["text_input"],
             padding='longest',
