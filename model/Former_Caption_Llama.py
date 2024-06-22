@@ -163,26 +163,30 @@ class Former_Llama_Cap(Blip2Base):
 
         bs = image.size(0)
         query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)
-        # text_Qformer = self.tokenizer(
-        #     samples["text_input"],
-        #     padding='longest',
-        #     truncation=True,
-        #     max_length=self.max_txt_len,
-        #     return_tensors="pt",
-        # ).to(image.device)
-        # query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
-        # Qformer_atts = torch.cat([query_atts, text_Qformer.attention_mask], dim=1)
+        text_Qformer = self.tokenizer(
+            samples["text_input"],
+            padding='longest',
+            truncation=True,
+            max_length=self.max_txt_len,
+            return_tensors="pt",
+        ).to(image.device)
+        query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
+        Qformer_atts = torch.cat([query_atts, text_Qformer.attention_mask], dim=1)
 
         query_output = self.Qformer.bert(
+            text_Qformer.input_ids,
+            attention_mask=Qformer_atts,
             query_embeds=query_tokens,
             encoder_hidden_states=image_embeds,
             encoder_attention_mask=image_atts,
             return_dict=True,
         )
-        inputs_llm = self.llm_proj(query_output.last_hidden_state)
+        inputs_llm = self.llm_proj(query_output.last_hidden_state[:, :query_tokens.size(1), :])
+        del text_Qformer, Qformer_atts
+        del image_embeds, image_atts  # 清理不再使用的变量
         atts_llm = torch.ones(inputs_llm.size()[:-1], dtype=torch.long).to(image.device)
 
-        with self.maybe_autocast(dtype=torch.bfloat16):
+        with self.maybe_autocast():
             self.llm_tokenizer.padding_side = "right"
             self.llm_tokenizer.truncation_side = 'left'
             text_input_tokens = self.llm_tokenizer(
@@ -208,7 +212,7 @@ class Former_Llama_Cap(Blip2Base):
                 text_output_tokens.input_ids,
                 text_output_tokens.attention_mask,
             )
-
+            del text_input_tokens, text_output_tokens
             # do not apply loss to the padding
             targets = llm_tokens['input_ids'].masked_fill(
                 llm_tokens['input_ids'] == self.llm_tokenizer.pad_token_id, -100
@@ -254,7 +258,7 @@ class Former_Llama_Cap(Blip2Base):
             use_nucleus_sampling=False,
             num_beams=5,
             max_length=512,
-            min_length=10,
+            min_length=15,
             top_p=0.9,
             repetition_penalty=1.5,
             length_penalty=1,
@@ -345,7 +349,7 @@ class Former_Llama_Cap(Blip2Base):
                 min_length=min_length,
                 # eos_token_id=self.eos_token_id,
                 repetition_penalty=repetition_penalty,
-                length_penalty=length_penalty,
+                # length_penalty=length_penalty,
                 num_return_sequences=num_captions,
             )
 

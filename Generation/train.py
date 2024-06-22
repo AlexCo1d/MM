@@ -120,8 +120,8 @@ def main(args):
 
     #### Creating Model ####
     print("Creating model")
-    model = Former_Llama_Cap(llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
-                             freeze_vit=True, is_lora=args.is_lora)
+    model = Former_Llama_Cap(img_size=args.img_size, llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
+                             freeze_vit=args.freeze_vit, is_lora=args.is_lora)
     model = model.to(device)
     # print(model)
 
@@ -204,7 +204,8 @@ def main(args):
                     print({'results:': metrics})
                     json.dump({'results:': metrics},
                               open(os.path.join(args.result_dir, 'vqa_metric.json'), 'a'))
-                torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
+                else:
+                    torch.save(save_obj, os.path.join(args.output_dir, 'last_epoch_weight.pth'))
 
             if args.distributed:
                 dist.barrier()
@@ -228,6 +229,9 @@ if __name__ == '__main__':
     parser.set_defaults(classifier_vqa=False)
     parser.add_argument('--is_lora', action='store_true')
     parser.set_defaults(is_lora=False)
+    parser.add_argument('--img_size', default=224, type=int)
+    parser.add_argument('--freeze_vit', action='store_true')
+    parser.set_defaults(freeze_vit=False)
 
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--eval_batch_size', default=5, type=int)
