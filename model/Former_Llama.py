@@ -465,7 +465,6 @@ class Former_Llama(Blip2Base):
             inputs_embeds = self.llm_model.get_input_embeddings()(llm_tokens.input_ids)
             inputs_embeds = torch.cat([inputs_llm, inputs_embeds], dim=1)
             attention_mask = torch.cat([atts_llm, llm_tokens.attention_mask], dim=1)
-            torch.cuda.empty_cache()
             outputs = self.llm_model.generate(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
