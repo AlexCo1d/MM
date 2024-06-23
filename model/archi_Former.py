@@ -261,6 +261,8 @@ class MM_Former(Blip2Base):
         text = samples["text"]
         loss = []
         image = image.cuda()
+        rank = dist.get_rank()
+        bs = image.size(0)
         # imgs_1 = image.clone()  # keep the 448 size image
 
         # _imgs = torchvision.transforms.Resize([224, 224], interpolation=InterpolationMode.BICUBIC)(image)
@@ -373,10 +375,6 @@ class MM_Former(Blip2Base):
             # text-image similarity: aggregate across all query tokens
             sim_t2i, _ = sim_t2q.max(-1)
             sim_t2i = sim_t2i / self.temp  # [batch_size, batch_size*num_gpu]
-
-            rank = dist.get_rank()
-            # rank=0
-            bs = image.size(0)
 
             targets = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(
                 image.device
