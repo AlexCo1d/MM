@@ -126,7 +126,7 @@ def main(args):
     print("Creating model")
     model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
                          freeze_vit=args.freeze_vit, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=True,
-                         max_txt_len=384 if args.dataset_use == 'pmcvqa' else 256)
+                         max_txt_len=384 if args.dataset_use == 'pmcvqa' else 256, vit_type=args.vit_type)
     model = model.to(device)
     # print(model)
 
@@ -239,6 +239,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--vit_path', default='',
                         help='path for loading pretrained ViT model')
+    parser.add_argument('--vit_type', default='eva_vit', type=str)
     parser.add_argument('--img_size', default=224, type=int)
     parser.add_argument('--freeze_vit', action='store_true')
     parser.set_defaults(freeze_vit=False)
