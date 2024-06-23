@@ -256,7 +256,9 @@ class MM_Former(Blip2Base):
         # loss1 = nn.CrossEntropyLoss()(similarities1, labels)
         return loss_local
 
-    def forward(self, samples):
+    def forward(self, samples, alpha=None):
+        if alpha is not None:
+            self.alpha = alpha
         image = samples["image1"]
         text = samples["text"]
         loss = []
@@ -347,9 +349,9 @@ class MM_Former(Blip2Base):
                 )
 
                 image_feats_q = torch.cat([image_feats_m.permute(2, 1, 0), self.image_queue.clone().detach()],
-                                            dim=2)  # [c_embed_dim, num_query, queue_size+bs]
+                                          dim=2)  # [c_embed_dim, num_query, queue_size+bs]
                 text_feat_q = torch.cat([text_feat_m.t(), self.text_queue.clone().detach()],
-                                          dim=1)  # [c_embed_dim, queue_size+bs]
+                                        dim=1)  # [c_embed_dim, queue_size+bs]
                 sim_i2t_m = torch.einsum('b q d, d z -> b z q', image_feats_m, text_feat_q).max(-1)[
                                 0] / self.temp  # [bs, queue_size+bs]
                 sim_t2i_m = torch.einsum('b d, d q z -> b z q', text_feat_m, image_feats_q).max(-1)[
@@ -488,7 +490,7 @@ class MM_Former(Blip2Base):
         )
 
         # clear middle variables to save memory as more as possible
-        del text_ids_neg,text_atts_neg
+        del text_ids_neg, text_atts_neg
         # 在计算完 sim_q2t 和 sim_t2q 后，如果这些变量后面不再需要，可以删除
         del sim_q2t, sim_t2q, sim_i2t, sim_t2i, sim_i1_i2, sim_i2_i1
         # 完成 loss_i2t 和 loss_t2i 的计算后
