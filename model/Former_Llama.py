@@ -294,22 +294,24 @@ class Former_Llama(Blip2Base):
             inputs_embeds = self.llm_model.get_input_embeddings()(llm_tokens['input_ids'])
             inputs_embeds = torch.cat([inputs_llm, inputs_embeds], dim=1)
             attention_mask = torch.cat([atts_llm, llm_tokens['attention_mask']], dim=1)
-            del llm_tokens, atts_llm, inputs_llm  # 清理不再使用的变量
 
+            del llm_tokens, atts_llm, inputs_llm  # 清理不再使用的变量
             torch.cuda.empty_cache()
+
             if self.distill:
                 with torch.no_grad():
                     logits_m = self.llm_model(
                         inputs_embeds=torch.cat([inputs_llm_m, inputs_embeds], dim=1),
                         attention_mask=torch.cat([atts_llm_m, llm_tokens['attention_mask']], dim=1),
                         return_dict=True,
+                        return_logits=True
                     ).logits
                 outputs = self.llm_model(
                     inputs_embeds=inputs_embeds,
                     attention_mask=attention_mask,
                     return_dict=True,
                     labels=targets,
-                    soft_labels=logits_m,
+                    soft_labels=F.softmax(logits_m, dim=-1),
                     alpha=self.alpha,
                     reduction='none'
                 )

@@ -653,6 +653,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         reduction: Optional[str] = "mean",
         soft_labels=None,
         alpha=0,
+        return_logits: Optional[bool] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -702,6 +703,9 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         hidden_states = outputs[0]
         logits = self.lm_head(hidden_states)
 
+        if return_logits:
+            logits=logits[..., :-1, :].contiguous()
+
         loss = None
         if labels is not None:
             # Shift so that tokens < n predict n
@@ -714,15 +718,17 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
             loss = loss_fct(shift_logits, shift_labels)
-            if reduction == "none":
-                # loss = loss.view(logits.size(0), -1).sum(1)
-                loss = loss.view(logits.size(0), -1).mean(1)
 
             if soft_labels is not None:
-                soft_labels=soft_labels[..., :-1, :].contiguous()
                 loss_distill = -torch.sum(F.log_softmax(shift_logits, dim=-1) * soft_labels, dim=-1)
-                loss_distill = (loss_distill * (shift_labels != -100)).mean(1)
+                if reduction == "none":
+                    # loss = loss.view(logits.size(0), -1).sum(1)
+                    loss = loss.view(logits.size(0), -1).mean(1)
+                    loss_distill = (loss_distill * (shift_labels != -100)).mean(1)
+                else:   # mean case
+                    loss_distill = loss_distill[shift_labels != -100].mean()
                 loss = (1 - alpha) * loss + alpha * loss_distill
+
 
         if not return_dict:
             output = (logits,) + outputs[1:]
