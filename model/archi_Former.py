@@ -88,7 +88,7 @@ class MM_Former(Blip2Base):
             self.model_pairs = [[self.Qformer, self.Qformer_m],
                                 [self.vision_proj, self.vision_proj_m],
                                 [self.text_proj, self.text_proj_m]]
-
+            self.queue_size = queue_size
             self.register_buffer("image_queue", torch.randn(c_embed_dim, num_query_token, queue_size))
             self.register_buffer("text_queue", torch.randn(c_embed_dim, queue_size))
             self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
