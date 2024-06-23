@@ -531,8 +531,7 @@ class MM_Former(Blip2Base):
             with torch.no_grad():
                 logits_m = self.Qformer_m(decoder_input_ids,
                                           attention_mask=attention_mask,
-                                          encoder_hidden_states=query_output_m.past_key_values,
-                                          encoder_attention_mask=image_atts,
+                                          past_key_values=query_output_m.past_key_values,
                                           return_dict=True,
                                           return_logits=True,
                                           )
