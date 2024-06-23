@@ -487,6 +487,15 @@ class MM_Former(Blip2Base):
             image.device
         )
 
+        # clear middle variables to save memory as more as possible
+        del text_ids_neg,text_atts_neg
+        # 在计算完 sim_q2t 和 sim_t2q 后，如果这些变量后面不再需要，可以删除
+        del sim_q2t, sim_t2q, sim_i2t, sim_t2i, sim_i1_i2, sim_i2_i1
+        # 完成 loss_i2t 和 loss_t2i 的计算后
+        del sim_i2t_q, sim_t2i_q, sim_i2t_targets, sim_t2i_targets
+        # 清理模型并释放未使用的缓存
+        torch.cuda.empty_cache()
+
         output_itm = self.Qformer.bert(
             text_ids_all,
             query_embeds=query_tokens_itm,
