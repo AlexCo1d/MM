@@ -297,7 +297,9 @@ class MM_Former(Blip2Base):
         text_feat = F.normalize(
             self.text_proj(text_output.last_hidden_state[:, 0, :]), dim=-1
         )
-
+        image_feats_all = concat_all_gather(
+            image_feats
+        )  # [batch_size*num_gpu, num_query_tokens, embed_dim]
         if self.distill:
             with torch.no_grad():
                 self._momentum_update()
@@ -322,13 +324,13 @@ class MM_Former(Blip2Base):
 
         ###============== GLobal Image-text Contrastive ===================###
 
-                image_feats_all = torch.cat([image_feats_m.permute(2, 1, 0), self.image_queue.clone().detach()],
+                image_feats_q = torch.cat([image_feats_m.permute(2, 1, 0), self.image_queue.clone().detach()],
                                             dim=2)  # [c_embed_dim, num_query, queue_size+bs]
-                text_feat_all = torch.cat([text_feat_m.t(), self.text_queue.clone().detach()],
+                text_feat_q = torch.cat([text_feat_m.t(), self.text_queue.clone().detach()],
                                           dim=1)  # [c_embed_dim, queue_size+bs]
-                sim_i2t_m = torch.einsum('b q d, d z -> b z q', image_feats_m, text_feat_all).max(-1)[
+                sim_i2t_m = torch.einsum('b q d, d z -> b z q', image_feats_m, text_feat_q).max(-1)[
                                 0] / self.temp  # [bs, queue_size+bs]
-                sim_t2i_m = torch.einsum('b d, d q z -> b z q', text_feat_m, image_feats_all).max(-1)[
+                sim_t2i_m = torch.einsum('b d, d q z -> b z q', text_feat_m, image_feats_q).max(-1)[
                                 0] / self.temp  # [bs, queue_size+bs]
 
                 sim_targets = torch.zeros(sim_i2t_m.size()).to(image.device)
@@ -337,8 +339,8 @@ class MM_Former(Blip2Base):
                 sim_i2t_targets = self.alpha * F.softmax(sim_i2t_m, dim=1) + (1 - self.alpha) * sim_targets
                 sim_t2i_targets = self.alpha * F.softmax(sim_t2i_m, dim=1) + (1 - self.alpha) * sim_targets
 
-            sim_i2t = torch.einsum('b q d, d z -> b z q', image_feats, text_feat_all).max(-1)[0] / self.temp
-            sim_t2i = torch.einsum('b d, d q z -> b z q', text_feat, image_feats_all).max(-1)[0] / self.temp
+            sim_i2t = torch.einsum('b q d, d z -> b z q', image_feats, text_feat_q).max(-1)[0] / self.temp
+            sim_t2i = torch.einsum('b d, d q z -> b z q', text_feat, image_feats_q).max(-1)[0] / self.temp
 
             loss_i2t = -torch.sum(
                 F.log_softmax(sim_i2t, dim=1) * sim_i2t_targets, dim=1
@@ -351,9 +353,7 @@ class MM_Former(Blip2Base):
             loss.append(loss_itc)
             self._dequeue_and_enqueue(image_feats_m, text_feat_m)
         else:
-            image_feats_all = concat_all_gather(
-                image_feats
-            )  # [batch_size*num_gpu, num_query_tokens, embed_dim]
+
             text_feat_all = concat_all_gather(text_feat)  # [batch_size*num_gpu, embed_dim]
 
             sim_q2t = torch.matmul(
