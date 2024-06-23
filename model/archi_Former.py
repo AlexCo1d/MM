@@ -302,6 +302,28 @@ class MM_Former(Blip2Base):
         image_feats_all = concat_all_gather(
             image_feats
         )  # [batch_size*num_gpu, num_query_tokens, embed_dim]
+
+        text_feat_all = concat_all_gather(text_feat)  # [batch_size*num_gpu, embed_dim]
+
+        sim_q2t = torch.matmul(
+            image_feats.unsqueeze(1), text_feat_all.unsqueeze(-1)
+        ).squeeze()
+        # [batch_size, batch_size*num_gpu, num_query_tokens]
+
+        # image-text similarity: aggregate across all query tokens
+        sim_i2t, _ = sim_q2t.max(-1)
+        sim_i2t = sim_i2t / self.temp
+
+        # text-query similarity: [batch_size, batch_size*num_gpu, num_query_tokens]
+        sim_t2q = torch.matmul(
+            text_feat.unsqueeze(1).unsqueeze(1), image_feats_all.permute(0, 2, 1)
+        ).squeeze()
+
+        # text-image similarity: aggregate across all query tokens
+        sim_t2i, _ = sim_t2q.max(-1)
+        sim_t2i = sim_t2i / self.temp  # [batch_size, batch_size*num_gpu]
+
+        ###============== GLobal Image-text Contrastive ===================###
         if self.distill:
             with torch.no_grad():
                 self._momentum_update()
@@ -324,8 +346,6 @@ class MM_Former(Blip2Base):
                     self.text_proj_m(text_output_m.last_hidden_state[:, 0, :]), dim=-1
                 )
 
-        ###============== GLobal Image-text Contrastive ===================###
-
                 image_feats_q = torch.cat([image_feats_m.permute(2, 1, 0), self.image_queue.clone().detach()],
                                             dim=2)  # [c_embed_dim, num_query, queue_size+bs]
                 text_feat_q = torch.cat([text_feat_m.t(), self.text_queue.clone().detach()],
@@ -341,40 +361,20 @@ class MM_Former(Blip2Base):
                 sim_i2t_targets = self.alpha * F.softmax(sim_i2t_m, dim=1) + (1 - self.alpha) * sim_targets
                 sim_t2i_targets = self.alpha * F.softmax(sim_t2i_m, dim=1) + (1 - self.alpha) * sim_targets
 
-            sim_i2t = torch.einsum('b q d, d z -> b z q', image_feats, text_feat_q).max(-1)[0] / self.temp
-            sim_t2i = torch.einsum('b d, d q z -> b z q', text_feat, image_feats_q).max(-1)[0] / self.temp
+            sim_i2t_q = torch.einsum('b q d, d z -> b z q', image_feats, text_feat_q).max(-1)[0] / self.temp
+            sim_t2i_q = torch.einsum('b d, d q z -> b z q', text_feat, image_feats_q).max(-1)[0] / self.temp
 
             loss_i2t = -torch.sum(
-                F.log_softmax(sim_i2t, dim=1) * sim_i2t_targets, dim=1
+                F.log_softmax(sim_i2t_q, dim=1) * sim_i2t_targets, dim=1
             ).mean()
             loss_t2i = -torch.sum(
-                F.log_softmax(sim_t2i, dim=1) * sim_t2i_targets, dim=1
+                F.log_softmax(sim_t2i_q, dim=1) * sim_t2i_targets, dim=1
             ).mean()
 
             loss_itc = (loss_i2t + loss_t2i) / 2
             loss.append(loss_itc)
             self._dequeue_and_enqueue(image_feats_m, text_feat_m)
         else:
-
-            text_feat_all = concat_all_gather(text_feat)  # [batch_size*num_gpu, embed_dim]
-
-            sim_q2t = torch.matmul(
-                image_feats.unsqueeze(1), text_feat_all.unsqueeze(-1)
-            ).squeeze()
-            # [batch_size, batch_size*num_gpu, num_query_tokens]
-
-            # image-text similarity: aggregate across all query tokens
-            sim_i2t, _ = sim_q2t.max(-1)
-            sim_i2t = sim_i2t / self.temp
-
-            # text-query similarity: [batch_size, batch_size*num_gpu, num_query_tokens]
-            sim_t2q = torch.matmul(
-                text_feat.unsqueeze(1).unsqueeze(1), image_feats_all.permute(0, 2, 1)
-            ).squeeze()
-
-            # text-image similarity: aggregate across all query tokens
-            sim_t2i, _ = sim_t2q.max(-1)
-            sim_t2i = sim_t2i / self.temp  # [batch_size, batch_size*num_gpu]
 
             targets = torch.linspace(rank * bs, rank * bs + bs - 1, bs, dtype=int).to(
                 image.device
@@ -448,14 +448,14 @@ class MM_Former(Blip2Base):
             weights_t2i = F.softmax(sim_t2i, dim=1)
             weights_i2t = F.softmax(sim_i2t, dim=1)
 
-        # select a negative image for each text
+        # select one negative image for each text
         image_embeds_neg = []
         for b in range(bs):
             neg_idx = torch.multinomial(weights_t2i[b], 1).item()
             image_embeds_neg.append(image_embeds_world[neg_idx])
         image_embeds_neg = torch.stack(image_embeds_neg, dim=0)
 
-        # select a negative text for each image
+        # select one negative text for each image
         text_ids_neg = []
         text_atts_neg = []
         for b in range(bs):
