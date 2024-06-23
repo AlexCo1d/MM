@@ -840,8 +840,8 @@ class MM_Former(Blip2Base):
         assert self.queue_size % batch_size == 0  # for simplicity
 
         # replace the keys at ptr (dequeue and enqueue)
-        self.image_queue[:, ptr:ptr + batch_size] = image_feats.T
-        self.text_queue[:, ptr:ptr + batch_size] = text_feats.T
+        self.image_queue[..., ptr:ptr + batch_size] = image_feats.T
+        self.text_queue[..., ptr:ptr + batch_size] = text_feats.T
         ptr = (ptr + batch_size) % self.queue_size  # move pointer
 
         self.queue_ptr[0] = ptr
