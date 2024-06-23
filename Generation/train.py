@@ -223,6 +223,11 @@ if __name__ == '__main__':
     parser.set_defaults(load_optim=False)
     parser.add_argument('--vit_path', default='',
                         help='path for loading pretrained ViT model')
+    parser.add_argument('--distill_model', action='store_true')
+    parser.set_defaults(distill_model=False)
+    parser.add_argument('--vit_type', default='eva_vit', type=str, help='type of ViT model')
+    parser.add_argument('--mv', action='store_true')
+    parser.set_defaults(mv=False)
     parser.add_argument('--LLM_path', default='', type=str, help='path for loading pretrained LLM model')
     parser.add_argument('--classifier_vqa', action='store_true')
     parser.set_defaults(classifier_vqa=False)

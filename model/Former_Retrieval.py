@@ -250,7 +250,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
             text_ids=text_ids[topk_idx],
             text_atts=text_atts[topk_idx],
         ).float()
-        score_matrix_i2t[start + i, topk_idx] = score + topk_sim*0.5
+        score_matrix_i2t[start + i, topk_idx] = score + topk_sim
         # score_matrix_i2t[start + i, topk_idx] = topk_sim
     # score_matrix_t2i = score_matrix_i2t.t()
     sims_matrix = sims_matrix.t()
@@ -272,7 +272,7 @@ def compute_sim_matrix(model, data_loader, **kwargs):
             text_ids=text_ids[start + i].repeat(k_test, 1),
             text_atts=text_atts[start + i].repeat(k_test, 1),
         ).float()
-        score_matrix_t2i[start + i, topk_idx] = score + topk_sim*0.5
+        score_matrix_t2i[start + i, topk_idx] = score + topk_sim
         # score_matrix_t2i[start + i, topk_idx] = topk_sim
 
     if is_dist_avail_and_initialized():
