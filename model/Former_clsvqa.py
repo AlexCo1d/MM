@@ -46,6 +46,7 @@ class Former_cls(Blip2Base):
 
         self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
         self.tokenizer.add_special_tokens({"eos_token": "[SEP]"})
+        self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
                                                                        use_grad_checkpoint, vit_precision,
