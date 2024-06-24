@@ -18,7 +18,7 @@ import torch.nn.functional as F
 import torch
 from torch.cuda.amp import autocast as autocast
 import torch.nn as nn
-from model.submodule.bert.xbert import BertConfig, BertModel, BertLMHeadModel
+from model.submodule.bert.xbert import BertConfig, BertLMHeadModel
 
 
 class Former_cls(Blip2Base):
@@ -77,7 +77,7 @@ class Former_cls(Blip2Base):
         self.instruct = instruct
         self.distill = distill
 
-        config=BertTokenizer.from_pretrained(os.path.join(tokenizer_config,'config.json'))
+        config=BertConfig.from_json_file(os.path.join(tokenizer_config,'config.json'))
         config.fusion_layer = 0
         config.num_hidden_layers = 6
         self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config, config=config)
