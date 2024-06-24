@@ -25,6 +25,7 @@ class VQA_Dataset(Dataset):
         self.data_path = data_path
         self.img_root = img_root
         self.max_txt_length = max_txt_length
+        self.classifier_vqa = answer_list_flag
 
         if mode == 'test':
             try:
@@ -52,8 +53,8 @@ class VQA_Dataset(Dataset):
 
     def random_answer(self, Question, Answer):
         Answer = str(Answer)
-        pre_text = 'Question: ' + Question + 'The Answer is:'
-        final_o = 'Question: ' + Question + 'The Answer is: ' + Answer
+        pre_text = 'Question: ' + Question + ' The Answer is:'
+        final_o = 'Question: ' + Question + ' The Answer is: ' + Answer
         return pre_text, final_o
 
     def __getitem__(self, idx):
@@ -68,7 +69,10 @@ class VQA_Dataset(Dataset):
         img = PIL.Image.open(img_path).convert('RGB')
         image = self.transform(img)
 
-        pre_text, final_o = self.random_answer(Question, Answer)
+        if self.classifier_vqa:
+            pre_text = Question
+        else:
+            pre_text, final_o = self.random_answer(Question, Answer)
         # final_o = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=50, return_tensors="pt")
         # input_ids = final_o.input_ids
         # attention_mask = final_o.attention_mask
@@ -230,8 +234,10 @@ class VQA2019_Dataset(VQA_Dataset):
         img_path = os.path.join(self.data_path, self.img_root, sample['image_name'])
         img = PIL.Image.open(img_path).convert('RGB')
         image = self.transform(img)
-
-        pre_text, final_o = self.random_answer(Question, Answer)
+        if self.classifier_vqa:
+            pre_text = Question
+        else:
+            pre_text, final_o = self.random_answer(Question, Answer)
         # final_o = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=50, return_tensors="pt")
         # input_ids = final_o.input_ids
         # attention_mask = final_o.attention_mask
