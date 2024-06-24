@@ -108,7 +108,7 @@ class Former_cls(Blip2Base):
         ).to(image.device)
 
         answer = self.tokenizer(
-            samples["answer"],
+            samples["text_output"],
             padding='longest',
             return_tensors="pt"
         ).to(image.device)
