@@ -163,7 +163,7 @@ def main(args):
     start_epoch = 0
     if args.checkpoint:
         checkpoint = torch.load(args.checkpoint, map_location='cpu')
-        model_dict = model_without_ddp.state_dict()
+        # model_dict = model_without_ddp.state_dict()
         interpolate_pos_embed(model_without_ddp.visual_encoder, checkpoint, 'visual_encoder.pos_embed')
         # pretrained_dict = {k: v for k, v in checkpoint['model'].items() if k in model_dict and v.shape==model_dict[k].shape}
         # model_dict.update(pretrained_dict)
