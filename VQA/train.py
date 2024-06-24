@@ -168,7 +168,7 @@ def main(args):
         # pretrained_dict = {k: v for k, v in checkpoint['model'].items() if k in model_dict and v.shape==model_dict[k].shape}
         # model_dict.update(pretrained_dict)
         # msg = model_without_ddp.load_state_dict(model_dict)
-        msg=model_without_ddp.load_state_dict(checkpoint['model'])
+        msg=model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
         if 'optimizer' in checkpoint and args.load_optim:
