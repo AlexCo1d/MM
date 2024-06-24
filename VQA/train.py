@@ -23,6 +23,7 @@ import Utils.misc as misc
 import Utils.lr_sched as lr_sched
 from Dataset import create_dataset
 from model.Former_T5 import Former_T5
+from model.Former_clsvqa import Former_cls
 from vqaTools.vqaEvaluate import compute_vqa_acc
 
 
@@ -36,7 +37,13 @@ def train(model, data_loader, optimizer, epoch, device, args):
     print_freq = 10
     for i, b in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
         lr_sched.adjust_learning_rate(optimizer, i / len(data_loader) + epoch, args)
-        loss = model(b, dataloader=data_loader)
+        if args.distill_model:
+            alpha = 0.4
+            alpha = alpha * min(1, (epoch * len(data_loader) + i) / len(data_loader))
+            loss = model(b, dataloader=data_loader, alpha=alpha)
+        else:
+            loss = model(b, dataloader=data_loader)
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -124,9 +131,13 @@ def main(args):
 
     #### Creating Model ####
     print("Creating model")
-    model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
-                         freeze_vit=args.freeze_vit, classifier_vqa=args.classifier_vqa, is_lora=args.is_lora, instruct=True,
-                         max_txt_len=384 if args.dataset_use == 'pmcvqa' else 256, vit_type=args.vit_type)
+    if args.classifier_vqa:
+        model = Former_cls(img_size=args.img_size, vit_type=args.vit_type,
+                           vit_path=args.vit_path if args.checkpoint is None else '')
+    else:
+        model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
+                             freeze_vit=args.freeze_vit, is_lora=args.is_lora, instruct=True,
+                             max_txt_len=384 if args.dataset_use == 'pmcvqa' else 256, vit_type=args.vit_type)
     model = model.to(device)
     # print(model)
 
@@ -236,6 +247,8 @@ if __name__ == '__main__':
     parser.set_defaults(is_lora=False)
     parser.add_argument('--classifier_vqa', action='store_true')
     parser.set_defaults(classifier_vqa=False)
+    parser.add_argument('--distill_model', action='store_true')
+    parser.set_defaults(distill_model=False)
 
     parser.add_argument('--vit_path', default='',
                         help='path for loading pretrained ViT model')
@@ -282,7 +295,7 @@ if __name__ == '__main__':
     Path(args.result_dir).mkdir(parents=True, exist_ok=True)
 
     # set log, set console print info to file
-    sys.stdout = utils.Logger(filename=os.path.join(args.output_dir, "log.txt"), stream=sys.stdout)
+    # sys.stdout = utils.Logger(filename=os.path.join(args.output_dir, "log.txt"), stream=sys.stdout)
 
     print("args: ", args)
     main(args)

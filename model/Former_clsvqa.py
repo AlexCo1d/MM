@@ -34,7 +34,6 @@ class Former_cls(Blip2Base):
             max_txt_len=256,
             max_output_txt_len=256,
             vit_type="eva_vit",
-            is_lora=False,
             vit_path="",
             tokenizer_config='../model/submodule/bert/bert-base-uncased',
             qformer_text_input=True,
@@ -87,8 +86,11 @@ class Former_cls(Blip2Base):
             self.momentum = 0.995
             self.alpha = 0.4
 
-    def forward_cls_llm(self, samples, dataloader=None):
+    def forward(self, samples, dataloader=None, alpha=None):
         image = samples["image"].to(self.device)
+        if alpha is not None:
+            self.alpha = alpha
+
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
@@ -164,7 +166,7 @@ class Former_cls(Blip2Base):
         return answer_output.loss.sum() / bs
 
     @torch.no_grad()
-    def predict_answers_cls(
+    def predict_answers(
             self,
             samples,
             dataloader,

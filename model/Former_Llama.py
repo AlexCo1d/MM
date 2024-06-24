@@ -49,7 +49,6 @@ class Former_Llama(Blip2Base):
             apply_lemmatizer=False,
             tokenizer_config='../model/submodule/bert/bert-base-uncased',
             qformer_text_input=True,
-            classifier_vqa=False,
             instruct=True,
             distill=False
     ):
@@ -84,7 +83,6 @@ class Former_Llama(Blip2Base):
             self.Qformer.resize_token_embeddings(len(self.tokenizer))
         self.Qformer.cls = None
         self.qformer_text_input = qformer_text_input
-        self.classifier_vqa = classifier_vqa
         self.max_txt_len = max_txt_len
         self.instruct = instruct
         self.distill=distill
