@@ -147,8 +147,6 @@ def main(args):
     optimizer = transformers.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.05, betas=(0.9, 0.98)) \
         if not args.deepspeed else None
 
-    start_epoch = 0
-
     model_without_ddp = model
     if args.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
