@@ -164,7 +164,7 @@ def main(args):
     if args.checkpoint:
         checkpoint = torch.load(args.checkpoint, map_location='cpu')
         model_dict = model_without_ddp.state_dict()
-        print('!!!!',model_without_ddp.Qformer.bert.embeddings.word_embeddings.weight.shape)
+        raise ValueError('!!!!',model_without_ddp.Qformer.bert.embeddings.word_embeddings.weight.shape)
         interpolate_pos_embed(model_without_ddp.visual_encoder, checkpoint, 'visual_encoder.pos_embed')
         # pretrained_dict = {k: v for k, v in checkpoint['model'].items() if k in model_dict and v.shape==model_dict[k].shape}
         # model_dict.update(pretrained_dict)
