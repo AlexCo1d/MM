@@ -170,7 +170,7 @@ class Former_cls(Blip2Base):
             self,
             samples,
             dataloader,
-            k=128
+            k=32
     ):
         image = samples["image"].to(self.device)
         bs = image.size(0)
