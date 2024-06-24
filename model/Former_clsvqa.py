@@ -45,7 +45,7 @@ class Former_cls(Blip2Base):
         from model.submodule.LLM.modeling_llama import LlamaForCausalLM
 
         self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
-        self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
+        self.tokenizer.add_special_tokens({"eos_token": "[SEP]"})
 
         self.visual_encoder, self.ln_vision = self.init_vision_encoder(vit_path, img_size, drop_path_rate,
                                                                        use_grad_checkpoint, vit_precision,
@@ -107,7 +107,7 @@ class Former_cls(Blip2Base):
         ).to(image.device)
 
         answer = self.tokenizer(
-            samples["text_output"],
+            samples["answer"],
             padding='longest',
             return_tensors="pt"
         ).to(image.device)
