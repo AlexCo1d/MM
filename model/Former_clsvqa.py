@@ -173,6 +173,7 @@ class Former_cls(Blip2Base):
         image = samples["image"].to(self.device)
         bs = image.size(0)
         answer_list = dataloader.dataset.answer_list
+        k = min(k, len(answer_list))
         answer_tokens = self.tokenizer(answer_list, padding='longest', return_tensors="pt").to(image.device)
         query_tokens = self.query_tokens.expand(bs, -1, -1)
         text_Qformer = self.tokenizer(
@@ -239,27 +240,38 @@ class Former_cls(Blip2Base):
                                    labels=targets_ids,
                                    return_dict=True,
                                    reduction='none')
+        #
+        # answer_loss = output.loss
+        # answer_loss = answer_loss.view(input_ids.size(0), -1)
+        #
+        # # topk_prob: first token probability
+        # topk_probs = topk_probs.view(-1, 1)
+        # log_probs = torch.cat([topk_probs.log(), -answer_loss], dim=1)
+        #
+        # log_probs_sum = log_probs.sum(1)
+        # log_probs_sum = log_probs_sum.view(num_ques, k)
+        # topk_probs = F.softmax(log_probs_sum, dim=-1)
+        #
+        # # get top-k after re-ranking
+        # topk_probs, rerank_id = topk_probs.topk(k, dim=1)
+        # topk_ids = torch.gather(topk_ids, 1, rerank_id)
+        # result = []
+        # for topk_id, topk_prob in zip(topk_ids, topk_probs):
+        #     _, pred = topk_prob.max(dim=0)
+        #     result.append(answer_list[topk_id[pred]])
+        #
+        # return result
 
-        answer_loss = output.loss
-        answer_loss = answer_loss.view(input_ids.size(0), -1)
-
-        # topk_prob: first token probability
-        topk_probs = topk_probs.view(-1, 1)
-        log_probs = torch.cat([topk_probs.log(), -answer_loss], dim=1)
-
-        log_probs_sum = log_probs.sum(1)
+        log_probs_sum = -output.loss
         log_probs_sum = log_probs_sum.view(num_ques, k)
-        topk_probs = F.softmax(log_probs_sum, dim=-1)
 
-        # get top-k after re-ranking
-        topk_probs, rerank_id = topk_probs.topk(k, dim=1)
-        topk_ids = torch.gather(topk_ids, 1, rerank_id)
-        result = []
-        for topk_id, topk_prob in zip(topk_ids, topk_probs):
-            _, pred = topk_prob.max(dim=0)
-            result.append(answer_list[topk_id[pred]])
+        max_topk_ids = log_probs_sum.argmax(dim=1)
+        max_ids = topk_ids[max_topk_ids >= 0, max_topk_ids]
 
-        return result
+        answers = [answer_list[max_id] for max_id in max_ids]
+
+        return answers
+
 
     @torch.no_grad()
     def copy_params(self):
