@@ -103,13 +103,25 @@ def compute_vqa_acc(vqa_results: [], epoch=0, args=None, dataloader= None):
         pred = pred.replace('\t', ' ')
         pred = pred.strip()
         pred = pre_answer(pred)
-        gt = pre_answer(gt)
-        if type == 'OPEN':
-            sim = pre_answer(get_most_similar(answer_list, pred))
-            # print('pred:', pred, ' gt:', gt, ' sim:', sim)
-            open_list.append(int(gt == sim))
+        if args.dataset_use != 'vqa2019':
+            gt = pre_answer(gt)
+            if type == 'OPEN':
+                sim = pre_answer(get_most_similar(answer_list, pred))
+                # print('pred:', pred, ' gt:', gt, ' sim:', sim)
+                open_list.append(int(gt == sim))
+            else:
+                closed_list.append(int(gt == pred))
         else:
-            closed_list.append(int(gt == pred))
+            if type == 'OPEN':
+                gt = gt.split(' - ')
+                for i in range(len(gt)):
+                    gt[i] = pre_answer(gt[i])
+                sim = pre_answer(get_most_similar(answer_list, pred))
+                open_list.append(int(sim in gt))
+            else:
+                gt = pre_answer(gt)
+                closed_list.append(int(gt == pred))
+
 
     acc = {
         'epoch': epoch,

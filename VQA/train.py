@@ -235,7 +235,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_use', default='radvqa', help='choose medical vqa dataset(radvqa, pathvqa, slake)')
+    parser.add_argument('--dataset_use', default='radvqa', help='choose medical vqa dataset(radvqa, pathvqa, slake, vqa2019)')
     parser.add_argument('--dataset_path', help='path to the dataset')
     parser.add_argument('--checkpoint', default='')
     parser.add_argument('--load_optim', action='store_true')

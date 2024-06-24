@@ -15,8 +15,8 @@ from PIL import Image
 
 
 class VQA_Dataset(Dataset):
-    def __init__(self, data_path, transform, img_tokens=32, img_root='',
-                 max_txt_length=512, voc_size=32000, mode='train', answer_list_flag: bool = False):
+    def __init__(self, data_path, transform, img_root='',
+                 max_txt_length=512, mode='train', answer_list_flag: bool = False):
         if os.path.exists(os.path.join(data_path, f'{mode}.json')):
             with open(os.path.join(data_path, f'{mode}.json')) as f:
                 self.data = json.load(f)
@@ -25,8 +25,6 @@ class VQA_Dataset(Dataset):
         self.data_path = data_path
         self.img_root = img_root
         self.max_txt_length = max_txt_length
-        self.tokenizer = BertTokenizer.from_pretrained('../model/submodule/bert/bert-base-uncased')
-        self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
 
         if mode == 'test':
             try:
@@ -208,6 +206,63 @@ class PMC_Dataset(VQA_Dataset):
             }
             return item
 
+class VQA2019_Dataset(VQA_Dataset):
+    def __init__(self, data_path, transform, img_root='',
+                 max_txt_length=512, voc_size=32000, mode='train', answer_list_flag: bool = False):
+        super().__init__(data_path, transform, mode=mode, img_root=img_root)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        sample = self.data[idx]
+        Question = sample['question']
+        Answer = sample['answer']
+
+        # add this line random choose one answer from the list.
+        Answer = Answer.split(' - ')
+        Answer = Answer[np.random.choice(len(Answer))]
+
+        Answer = pre_answer(Answer)
+        at = sample['answer_type']
+        Question = pre_question(Question)
+        ##### read image pathes #####
+        img_path = os.path.join(self.data_path, self.img_root, sample['image_name'])
+        img = PIL.Image.open(img_path).convert('RGB')
+        image = self.transform(img)
+
+        pre_text, final_o = self.random_answer(Question, Answer)
+        # final_o = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=50, return_tensors="pt")
+        # input_ids = final_o.input_ids
+        # attention_mask = final_o.attention_mask
+        # input_ids = torch.tensor(input_ids).unsqueeze(0)
+        # attention_mask = torch.tensor(attention_mask).unsqueeze(0)
+
+        # label = self.tokenizer(Answer, padding='longest', truncation=True, max_length=50, return_tensors="pt")
+        # labels_att = torch.tensor(label.attention_mask).unsqueeze(0)
+        # label = torch.tensor(label.input_ids).unsqueeze(0)
+
+        if self.mode == 'train':
+            item = {
+                'text_input': pre_text,
+                'text_output': Answer,
+                'image': image,
+                'answer_type': at,
+                'image_name': sample['image_name']
+            }
+        # some dataset don't have qid and answer_type, need to generate.
+        if self.mode == 'test':
+            item = {
+                'text_input': pre_text,
+                'text_output': Answer,
+                'image': image,
+                'answer_type': at,
+                'image_name': sample['image_name']
+            }
+
+        return item
+
+
 
 def create_dataset(args):
     dataset, data_path = args.dataset_use, args.dataset_path
@@ -254,7 +309,15 @@ def create_dataset(args):
                                     answer_list_flag=args.classifier_vqa)
         test_dataset = PMC_Dataset(data_path, test_transform, mode='test', img_root='images',
                                    answer_list_flag=args.classifier_vqa)
+
+    elif dataset == 'vqa2019':
+        train_dataset = VQA2019_Dataset(data_path, train_transform, mode='train', img_root='images',
+                                    answer_list_flag=args.classifier_vqa)
+        test_dataset = VQA2019_Dataset(data_path, test_transform, mode='test', img_root='images',
+                                   answer_list_flag=args.classifier_vqa)
     return train_dataset, test_dataset, ConcatDataset([train_dataset, test_dataset])
+
+
 
 
 def pre_question(question):
