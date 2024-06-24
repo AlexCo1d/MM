@@ -176,10 +176,7 @@ class Former_Llama(Blip2Base):
         return llm_tokens, input_part_targets_len
 
     def forward(self, samples, dataloader=None):
-        if self.classifier_vqa:
-            return self.forward_cls_llm(samples, dataloader=dataloader)
-        else:
-            return self.forward_gen_llm(samples)
+        return self.forward_gen_llm(samples)
 
     def forward_gen_llm(self, samples):
         # torch.cuda.empty_cache()
@@ -331,64 +328,13 @@ class Former_Llama(Blip2Base):
 
                 return loss
 
-    def forward_cls_llm(self, samples, dataloader=None):
-        image = samples["image"].to(self.device)
-        with self.maybe_autocast():
-            image_embeds = self.ln_vision(self.visual_encoder(image))
-        image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
-
-        bs = image.size(0)
-        query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)
-
-        text_Qformer = self.tokenizer(
-            samples["text_input"],
-            padding='longest',
-            truncation=True,
-            max_length=self.max_txt_len,
-            return_tensors="pt",
-        ).to(image.device)
-
-        answer = self.tokenizer(
-            samples["text_output"],
-            padding='longest',
-            return_tensors="pt"
-        ).to(image.device)
-        answer_targets = answer.input_ids.masked_fill(answer.input_ids == self.tokenizer.pad_token_id, -100)
-
-        query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
-        Qformer_atts = torch.cat([query_atts, text_Qformer.attention_mask], dim=1)
-
-        query_output = self.Qformer.bert(
-            text_Qformer.input_ids,
-            attention_mask=Qformer_atts,
-            query_embeds=query_tokens,
-            encoder_hidden_states=image_embeds,
-            encoder_attention_mask=image_atts,
-            return_dict=True,
-        )
-        query_atts = torch.ones(query_output.last_hidden_state.size()[:-1], dtype=torch.long).to(image.device)
-
-        answer_output = self.text_decoder(answer.input_ids,
-                                          attention_mask=answer.attention_mask,
-                                          encoder_hidden_states=query_output.last_hidden_state,
-                                          encoder_attention_mask=query_atts,
-                                          labels=answer_targets,
-                                          return_dict=True,
-                                          reduction='none',
-                                          )
-
-        return answer_output.loss.sum() / bs
-
     @torch.no_grad()
     def predict_answers(
             self,
             samples,
             dataloader=None
     ):
-        if self.classifier_vqa:
-            return self.predict_answers_cls(samples, dataloader)
-        else:
-            return self.predict_answers_gen(samples)
+        return self.predict_answers_gen(samples)
 
     @torch.no_grad()
     def predict_answers_gen(
@@ -490,104 +436,6 @@ class Former_Llama(Blip2Base):
         output_text = [text.strip() for text in output_text]
 
         return output_text
-
-    @torch.no_grad()
-    def predict_answers_cls(
-            self,
-            samples,
-            dataloader,
-            k=128
-    ):
-        image = samples["image"].to(self.device)
-        bs = image.size(0)
-        answer_list = dataloader.dataset.answer_list
-        answer_tokens = self.tokenizer(answer_list, padding='longest', return_tensors="pt").to(image.device)
-        query_tokens = self.query_tokens.expand(bs, -1, -1)
-        text_Qformer = self.tokenizer(
-            samples["text_input"],
-            padding='longest',
-            truncation=True,
-            max_length=self.max_txt_len,
-            return_tensors="pt",
-        ).to(image.device)
-        query_atts = torch.ones(query_tokens.size()[:-1], dtype=torch.long).to(image.device)
-        Qformer_atts = torch.cat([query_atts, text_Qformer.attention_mask], dim=1)
-
-        image = image.half()
-        with self.maybe_autocast():
-            image_embeds = self.ln_vision(self.visual_encoder(image))
-        image_embeds = image_embeds.float()
-        image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
-
-        query_output = self.Qformer.bert(
-            text_Qformer.input_ids,
-            attention_mask=Qformer_atts,
-            query_embeds=query_tokens,
-            encoder_hidden_states=image_embeds,
-            encoder_attention_mask=image_atts,
-            return_dict=True,
-        )
-
-        num_ques = query_output.last_hidden_state.size(0)  # num_ques = batch_size_test
-        answer_ids = answer_tokens.input_ids
-        answer_atts = answer_tokens.attention_mask
-        start_ids = answer_ids[0, 0].repeat(num_ques, 1)  # bos token
-
-        query_atts = torch.ones(query_output.last_hidden_state.size()[:-1], dtype=torch.long).to(image.device)
-        start_output = self.text_decoder(start_ids,
-                                         encoder_hidden_states=query_output.last_hidden_state,
-                                         encoder_attention_mask=query_atts,
-                                         return_dict=True,
-                                         reduction='none')
-        logits = start_output.logits[:, 0, :]
-
-        answer_first_token = answer_ids[:, 1]
-        prob_first_token = F.softmax(logits, dim=1).index_select(dim=1, index=answer_first_token)
-
-        topk_probs, topk_ids = prob_first_token.topk(k, dim=1)
-
-        input_ids = []
-        input_atts = []
-        for b, topk_id in enumerate(topk_ids):
-            input_ids.append(answer_ids.index_select(dim=0, index=topk_id))
-            input_atts.append(answer_atts.index_select(dim=0, index=topk_id))
-
-        input_ids = torch.cat(input_ids, dim=0)
-        input_atts = torch.cat(input_atts, dim=0)
-
-        targets_ids = input_ids.masked_fill(input_ids == self.tokenizer.pad_token_id,
-                                            -100)
-
-        query_output.last_hidden_state = tile(query_output.last_hidden_state, 0, k)
-        query_atts = tile(query_atts, 0, k)
-        output = self.text_decoder(input_ids,
-                                   attention_mask=input_atts,
-                                   encoder_hidden_states=query_output.last_hidden_state,
-                                   encoder_attention_mask=query_atts,
-                                   labels=targets_ids,
-                                   return_dict=True,
-                                   reduction='none')
-
-        answer_loss = output.loss
-        answer_loss = answer_loss.view(input_ids.size(0), -1)
-
-        # topk_prob: first token probability
-        topk_probs = topk_probs.view(-1, 1)
-        log_probs = torch.cat([topk_probs.log(), -answer_loss], dim=1)
-
-        log_probs_sum = log_probs.sum(1)
-        log_probs_sum = log_probs_sum.view(num_ques, k)
-        topk_probs = F.softmax(log_probs_sum, dim=-1)
-
-        # get top-k after re-ranking
-        topk_probs, rerank_id = topk_probs.topk(k, dim=1)
-        topk_ids = torch.gather(topk_ids, 1, rerank_id)
-        result = []
-        for topk_id, topk_prob in zip(topk_ids, topk_probs):
-            _, pred = topk_prob.max(dim=0)
-            result.append(answer_list[topk_id[pred]])
-
-        return result
 
     def predict_answer(
             self,
@@ -959,11 +807,3 @@ class Former_Llama(Blip2Base):
 
         return model
 
-
-def tile(x, dim, n_tile):
-    init_dim = x.size(dim)
-    repeat_idx = [1] * x.dim()
-    repeat_idx[dim] = n_tile
-    x = x.repeat(*(repeat_idx))
-    order_index = torch.LongTensor(np.concatenate([init_dim * np.arange(n_tile) + i for i in range(init_dim)]))
-    return torch.index_select(x, dim, order_index.to(x.device))
