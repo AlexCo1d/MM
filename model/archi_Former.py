@@ -54,8 +54,8 @@ class MM_Former(Blip2Base):
         self.local_contrastive_loss = local_contrastive_loss
         if self.local_contrastive_loss:
             self.vision_local_embedding = local_conloss.LocalEmbedding(self.visual_encoder.num_features, 2048,
-                                                                       embed_dim)
-            self.text_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, embed_dim)
+                                                                       128)
+            self.text_local_embedding = local_conloss.LocalEmbedding(embed_dim, 2048, 128)
 
         self.mv = mv
         self.distill = distill
@@ -103,9 +103,9 @@ class MM_Former(Blip2Base):
     def forward_local_contrastive_loss(self, img_features, ids, words_emb):
         """
         :param ids: caption_ids from tokenizer
-        :param img_features: [b, patch_num, v_embed]
+        :param img_features: [b, patch_num==query_num, v_embed]
         :param words_emb: bert output
-        :return: loss, attn_maps
+        :return: loss
         """
         temperature = 0.07
         # get the local word embed
@@ -127,7 +127,7 @@ class MM_Former(Blip2Base):
 
         # same to the image features because they are all transformer based
         # img_feat=img_features[-1, :, 0].contiguous()  # [b, embed]
-        patch_feat = img_features[:, 1:].contiguous()  # [b, patch_num, v_embed]
+        patch_feat = img_features.contiguous()  # [b, patch_num, v_embed]
 
         # img_features = img_features.sum(axis=1)  # [b, patch_num, embed]
         # img_features = img_features.permute(0, 2, 1)
@@ -137,7 +137,7 @@ class MM_Former(Blip2Base):
 
         # we get img_feat and patch_feat now
         patch_emb = self.vision_local_embedding(patch_feat)
-        patch_emb = F.normalize(patch_emb, dim=-1)  # [b, patch_num, embed]
+        patch_emb = F.normalize(patch_emb, dim=-1)  # [b, patch_num, embed=128]
 
         atten_sim = torch.bmm(word_emb, patch_emb.permute(0, 2, 1))  # [b, words_length, patch_num]
         atten_scores = F.softmax(atten_sim / temperature, dim=-1)  # [b, words_length, patch_num]
@@ -560,7 +560,7 @@ class MM_Former(Blip2Base):
 
         ###============== Local Image-text Contrastive ===================###
         if self.local_contrastive_loss:
-            loss_local = self.forward_local_contrastive_loss(image_embeds, text_tokens.input_ids, text_output)
+            loss_local = self.forward_local_contrastive_loss(query_output, text_tokens.input_ids, text_output)
             loss.append(loss_local)
 
         return loss
