@@ -26,11 +26,6 @@ class Gen_Dataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    def preprocess(self, text):
-        text = str(text)
-        final_o = 'Report: ' + text + ' The generated report is: '
-        return final_o
-
     def __getitem__(self, idx):
         sample = self.data.iloc[idx]
         text = sample['report_content']
@@ -43,7 +38,6 @@ class Gen_Dataset(Dataset):
         img = PIL.Image.open(img_path).convert('RGB')
         image = self.transform(img)
 
-        final_o = self.preprocess(text)
         # final_o = self.tokenizer(pre_text, padding='longest', truncation=True, max_length=50, return_tensors="pt")
         # input_ids = final_o.input_ids
         # attention_mask = final_o.attention_mask
@@ -55,7 +49,7 @@ class Gen_Dataset(Dataset):
         # label = torch.tensor(label.input_ids).unsqueeze(0)
         if self.mode == 'train':
             item = {
-                'text_input': final_o,
+                'text_input': 'The generated report is:',
                 'text_output': text,
                 'image': image,
             }
