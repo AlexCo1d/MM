@@ -100,13 +100,14 @@ class MM_Former(Blip2Base):
             self.alpha = 0.4
             self.momentum = 0.995
 
-    def forward_local_contrastive_loss(self, img_features, ids, words_emb):
+    def forward_local_contrastive_loss(self, query_output, ids, words_emb):
         """
         :param ids: caption_ids from tokenizer
         :param img_features: [b, patch_num==query_num, v_embed]
         :param words_emb: bert output
         :return: loss
         """
+        img_features=query_output.last_hidden_state
         temperature = 0.07
         # get the local word embed
         bz = img_features.size(0)
@@ -182,8 +183,8 @@ class MM_Former(Blip2Base):
             atten_sim / temperature, dim=-1)  # bz, 196, 111
         patch_atten_output = torch.bmm(atten_scores, word_emb)
         with torch.no_grad():
-            img_attn_map = self.visual_encoder.blocks[-1].attn.attention_map.detach(
-            )
+            img_attn_map = self.visual_encoder.blocks[-1].attn.attention_map.detach()
+            raise ValueError('!!!',img_attn_map.size(), query_output.attentions.size())
             atten_weights = img_attn_map[:, :, 0, 1:].mean(dim=1)
             patch_atten_weights = []
             for i in range(bz):
