@@ -126,14 +126,14 @@ class Former_Llama(Blip2Base):
                     param.requires_grad = False
                 self.llm_model = self.llm_model.eval()
 
-            # self.llm_proj = nn.Linear(
-            #     self.Qformer.config.hidden_size, self.llm_model.config.hidden_size
-            # )
-            self.llm_proj = nn.Sequential(
-                nn.Linear(self.Qformer.config.hidden_size, self.Qformer.config.hidden_size),
-                nn.ReLU(),
-                nn.Linear(self.Qformer.config.hidden_size, self.llm_model.config.hidden_size),
+            self.llm_proj = nn.Linear(
+                self.Qformer.config.hidden_size, self.llm_model.config.hidden_size
             )
+            # self.llm_proj = nn.Sequential(
+            #     nn.Linear(self.Qformer.config.hidden_size, self.Qformer.config.hidden_size),
+            #     nn.ReLU(),
+            #     nn.Linear(self.Qformer.config.hidden_size, self.llm_model.config.hidden_size),
+            # )
 
             self.max_output_txt_len = max_output_txt_len
             self.prompt = prompt
