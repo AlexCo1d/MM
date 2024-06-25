@@ -121,7 +121,7 @@ def main(args):
     #### Creating Model ####
     print("Creating model")
     model = Former_Llama_Cap(img_size=args.img_size, llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
-                             freeze_vit=args.freeze_vit, is_lora=args.is_lora)
+                             freeze_vit=args.freeze_vit, is_lora=args.is_lora, vit_type=args.vit_type,)
     model = model.to(device)
     # print(model)
 
