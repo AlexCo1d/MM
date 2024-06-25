@@ -193,7 +193,7 @@ def main(args):
                 }
                 prefix = args.checkpoint.split('/')[-1].split('.')[0]
                 # for evaluation and output the result
-                if args.output_dir and epoch >= 10 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 5):
+                if args.output_dir and epoch >= 5 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 5):
                     torch.save(save_obj,
                                os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
 
