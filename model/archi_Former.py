@@ -183,8 +183,8 @@ class MM_Former(Blip2Base):
             atten_sim / temperature, dim=-1)  # bz, 196, 111
         patch_atten_output = torch.bmm(atten_scores, word_emb)
         with torch.no_grad():
-            img_attn_map = self.visual_encoder.blocks[-1].attn.attention_map.detach()
-            raise ValueError('!!!',img_attn_map.size(), [query_output.attentions[i].size() for i in range(len(query_output.attentions))])
+            # img_attn_map = self.visual_encoder.blocks[-1].attn.attention_map.detach()
+            img_attn_map = query_output.attentions[-1][:, :, 0, 1:].mean(dim=1)
             atten_weights = img_attn_map[:, :, 0, 1:].mean(dim=1)
             patch_atten_weights = []
             for i in range(bz):
