@@ -113,6 +113,7 @@ class Former_Llama_Cap(Blip2Base):
         else:
             for name, param in self.llm_model.named_parameters():
                 param.requires_grad = False
+            self.llm_model = self.llm_model.eval()
 
         self.llm_proj = nn.Linear(
                     self.Qformer.config.hidden_size, self.llm_model.config.hidden_size
