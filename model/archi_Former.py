@@ -184,7 +184,7 @@ class MM_Former(Blip2Base):
         patch_atten_output = torch.bmm(atten_scores, word_emb)
         with torch.no_grad():
             # img_attn_map = self.visual_encoder.blocks[-1].attn.attention_map.detach()
-            img_attn_map = query_output.attentions[-1][:, :, 0, 1:].mean(dim=1)
+            img_attn_map = query_output.attentions[-1].detach()
             atten_weights = img_attn_map[:, :, 0, 1:].mean(dim=1)
             patch_atten_weights = []
             for i in range(bz):
