@@ -561,7 +561,7 @@ class MM_Former(Blip2Base):
 
         ###============== Local Image-text Contrastive ===================###
         if self.local_contrastive_loss:
-            loss_local = self.forward_local_contrastive_loss(query_output.last_hidden_state, text_tokens.input_ids, text_output)
+            loss_local = self.forward_local_contrastive_loss(query_output, text_tokens.input_ids, text_output)
             loss.append(loss_local)
 
         return loss
