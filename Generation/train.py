@@ -59,6 +59,7 @@ def evaluation(model, data_loader, device, args):
     :return: a dict that contains the result of the evaluation {question, pred, answer, answer_type}
     """
     # test
+    model.eval()
     if args.distributed:
         t_model = model.module
         t_model.eval()
@@ -166,8 +167,6 @@ def main(args):
         gen_result = evaluation(model, test_loader, device, args)
         json.dump(gen_result,
                   open(os.path.join(args.result_dir, 'gen_result_%s.json' % (args.dataset_use)), 'w'))
-        metrics = compute_metrics(gen_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
-        print(f'{args.dataset_use} acc: {metrics}')
 
     else:
         print("\nStart training\n")

@@ -28,7 +28,7 @@ class Gen_Dataset(Dataset):
 
     def preprocess(self, text):
         text = str(text)
-        final_o = 'Report: ' + text + ' The Generated report is: '
+        final_o = 'Report: ' + text + ' The generated report is: '
         return final_o
 
     def __getitem__(self, idx):
@@ -53,12 +53,18 @@ class Gen_Dataset(Dataset):
         # label = self.tokenizer(Answer, padding='longest', truncation=True, max_length=50, return_tensors="pt")
         # labels_att = torch.tensor(label.attention_mask).unsqueeze(0)
         # label = torch.tensor(label.input_ids).unsqueeze(0)
-
-        item = {
-            'text_input': final_o,
-            'text_output': text,
-            'image': image,
-        }
+        if self.mode == 'train':
+            item = {
+                'text_input': final_o,
+                'text_output': text,
+                'image': image,
+            }
+        else:
+            item = {
+                'text_input': 'The generated report is: ',
+                'text_output': text,
+                'image': image,
+            }
 
         return item
 

@@ -302,3 +302,8 @@ class Cider:
 
     def method(self):
         return "CIDEr"
+
+if __name__ == "__main__":
+
+    metrics = compute_metrics(gen_result, args=args, dataloader=test_loader, epoch=checkpoint['epoch'])
+    print(f'{args.dataset_use} acc: {metrics}')
