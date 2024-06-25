@@ -124,11 +124,11 @@ class Former_Llama_Cap(Blip2Base):
         )
 
         self.max_output_txt_len = max_output_txt_len
-        self.prompt = prompt
-        prompt_tokens = self.llm_tokenizer(self.prompt, return_tensors="pt")
-        self.prompt_length = prompt_tokens.attention_mask.sum(1)
+        # self.prompt = prompt
+        # prompt_tokens = self.llm_tokenizer(self.prompt, return_tensors="pt")
+        # self.prompt_length = prompt_tokens.attention_mask.sum(1)
 
-        self._lemmatizer = None
+        # self._lemmatizer = None
 
     def concat_text_input_output(self, input_ids, input_atts, output_ids, output_atts):
         input_part_targets_len = []

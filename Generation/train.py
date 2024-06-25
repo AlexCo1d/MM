@@ -10,6 +10,7 @@ import sys
 import transformers
 
 from Generation.metric_eval import compute_metrics
+from Utils.pos_embed import interpolate_pos_embed
 from model.Former_Caption_Llama import Former_Llama_Cap
 
 import time
@@ -145,9 +146,10 @@ def main(args):
     start_epoch = 0
     if args.checkpoint:
         checkpoint = torch.load(args.checkpoint, map_location='cpu')
-        state_dict = checkpoint['model']
+        # model_dict = model_without_ddp.state_dict()
+        interpolate_pos_embed(model_without_ddp.visual_encoder, checkpoint, 'visual_encoder.pos_embed')
 
-        msg = model_without_ddp.load_state_dict(state_dict, strict=False)
+        msg = model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
         if 'optimizer' in checkpoint and args.load_optim:
@@ -229,8 +231,6 @@ if __name__ == '__main__':
     parser.add_argument('--mv', action='store_true')
     parser.set_defaults(mv=False)
     parser.add_argument('--LLM_path', default='', type=str, help='path for loading pretrained LLM model')
-    parser.add_argument('--classifier_vqa', action='store_true')
-    parser.set_defaults(classifier_vqa=False)
     parser.add_argument('--is_lora', action='store_true')
     parser.set_defaults(is_lora=False)
     parser.add_argument('--img_size', default=224, type=int)
