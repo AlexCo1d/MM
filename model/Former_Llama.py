@@ -136,9 +136,9 @@ class Former_Llama(Blip2Base):
             # )
 
             self.max_output_txt_len = max_output_txt_len
-            self.prompt = prompt
-            prompt_tokens = self.llm_tokenizer(self.prompt, return_tensors="pt")
-            self.prompt_length = prompt_tokens.attention_mask.sum(1)
+            # self.prompt = prompt
+            # prompt_tokens = self.llm_tokenizer(self.prompt, return_tensors="pt")
+            # self.prompt_length = prompt_tokens.attention_mask.sum(1)
 
             self._lemmatizer = None
 
