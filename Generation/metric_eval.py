@@ -5,9 +5,9 @@ import pandas as pd
 def metrics(path, nlgeval):
     data = pd.read_json(path)
     gt= data['gen'].tolist()
-    gt= [[i] for i in gt]
+    gt=[gt]
     gen = data['gen'].tolist()
-    metrics = nlgeval.compute_metrics(gt, gen)
+    metrics = nlgeval.compute_metrics(ref_list=gt, hyp_list=gen)
     print(f'{path}: ', metrics)
 
 
