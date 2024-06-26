@@ -5,6 +5,7 @@ only for testing
 '''
 import re
 
+import numpy as np
 # import torch
 # from functools import partial
 # import torch.nn as nn
@@ -333,60 +334,63 @@ import re
 #     reduction='none'
 # )
 # print(outputs.loss)
-import json
-import os
-import pandas as pd
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from rouge import Rouge
-import pymeteor.pymeteor as pymeteor
-from Generation.Dataset import pre_caption
+# import json
+# import os
+# import pandas as pd
+# from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+# from rouge import Rouge
+# import pymeteor.pymeteor as pymeteor
+# from Generation.Dataset import pre_caption
+#
+# data=pd.read_json(r'C:\Users\Alex\Desktop\gen_result_iu (1).json')
+# bleu_scores = []
+# rouge_scores = []
+# meteor_scores = []
+# rouge = Rouge()  # Initialize the Rouge metric
+# for i, t in enumerate(data.iterrows()):
+#     print(i)
+#     item=data.iloc[i]
+#     gt= pre_caption(item['gt'])
+#     gen = pre_caption(str(item['gen']))
+#     weights = [(1.0, 0, 0, 0),  # BLEU-1
+#                    (0.5, 0.5, 0, 0),  # BLEU-2
+#                    (0.33, 0.33, 0.33, 0),  # BLEU-3
+#                    (0.25, 0.25, 0.25, 0.25)]  # BLEU-4
+#     bleu_score = [sentence_bleu([gt], gen, weights=w) for w in weights]
+#     bleu_scores.append(bleu_score)
+#     print(bleu_score)
+#     # Compute ROUGE score
+#     rouge_score = rouge.get_scores(gen, gt)[0]['rouge-l']['f']  # get_scores returns a list of scores per item
+#     rouge_scores.append(rouge_score)
+#     print(rouge_score)
+#
+#     # Compute METEOR score
+#     meteor_score = pymeteor.meteor(gt, gen)
+#     meteor_scores.append(meteor_score)
+#     print(meteor_score)
+#     # gt=tokenizer.tokenize({0: [{'image_id': 0, 'caption': gt.encode('utf-8')}]})
+#     # gen=tokenizer.tokenize({0: [{'image_id': 0, 'caption': gen.encode('utf-8')}]})
+#     # cider_score, _ = cider.compute_score(gt, gen)
+#     # print(f"Image {i} CIDEr Score: {cider_score}")
+#
+# # Here you can compute average scores or handle results as needed
+# avg_bleu_1 = sum([i[0] for i in bleu_scores] ) / len(bleu_scores)
+# avg_bleu_2 = sum([i[1] for i in bleu_scores] ) / len(bleu_scores)
+# avg_bleu_3 = sum([i[2] for i in bleu_scores] ) / len(bleu_scores)
+# avg_bleu_4 = sum([i[3] for i in bleu_scores] ) / len(bleu_scores)
+# avg_rouge = sum(rouge_scores) / len(rouge_scores)
+# avg_meteor = sum(meteor_scores) / len(meteor_scores)
+#
+# # Print or return the computed metrics
+# print(f"Average BLEU-1 Score: {avg_bleu_1}")
+# print(f"Average BLEU-2 Score: {avg_bleu_2}")
+# print(f"Average BLEU-3 Score: {avg_bleu_3}")
+# print(f"Average BLEU-4 Score: {avg_bleu_4}")
+# print(f"Average ROUGE Scores: {avg_rouge}")
+# print(f"Average METEOR Score: {avg_meteor}")
 
-data=pd.read_json('./gen_result_iu.json')
-bleu_scores = []
-rouge_scores = []
-meteor_scores = []
-rouge = Rouge()  # Initialize the Rouge metric
-smoothie = SmoothingFunction().method4
-for i, t in enumerate(data.iterrows()):
-    print(i)
-    item=data.iloc[i]
-    gt= pre_caption(item['gt'])
-    gen = pre_caption(str(item['gen'])[2:])
-    weights = [(1.0, 0, 0, 0),  # BLEU-1
-                   (0.5, 0.5, 0, 0),  # BLEU-2
-                   (0.33, 0.33, 0.33, 0),  # BLEU-3
-                   (0.25, 0.25, 0.25, 0.25)]  # BLEU-4
-    bleu_score = [sentence_bleu([gt], gen, weights=w, smoothing_function=smoothie) for w in weights]
-    bleu_scores.append(bleu_score)
-
-    # Compute ROUGE score
-    rouge_score = rouge.get_scores(gen, gt)[0]['rouge-l']['f']  # get_scores returns a list of scores per item
-    rouge_scores.append(rouge_score)
-
-
-    # Compute METEOR score
-    meteor_score = pymeteor.meteor(gt, gen)
-    meteor_scores.append(meteor_score)
-    print(bleu_score, rouge_score, meteor_score)
-    # gt=tokenizer.tokenize({0: [{'image_id': 0, 'caption': gt.encode('utf-8')}]})
-    # gen=tokenizer.tokenize({0: [{'image_id': 0, 'caption': gen.encode('utf-8')}]})
-    # cider_score, _ = cider.compute_score(gt, gen)
-    # print(f"Image {i} CIDEr Score: {cider_score}")
-
-
-
-# Here you can compute average scores or handle results as needed
-avg_bleu_1 = sum([i[0] for i in bleu_scores] ) / len(bleu_scores)
-avg_bleu_2 = sum([i[1] for i in bleu_scores] ) / len(bleu_scores)
-avg_bleu_3 = sum([i[2] for i in bleu_scores] ) / len(bleu_scores)
-avg_bleu_4 = sum([i[3] for i in bleu_scores] ) / len(bleu_scores)
-avg_rouge = sum(rouge_scores) / len(rouge_scores)
-avg_meteor = sum(meteor_scores) / len(meteor_scores)
-
-# Print or return the computed metrics
-print(f"Average BLEU-1 Score: {avg_bleu_1}")
-print(f"Average BLEU-2 Score: {avg_bleu_2}")
-print(f"Average BLEU-3 Score: {avg_bleu_3}")
-print(f"Average BLEU-4 Score: {avg_bleu_4}")
-print(f"Average ROUGE Scores: {avg_rouge}")
-print(f"Average METEOR Score: {avg_meteor}")
+# from cidereval import cider, ciderD
+# gt=tokenizer.tokenize({0: [{'image_id': 0, 'caption': gt.encode('utf-8')}]})
+# gen=tokenizer.tokenize({0: [{'image_id': 0, 'caption': gen.encode('utf-8')}]})
+# cider_score, _ = cider.compute_score(gt, gen)
+# print(f"Image {i} CIDEr Score: {cider_score}")
