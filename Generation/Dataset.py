@@ -114,5 +114,3 @@ def pre_caption(caption, max_words=256):
 
     return caption
 
-
-
