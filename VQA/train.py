@@ -136,15 +136,28 @@ def main(args):
         model = Former_cls(img_size=args.img_size, vit_type=args.vit_type,
                            vit_path=args.vit_path if args.checkpoint is None else '')
     else:
-        model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path, vit_path=args.vit_path if args.checkpoint is None else '',
+        model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path,
+                             vit_path=args.vit_path if args.checkpoint is None else '',
                              freeze_vit=args.freeze_vit, is_lora=args.is_lora, instruct=True,
                              max_txt_len=384 if args.dataset_use == 'pmcvqa' else 256, vit_type=args.vit_type)
     model = model.to(device)
     # print(model)
 
-    eff_batch_size = args.batch_size * misc.get_world_size()
+    # eff_batch_size = args.batch_size * misc.get_world_size()
 
-    optimizer = transformers.AdamW(params=model.parameters(), lr=args.lr, weight_decay=0.05, betas=(0.9, 0.98)) \
+    # set group:
+    if not args.classifier_vqa:
+        proj = list(map(id, model.llm_proj.parameters()))
+        proj_params = filter(lambda x: id(x) in proj, model.parameters())
+        rest_params = filter(lambda x: id(x) not in proj, model.parameters())
+        params = [
+            {'params': proj_params, 'lr': args.lr * 4},
+            {'params': rest_params}
+        ]
+    else:
+        params = model.parameters()
+
+    optimizer = transformers.AdamW(params=params, lr=args.lr, weight_decay=0.05, betas=(0.9, 0.98)) \
         if not args.deepspeed else None
 
     model_without_ddp = model
@@ -166,7 +179,7 @@ def main(args):
         # pretrained_dict = {k: v for k, v in checkpoint['model'].items() if k in model_dict and v.shape==model_dict[k].shape}
         # model_dict.update(pretrained_dict)
         # msg = model_without_ddp.load_state_dict(model_dict)
-        msg=model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
+        msg = model_without_ddp.load_state_dict(checkpoint['model'], strict=False)
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
         if 'optimizer' in checkpoint and args.load_optim:
@@ -210,7 +223,7 @@ def main(args):
                 }
                 prefix = args.checkpoint.split('/')[-1].split('.')[0]
                 # for evaluation and output the result
-                if epoch>0 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 1 or epoch % 10 == 0):
+                if epoch > 0 and (epoch % args.eval_freq == 0 or epoch >= args.epochs - 1 or epoch % 10 == 0):
                     torch.save(save_obj,
                                os.path.join(args.output_dir, '%s_%s_%02d.pth' % (prefix, args.dataset_use, epoch)))
 
@@ -236,12 +249,12 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_use', default='radvqa', help='choose medical vqa dataset(radvqa, pathvqa, slake, vqa2019)')
+    parser.add_argument('--dataset_use', default='radvqa',
+                        help='choose medical vqa dataset(radvqa, pathvqa, slake, vqa2019)')
     parser.add_argument('--dataset_path', help='path to the dataset')
     parser.add_argument('--checkpoint', default='')
     parser.add_argument('--load_optim', action='store_true')
     parser.set_defaults(load_optim=False)
-
 
     parser.add_argument('--LLM_path', default='', type=str, help='path for loading pretrained LLM model')
     parser.add_argument('--is_lora', action='store_true')
