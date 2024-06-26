@@ -20,8 +20,8 @@ def compute_metrics(gen_result:[], args=None, dataloader=None, epoch=0):
     cider_scores = []
     rouge = Rouge()  # Initialize the Rouge metric
     smoothie = SmoothingFunction().method4
-    # cider=Cider()
-    # tokenizer = PTBTokenizer()
+    cider=Cider()
+    tokenizer = PTBTokenizer()
     for i, item in enumerate(gen_result):
         gt= pre_caption(item['gt'])
         gen = pre_caption(item['gen'])

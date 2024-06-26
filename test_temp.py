@@ -341,7 +341,7 @@ from rouge import Rouge
 import pymeteor.pymeteor as pymeteor
 from Generation.Dataset import pre_caption
 
-data=pd.read_json(r'C:\Users\Alex\Desktop\gen_result_iu.json')
+data=pd.read_json('./gen_result_iu.json')
 bleu_scores = []
 rouge_scores = []
 meteor_scores = []
