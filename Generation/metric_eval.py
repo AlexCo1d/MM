@@ -13,15 +13,15 @@ import math
 from Generation.tokenizer.ptbtokenizer import PTBTokenizer
 
 
-def compute_metrics(gen_result:{}, args=None, dataloader=None, epoch=0):
+def compute_metrics(gen_result:[], args=None, dataloader=None, epoch=0):
     bleu_scores = []
     rouge_scores = []
     meteor_scores = []
     cider_scores = []
     rouge = Rouge()  # Initialize the Rouge metric
     smoothie = SmoothingFunction().method4
-    cider=Cider()
-    tokenizer = PTBTokenizer()
+    # cider=Cider()
+    # tokenizer = PTBTokenizer()
     for i, item in enumerate(gen_result):
         gt= pre_caption(item['gt'])
         gen = pre_caption(item['gen'])
@@ -51,16 +51,21 @@ def compute_metrics(gen_result:{}, args=None, dataloader=None, epoch=0):
 
 
     # Here you can compute average scores or handle results as needed
-    avg_bleu = sum(bleu_scores) / len(bleu_scores)
-    avg_rouge = {key: sum([score[key]['f'] for score in rouge_scores]) / len(rouge_scores) for key in rouge_scores[0]}
+    avg_bleu_1 = sum([i[0] for i in bleu_scores] ) / len(bleu_scores)
+    avg_bleu_2 = sum([i[1] for i in bleu_scores] ) / len(bleu_scores)
+    avg_bleu_3 = sum([i[2] for i in bleu_scores] ) / len(bleu_scores)
+    avg_bleu_4 = sum([i[3] for i in bleu_scores] ) / len(bleu_scores)
+    avg_rouge = sum(rouge_scores) / len(rouge_scores)
     avg_meteor = sum(meteor_scores) / len(meteor_scores)
 
     # Print or return the computed metrics
-    print(f"Average BLEU Score: {avg_bleu}")
+    print(f"Average BLEU-1 Score: {avg_bleu_1}")
+    print(f"Average BLEU-2 Score: {avg_bleu_2}")
+    print(f"Average BLEU-3 Score: {avg_bleu_3}")
+    print(f"Average BLEU-4 Score: {avg_bleu_4}")
     print(f"Average ROUGE Scores: {avg_rouge}")
     print(f"Average METEOR Score: {avg_meteor}")
 
-    return avg_bleu, avg_rouge, avg_meteor
 
 #!/usr/bin/env python
 # Tsung-Yi Lin <tl483@cornell.edu>

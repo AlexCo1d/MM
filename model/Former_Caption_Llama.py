@@ -254,7 +254,7 @@ class Former_Llama_Cap(Blip2Base):
             samples,
             dataloader=None
     ):
-        return self.predict_answers_gen(samples)
+        return self.predict_answers_gen(samples,dataloader=dataloader)
 
     @torch.no_grad()
     def predict_answers_gen(
@@ -269,6 +269,7 @@ class Former_Llama_Cap(Blip2Base):
             length_penalty=1,
             num_captions=1,
             temperature=1,
+            dataloader=None
     ):
         self.llm_tokenizer.padding_side = "left"
 
@@ -350,8 +351,8 @@ class Former_Llama_Cap(Blip2Base):
                 top_p=top_p,
                 temperature=temperature,
                 num_beams=num_beams,
-                max_length=max_length,
-                min_length=min_length,
+                max_length=dataloader.dataset.max_seq_length,
+                min_length=dataloader.dataset.min_seq_length,
                 # eos_token_id=self.eos_token_id,
                 repetition_penalty=repetition_penalty,
                 # length_penalty=length_penalty,

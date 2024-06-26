@@ -19,6 +19,8 @@ class Gen_Dataset(Dataset):
                  seq_length=512, voc_size=32000, mode='train', answer_list_flag: bool = False):
 
         self.data = pd.read_csv(os.path.join(data_path, f'{mode}.csv'))
+        self.min_seq_length = self.data['report_content'].apply(lambda x: len(x.split())).min()
+        self.max_seq_length = self.data['report_content'].apply(lambda x: len(x.split())).max()
         self.mode = mode
         self.transform = transform
         self.data_path = data_path
