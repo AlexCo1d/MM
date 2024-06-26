@@ -4,7 +4,7 @@ import pandas as pd
 
 def metrics(path, nlgeval):
     data = pd.read_json(path)
-    gt= data['gen'].tolist()
+    gt= data['gt'].tolist()
     gt=[gt]
     gen = data['gen'].tolist()
     metrics = nlgeval.compute_metrics(ref_list=gt, hyp_list=gen)
