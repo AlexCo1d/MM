@@ -57,7 +57,7 @@ class Gen_Dataset(Dataset):
             }
         else:
             item = {
-                'text_input': 'The generated report is: ',
+                'text_input': 'The generated report is:',
                 'text_output': text,
                 'image': image,
             }
