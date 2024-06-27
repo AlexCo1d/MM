@@ -134,7 +134,7 @@ def main(args):
     print("Creating model")
     if args.classifier_vqa:
         model = Former_cls(img_size=args.img_size, vit_type=args.vit_type,
-                           vit_path=args.vit_path if args.checkpoint is None else '')
+                           vit_path=args.vit_path if args.checkpoint is None else '', dataloader=train_loader,)
     else:
         model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path,
                              vit_path=args.vit_path if args.checkpoint is None else '',
