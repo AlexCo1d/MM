@@ -26,15 +26,11 @@ class VQA_Dataset(Dataset):
         self.img_root = img_root
         self.max_txt_length = max_txt_length
         self.classifier_vqa = answer_list_flag
+        answer_list = [pre_answer(self.data[i]) for i in range(len(self.data))]
+        self.answer_list = list(set(answer_list))
+        self.answer_label = {answer: i for i, answer in enumerate(self.answer_list)}
 
-        if mode == 'test':
-            try:
-                with open(os.path.join(data_path, f'answer_list.json')) as f:
-                    self.answer_list = json.load(f)
-                    # make it a list of string
-                    self.answer_list = [str(item) for item in self.answer_list]
-            except Exception as e:
-                print(f"An unexpected error occurred: {e}")
+
 
         # answer_list = [item['answer'] for item in self.data]
         # make it unique.
@@ -62,6 +58,7 @@ class VQA_Dataset(Dataset):
         Question = sample['question']
         Answer = sample['answer']
         Answer = pre_answer(Answer)
+        label = int(self.answer_label[Answer])
         at = 'CLOSED' if (Answer == 'yes' or Answer == 'no') else 'OPEN'
         Question = pre_question(Question)
         ##### read image pathes #####
@@ -89,7 +86,8 @@ class VQA_Dataset(Dataset):
                 'text_output': Answer,
                 'image': image,
                 'answer_type': at,
-                'image_name': sample['image_name']
+                'image_name': sample['image_name'],
+                'label': label
             }
         # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
@@ -98,7 +96,8 @@ class VQA_Dataset(Dataset):
                 'text_output': Answer,
                 'image': image,
                 'answer_type': at,
-                'image_name': sample['image_name']
+                'image_name': sample['image_name'],
+                'label': label
             }
 
         return item
