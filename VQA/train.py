@@ -155,7 +155,13 @@ def main(args):
             {'params': rest_params}
         ]
     else:
-        params = model.parameters()
+        proj = list(map(id, model.text_proj.parameters()))+list(map(id, model.vision_proj.parameters()))
+        proj_params = filter(lambda x: id(x) in proj, model.parameters())
+        rest_params = filter(lambda x: id(x) not in proj, model.parameters())
+        params = [
+            {'params': proj_params, 'lr': args.lr * 4},
+            {'params': rest_params}
+        ]
 
     optimizer = transformers.AdamW(params=params, lr=args.lr, weight_decay=0.05, betas=(0.9, 0.98)) \
         if not args.deepspeed else None
