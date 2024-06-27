@@ -78,7 +78,7 @@ class Former_cls(Blip2Base):
         self.max_txt_len = max_txt_len
         # self.instruct = instruct
         self.distill = distill
-
+        self.dataloader = dataloader
         self.vision_proj = nn.Linear(self.Qformer.config.hidden_size, c_embed_dim)  # 768, 256
         self.text_proj = nn.Linear(self.Qformer.config.hidden_size, c_embed_dim)
 
@@ -87,8 +87,7 @@ class Former_cls(Blip2Base):
         # config.num_hidden_layers = 6
         # self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config, config=config)
         if dataloader is not None:
-            answer_list = dataloader.dataset.answer_list
-            self.answer_tokens = self.tokenizer(answer_list, padding='longest', return_tensors="pt")
+            self.answer_list = dataloader.dataset.answer_list
 
         if self.distill:
             self.vision_proj_m = copy.deepcopy(self.vision_proj)
@@ -105,7 +104,7 @@ class Former_cls(Blip2Base):
         if alpha is not None:
             self.alpha = alpha
         image = samples["image"].to(self.device)
-        self.answer_tokens = self.answer_tokens.to(self.device)
+        answer_tokens = self.tokenizer(self.answer_list, padding='longest', return_tensors="pt").to(image.device)
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
@@ -143,8 +142,8 @@ class Former_cls(Blip2Base):
                 self.vision_proj(query_output.last_hidden_state), dim=-1
             )
         answer_feats = self.Qformer(
-            self.answer_tokens.input_ids,
-            attention_mask=self.answer_tokens.attention_mask,
+            answer_tokens.input_ids,
+            attention_mask=answer_tokens.attention_mask,
             return_dict=True,
         )
         answer_feats = F.normalize(
@@ -169,8 +168,8 @@ class Former_cls(Blip2Base):
                     self.vision_proj_m(query_output_m.last_hidden_state), dim=-1
                 )
                 answer_feats_m = self.Qformer_m(
-                    self.answer_tokens.input_ids,
-                    attention_mask=self.answer_tokens.attention_mask,
+                    answer_tokens.input_ids,
+                    attention_mask=answer_tokens.attention_mask,
                     return_dict=True,
                 )
                 answer_feats_m = F.normalize(
