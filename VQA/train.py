@@ -134,9 +134,9 @@ def main(args):
     print("Creating model")
     if args.classifier_vqa:
         model = Former_cls(img_size=args.img_size, vit_type=args.vit_type,
-                           vit_path=args.vit_path if args.checkpoint is None else '', dataloader=train_loader,)
+                           vit_path=args.vit_path if args.checkpoint is None else '', dataloader=train_loader,distill=args.distill_model)
     else:
-        model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path,
+        model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path,distill=args.distill_model,
                              vit_path=args.vit_path if args.checkpoint is None else '',
                              freeze_vit=args.freeze_vit, is_lora=args.is_lora, instruct=True,
                              max_txt_len=384 if args.dataset_use == 'pmcvqa' else 256, vit_type=args.vit_type)
@@ -159,7 +159,7 @@ def main(args):
         proj_params = filter(lambda x: id(x) in proj, model.parameters())
         rest_params = filter(lambda x: id(x) not in proj, model.parameters())
         params = [
-            {'params': proj_params, 'lr': args.lr * 4},
+            {'params': proj_params, 'lr': args.lr * 3},
             {'params': rest_params}
         ]
 
