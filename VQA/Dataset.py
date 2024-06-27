@@ -26,7 +26,7 @@ class VQA_Dataset(Dataset):
         self.img_root = img_root
         self.max_txt_length = max_txt_length
         self.classifier_vqa = answer_list_flag
-        answer_list = [pre_answer(self.data[i]) for i in range(len(self.data))]
+        answer_list = [pre_answer(self.data[i]['answer']) for i in range(len(self.data))]
         self.answer_list = list(set(answer_list))
         if self.mode == 'train':
             self.answer_label = {answer: i for i, answer in enumerate(self.answer_list)}
