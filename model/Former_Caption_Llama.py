@@ -45,8 +45,10 @@ class Former_Llama_Cap(Blip2Base):
             vit_path="",
             tokenizer_config='../model/submodule/bert/bert-base-uncased',
             qformer_text_input=True,
+            hint=False,
     ):
         super().__init__()
+        self.hint = hint
         from transformers import LlamaTokenizer
         from model.submodule.LLM.modeling_llama import LlamaForCausalLM
 
@@ -209,32 +211,46 @@ class Former_Llama_Cap(Blip2Base):
                 truncation=True,
                 max_length=self.max_output_txt_len,
             ).to(image.device)
+            if self.hint:
+                llm_tokens, input_part_targets_len = self.concat_text_input_output(
+                    text_input_tokens.input_ids,
+                    text_input_tokens.attention_mask,
+                    text_output_tokens.input_ids,
+                    text_output_tokens.attention_mask,
+                )
+                del text_input_tokens, text_output_tokens
+                # do not apply loss to the padding
+                targets = llm_tokens['input_ids'].masked_fill(
+                    llm_tokens['input_ids'] == self.llm_tokenizer.pad_token_id, -100
+                )
 
-            llm_tokens, input_part_targets_len = self.concat_text_input_output(
-                text_input_tokens.input_ids,
-                text_input_tokens.attention_mask,
-                text_output_tokens.input_ids,
-                text_output_tokens.attention_mask,
-            )
-            del text_input_tokens, text_output_tokens
-            # do not apply loss to the padding
-            targets = llm_tokens['input_ids'].masked_fill(
-                llm_tokens['input_ids'] == self.llm_tokenizer.pad_token_id, -100
-            )
+                # do not apply loss to the text input (i.e., instruction)
+                for i, l in enumerate(input_part_targets_len):
+                    targets[i][:l] = -100
 
-            # do not apply loss to the text input (i.e., instruction)
-            for i, l in enumerate(input_part_targets_len):
-                targets[i][:l] = -100
+                # do not apply loss to the query tokens
+                empty_targets = (
+                    torch.ones(atts_llm.size(), dtype=torch.long).to(image.device).fill_(-100)
+                )
+                targets = torch.cat([empty_targets, targets], dim=1)
 
-            # do not apply loss to the query tokens
-            empty_targets = (
-                torch.ones(atts_llm.size(), dtype=torch.long).to(image.device).fill_(-100)
-            )
-            targets = torch.cat([empty_targets, targets], dim=1)
+                inputs_embeds = self.llm_model.get_input_embeddings()(llm_tokens['input_ids'])
+                inputs_embeds = torch.cat([inputs_llm, inputs_embeds], dim=1)
+                attention_mask = torch.cat([atts_llm, llm_tokens['attention_mask']], dim=1)
+            else:
+                llm_tokens = text_input_tokens
+                targets = llm_tokens.input_ids.masked_fill(
+                    llm_tokens.input_ids == self.llm_tokenizer.pad_token_id, -100
+                )
+                # do not apply loss to the query tokens
+                empty_targets = (
+                    torch.ones(atts_llm.size(), dtype=torch.long).to(image.device).fill_(-100)
+                )
+                targets = torch.cat([empty_targets, targets], dim=1)
+                inputs_embeds = self.llm_model.get_input_embeddings()(llm_tokens.input_ids)
+                inputs_embeds = torch.cat([inputs_llm, inputs_embeds], dim=1)
+                attention_mask = torch.cat([atts_llm, llm_tokens.attention_mask], dim=1)
 
-            inputs_embeds = self.llm_model.get_input_embeddings()(llm_tokens['input_ids'])
-            inputs_embeds = torch.cat([inputs_llm, inputs_embeds], dim=1)
-            attention_mask = torch.cat([atts_llm, llm_tokens['attention_mask']], dim=1)
             del llm_tokens, atts_llm, inputs_llm  # 清理不再使用的变量
             torch.cuda.empty_cache()
             outputs = self.llm_model(
