@@ -28,7 +28,8 @@ class VQA_Dataset(Dataset):
         self.classifier_vqa = answer_list_flag
         answer_list = [pre_answer(self.data[i]) for i in range(len(self.data))]
         self.answer_list = list(set(answer_list))
-        self.answer_label = {answer: i for i, answer in enumerate(self.answer_list)}
+        if self.mode == 'train':
+            self.answer_label = {answer: i for i, answer in enumerate(self.answer_list)}
 
 
 
@@ -58,7 +59,8 @@ class VQA_Dataset(Dataset):
         Question = sample['question']
         Answer = sample['answer']
         Answer = pre_answer(Answer)
-        label = int(self.answer_label[Answer])
+        if self.mode == 'train':
+            label = int(self.answer_label[Answer])
         at = 'CLOSED' if (Answer == 'yes' or Answer == 'no') else 'OPEN'
         Question = pre_question(Question)
         ##### read image pathes #####
@@ -97,7 +99,6 @@ class VQA_Dataset(Dataset):
                 'image': image,
                 'answer_type': at,
                 'image_name': sample['image_name'],
-                'label': label
             }
 
         return item
