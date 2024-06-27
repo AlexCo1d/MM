@@ -88,7 +88,7 @@ class Former_cls(Blip2Base):
         # self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config, config=config)
         if dataloader is not None:
             answer_list = dataloader.dataset.answer_list
-            self.answer_tokens = self.tokenizer(answer_list, padding='longest', return_tensors="pt").to(self.device)
+            self.answer_tokens = self.tokenizer(answer_list, padding='longest', return_tensors="pt")
 
         if self.distill:
             self.vision_proj_m = copy.deepcopy(self.vision_proj)
@@ -141,10 +141,9 @@ class Former_cls(Blip2Base):
         query_feats=F.normalize(
                 self.vision_proj(query_output.last_hidden_state), dim=-1
             )
-        answer_tokens = self.answer_tokens.to(image.device)
         answer_feats = self.Qformer(
-            answer_tokens.input_ids,
-            attention_mask=answer_tokens.attention_mask,
+            self.answer_tokens.input_ids,
+            attention_mask=self.answer_tokens.attention_mask,
             return_dict=True,
         )
         answer_feats = F.normalize(
@@ -169,8 +168,8 @@ class Former_cls(Blip2Base):
                     self.vision_proj_m(query_output_m.last_hidden_state), dim=-1
                 )
                 answer_feats_m = self.Qformer_m(
-                    answer_tokens.input_ids,
-                    attention_mask=answer_tokens.attention_mask,
+                    self.answer_tokens.input_ids,
+                    attention_mask=self.answer_tokens.attention_mask,
                     return_dict=True,
                 )
                 answer_feats_m = F.normalize(
