@@ -113,7 +113,7 @@ def compute_vqa_acc(vqa_results: [], epoch=0, args=None, dataloader= None):
                 closed_list.append(int(gt == pred))
         else:
             if type == 'OPEN':
-                gt = gt.split(' - ')
+                gt = gt.split('#')
                 for i in range(len(gt)):
                     gt[i] = pre_answer(gt[i])
                 sim = pre_answer(get_most_similar(answer_list, pred))

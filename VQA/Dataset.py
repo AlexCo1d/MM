@@ -224,7 +224,7 @@ class VQA2019_Dataset(VQA_Dataset):
         Answer = sample['answer']
 
         # add this line random choose one answer from the list.
-        Answer = Answer.split(' - ')
+        Answer = Answer.split('#')
         Answer = Answer[np.random.choice(len(Answer))]
 
         Answer = pre_answer(Answer)

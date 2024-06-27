@@ -92,6 +92,8 @@ class Former_cls(Blip2Base):
             self.alpha = 0.4
 
     def forward(self, samples, dataloader=None, alpha=None):
+        pass
+    def forward1(self, samples, dataloader=None, alpha=None):
         image = samples["image"].to(self.device)
         if alpha is not None:
             self.alpha = alpha
