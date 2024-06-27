@@ -105,6 +105,7 @@ class Former_cls(Blip2Base):
         if alpha is not None:
             self.alpha = alpha
         image = samples["image"].to(self.device)
+        self.answer_tokens = self.answer_tokens.to(self.device)
         with self.maybe_autocast():
             image_embeds = self.ln_vision(self.visual_encoder(image))
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(image.device)
