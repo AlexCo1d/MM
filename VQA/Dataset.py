@@ -222,12 +222,9 @@ class VQA2019_Dataset(VQA_Dataset):
         sample = self.data[idx]
         Question = sample['question']
         Answer = sample['answer']
-
-        # add this line random choose one answer from the list.
-        Answer = Answer.split('#')
-        Answer = Answer[np.random.choice(len(Answer))]
-
         Answer = pre_answer(Answer)
+        if self.mode == 'train':
+            label = int(self.answer_label[Answer])
         at = sample['answer_type']
         Question = pre_question(Question)
         ##### read image pathes #####
@@ -254,7 +251,8 @@ class VQA2019_Dataset(VQA_Dataset):
                 'text_output': Answer,
                 'image': image,
                 'answer_type': at,
-                'image_name': sample['image_name']
+                'image_name': sample['image_name'],
+                'label': label
             }
         # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
