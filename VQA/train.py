@@ -134,7 +134,7 @@ def main(args):
     #### Creating Model ####
     print("Creating model")
     if args.classifier_vqa:
-        model = Former_cls(img_size=args.img_size, vit_type=args.vit_type,
+        model = Former_cls(img_size=args.img_size, vit_type=args.vit_type, freeze_vit=args.freeze_vit,
                            vit_path=args.vit_path if args.checkpoint is None else '', distill=args.distill_model)
     else:
         model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path,distill=args.distill_model,
@@ -283,7 +283,7 @@ if __name__ == '__main__':
     parser.add_argument('--evaluate', action='store_true')
     parser.set_defaults(evaluate=False)
     parser.add_argument('--device', default='cuda')
-    parser.add_argument('--seed', default=42, type=int)
+    parser.add_argument('--seed', default=20, type=int)
     # distributed training parameters
     parser.add_argument('--world_size', default=1, type=int,
                         help='number of distributed processes')

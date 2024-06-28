@@ -29,7 +29,7 @@ class Former_cls(Blip2Base):
             drop_path_rate=0,
             use_grad_checkpoint=False,
             vit_precision="fp16",
-            freeze_vit=True,
+            freeze_vit=False,
             num_query_token=32,
             prompt="",
             max_txt_len=256,
