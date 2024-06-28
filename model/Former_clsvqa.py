@@ -87,8 +87,14 @@ class Former_cls(Blip2Base):
         # config.num_hidden_layers = 6
         # self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config, config=config)
         if dataloader is not None:
-            self.answer_list = dataloader.dataset.answer_list
-            self.answer_tokens = self.tokenizer(self.answer_list, padding='longest', return_tensors="pt")
+            answer_list = dataloader.dataset.answer_list
+            self.answer_tokens = self.tokenizer(
+                answer_list,
+                truncation=True,
+                max_length=self.max_txt_len,
+                padding='longest',
+                return_tensors="pt"
+            )
 
         if self.distill:
             self.vision_proj_m = copy.deepcopy(self.vision_proj)
