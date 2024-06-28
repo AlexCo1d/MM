@@ -25,7 +25,7 @@ class retrieval_dataset(Dataset):
         sample = self.data.iloc[idx]
         img_path = os.path.join(self.data_path, sample['Path'])
         img = Image.open(img_path).convert('RGB')
-        report = sample['Class']
+        report = sample['report_content']    # report_content origin for retrieval, and Class for ZS
         report = pre_caption(report, 256)
         item = {
             'image': self.transform(img),

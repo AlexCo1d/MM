@@ -59,8 +59,6 @@ class VQA_Dataset(Dataset):
         Question = sample['question']
         Answer = sample['answer']
         Answer = pre_answer(Answer)
-        if self.mode == 'train':
-            label = int(self.answer_label[Answer])
         at = 'CLOSED' if (Answer == 'yes' or Answer == 'no') else 'OPEN'
         Question = pre_question(Question)
         ##### read image pathes #####
@@ -89,7 +87,6 @@ class VQA_Dataset(Dataset):
                 'image': image,
                 'answer_type': at,
                 'image_name': sample['image_name'],
-                'label': label
             }
         # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
@@ -213,7 +210,7 @@ class PMC_Dataset(VQA_Dataset):
 class VQA2019_Dataset(VQA_Dataset):
     def __init__(self, data_path, transform, img_root='',
                  max_txt_length=512, voc_size=32000, mode='train', answer_list_flag: bool = False):
-        super().__init__(data_path, transform, mode=mode, img_root=img_root)
+        super().__init__(data_path, transform, mode=mode, img_root=img_root, answer_list_flag= answer_list_flag)
 
     def __len__(self):
         return len(self.data)

@@ -105,7 +105,7 @@ def compute_vqa_acc(vqa_results: [], epoch=0, args=None, dataloader= None):
         pred = pre_answer(pred)
         gt = pre_answer(gt)
         if type == 'OPEN':
-            sim = pre_answer(get_most_similar(answer_list, pred))
+            sim = pre_answer(pred)
             # print('pred:', pred, ' gt:', gt, ' sim:', sim)
             open_list.append(int(gt == sim))
         else:
