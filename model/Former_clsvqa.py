@@ -77,7 +77,7 @@ class Former_cls(Blip2Base):
         self.instruct = instruct
         self.distill = distill
 
-        config=BertConfig.from_json_file(os.path.join(tokenizer_config,'config.json'))
+        config = BertConfig.from_json_file(os.path.join(tokenizer_config, 'config.json'))
         # config.fusion_layer = 0
         # config.num_hidden_layers = 6
         self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config, config=config)
@@ -131,14 +131,14 @@ class Former_cls(Blip2Base):
         )
         query_atts = torch.ones(query_output.last_hidden_state.size()[:-1], dtype=torch.long).to(image.device)
         if self.distill:
+            self._momentum_update()
             with torch.no_grad():
-                self._momentum_update()
                 query_output_m = self.Qformer_m.bert(text_Qformer.input_ids,
-                                                attention_mask=Qformer_atts,
-                                                query_embeds=query_tokens,
-                                                encoder_hidden_states=image_embeds,
-                                                encoder_attention_mask=image_atts,
-                                                return_dict=True)
+                                                     attention_mask=Qformer_atts,
+                                                     query_embeds=query_tokens,
+                                                     encoder_hidden_states=image_embeds,
+                                                     encoder_attention_mask=image_atts,
+                                                     return_dict=True)
                 query_atts_m = torch.ones(query_output_m.last_hidden_state.size()[:-1], dtype=torch.long).to(
                     image.device)
                 logits_m = self.text_decoder_m(answer.input_ids,
@@ -247,36 +247,35 @@ class Former_cls(Blip2Base):
                                    return_dict=True,
                                    reduction='none')
         #
-        answer_loss = output.loss
-        answer_loss = answer_loss.view(input_ids.size(0), -1)
-
-        # topk_prob: first token probability
-        topk_probs = topk_probs.view(-1, 1)
-        log_probs = torch.cat([topk_probs.log(), -answer_loss], dim=1)
-
-        log_probs_sum = log_probs.sum(1)
-        log_probs_sum = log_probs_sum.view(num_ques, k)
-        topk_probs = F.softmax(log_probs_sum, dim=-1)
-
-        # get top-k after re-ranking
-        topk_probs, rerank_id = topk_probs.topk(k, dim=1)
-        topk_ids = torch.gather(topk_ids, 1, rerank_id)
-        result = []
-        for topk_id, topk_prob in zip(topk_ids, topk_probs):
-            _, pred = topk_prob.max(dim=0)
-            result.append(answer_list[topk_id[pred]])
-        return result
-
-        # log_probs_sum = -output.loss
+        # answer_loss = output.loss
+        # answer_loss = answer_loss.view(input_ids.size(0), -1)
+        #
+        # # topk_prob: first token probability
+        # topk_probs = topk_probs.view(-1, 1)
+        # log_probs = torch.cat([topk_probs.log(), -answer_loss], dim=1)
+        #
+        # log_probs_sum = log_probs.sum(1)
         # log_probs_sum = log_probs_sum.view(num_ques, k)
+        # topk_probs = F.softmax(log_probs_sum, dim=-1)
         #
-        # max_topk_ids = log_probs_sum.argmax(dim=1)
-        # max_ids = topk_ids[max_topk_ids >= 0, max_topk_ids]
-        #
-        # answers = [answer_list[max_id] for max_id in max_ids]
-        #
-        # return answers
+        # # get top-k after re-ranking
+        # topk_probs, rerank_id = topk_probs.topk(k, dim=1)
+        # topk_ids = torch.gather(topk_ids, 1, rerank_id)
+        # result = []
+        # for topk_id, topk_prob in zip(topk_ids, topk_probs):
+        #     _, pred = topk_prob.max(dim=0)
+        #     result.append(answer_list[topk_id[pred]])
+        # return result
 
+        log_probs_sum = -output.loss
+        log_probs_sum = log_probs_sum.view(num_ques, k)
+
+        max_topk_ids = log_probs_sum.argmax(dim=1)
+        max_ids = topk_ids[max_topk_ids >= 0, max_topk_ids]
+
+        answers = [answer_list[max_id] for max_id in max_ids]
+
+        return answers
 
     @torch.no_grad()
     def copy_params(self):
