@@ -149,7 +149,6 @@ class Former_cls(Blip2Base):
                 self.vision_proj(query_output.last_hidden_state), dim=-1
             )
         self.answer_tokens = self.answer_tokens.to(image.device)
-        assert self.answer_tokens.input_ids is not None
         answer_feats = self.Qformer.bert(
             self.answer_tokens.input_ids,
             attention_mask=self.answer_tokens.attention_mask,
@@ -161,7 +160,7 @@ class Former_cls(Blip2Base):
         sim_q2a= torch.einsum('b q d, a d -> b a q', query_feats, answer_feats).max(-1)[0]  # (bs, num_answer)
         sim_q2a= F.softmax(sim_q2a, dim=-1)
         label = samples['label'].to(image.device)
-        loss = F.cross_entropy(sim_q2a, label)
+        loss = torch.nn.CrossEntropyLoss(sim_q2a, label)
         if self.distill:
             with torch.no_grad():
                 self._momentum_update()
