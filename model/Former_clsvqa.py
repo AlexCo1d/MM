@@ -133,7 +133,7 @@ class Former_cls(Blip2Base):
         if self.distill:
             with torch.no_grad():
                 self._momentum_update()
-                query_output_m = self.Qformer_m(text_Qformer.input_ids,
+                query_output_m = self.Qformer_m.bert(text_Qformer.input_ids,
                                                 attention_mask=Qformer_atts,
                                                 query_embeds=query_tokens,
                                                 encoder_hidden_states=image_embeds,
