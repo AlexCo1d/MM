@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--checkpoint', type=str, default="")
     parser.add_argument('--data_path', type=str, default="")
     parser.add_argument('--vit_type', type=str, default="eva_vit")
+    parser.add_argument('--task', type=str, default="retrieval")
     parser.add_argument('--distributed', type=bool, default=True)
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--world_size', default=1, type=int,
@@ -28,7 +29,7 @@ def main():
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
-    dataset = retrieval_dataset(args.data_path)
+    dataset = retrieval_dataset(args.data_path, task=args.task)
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
 
