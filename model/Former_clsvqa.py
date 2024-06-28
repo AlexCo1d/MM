@@ -185,7 +185,7 @@ class Former_cls(Blip2Base):
                 )
                 sim_q2a_m = torch.einsum('b q d, a d -> b a q', query_feats_m, answer_feats_m).max(-1)[0]
                 sim_q2a_m = F.softmax(sim_q2a_m, dim=-1)
-            loss_distill = F.kl_div(sim_q2a, sim_q2a_m, reduction='mean')
+            loss_distill = torch.nn.KLDivLoss(sim_q2a, sim_q2a_m, reduction='mean')
             loss = (1 - self.alpha) * loss + self.alpha * loss_distill
         return loss
 
