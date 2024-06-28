@@ -338,8 +338,8 @@ def pre_question(question):
     return question
 
 
-def pre_answer(answer):
-    answer = str(answer)
+def pre_answer(lanswer):
+    answer = str(lanswer)
     answer = re.sub(
         r"([,.'!?\"()*#:;~])",
         '',
