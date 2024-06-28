@@ -158,9 +158,9 @@ class Former_cls(Blip2Base):
             self.text_proj(answer_feats.last_hidden_state[:, 0, :]), dim=-1
         )
         sim_q2a= torch.einsum('b q d, a d -> b a q', query_feats, answer_feats).max(-1)[0]  # (bs, num_answer)
-        sim_q2a= F.softmax(sim_q2a, dim=-1)
         label = samples['label'].to(image.device)
-        loss = torch.nn.CrossEntropyLoss(sim_q2a, label)
+        loss = nn.CrossEntropyLoss()(sim_q2a, label)
+
         if self.distill:
             with torch.no_grad():
                 self._momentum_update()
@@ -184,9 +184,8 @@ class Former_cls(Blip2Base):
                     self.text_proj_m(answer_feats_m.last_hidden_state[:, 0, :]), dim=-1
                 )
                 sim_q2a_m = torch.einsum('b q d, a d -> b a q', query_feats_m, answer_feats_m).max(-1)[0]
-                sim_q2a_m = F.softmax(sim_q2a_m, dim=-1)
-            loss_distill = torch.nn.KLDivLoss(sim_q2a, sim_q2a_m, reduction='mean')
-            loss = (1 - self.alpha) * loss + self.alpha * loss_distill
+                loss_distill = nn.KLDivLoss(reduction='mean')(F.log_softmax(sim_q2a, dim=-1), F.softmax(sim_q2a_m, dim=-1))
+                loss = (1 - self.alpha) * loss + self.alpha * loss_distill
         return loss
 
     # def forward(self, samples, dataloader=None, alpha=None):
