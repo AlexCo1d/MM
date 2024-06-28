@@ -150,7 +150,7 @@ class Former_cls(Blip2Base):
             )
         self.answer_tokens = self.answer_tokens.to(image.device)
         assert self.answer_tokens.input_ids is not None
-        answer_feats = self.Qformer(
+        answer_feats = self.Qformer.bert(
             self.answer_tokens.input_ids,
             attention_mask=self.answer_tokens.attention_mask,
             return_dict=True,
@@ -176,7 +176,7 @@ class Former_cls(Blip2Base):
                 query_feats_m = F.normalize(
                     self.vision_proj_m(query_output_m.last_hidden_state), dim=-1
                 )
-                answer_feats_m = self.Qformer_m(
+                answer_feats_m = self.Qformer_m.bert(
                     self.answer_tokens.input_ids,
                     attention_mask=self.answer_tokens.attention_mask,
                     return_dict=True,
