@@ -135,7 +135,7 @@ def main(args):
     print("Creating model")
     if args.classifier_vqa:
         model = Former_cls(img_size=args.img_size, vit_type=args.vit_type,
-                           vit_path=args.vit_path if args.checkpoint is None else '', dataloader=train_loader,distill=args.distill_model)
+                           vit_path=args.vit_path if args.checkpoint is None else '', distill=args.distill_model)
     else:
         model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path,distill=args.distill_model,
                              vit_path=args.vit_path if args.checkpoint is None else '',
@@ -152,11 +152,11 @@ def main(args):
         proj_params = filter(lambda x: id(x) in proj, model.parameters())
         rest_params = filter(lambda x: id(x) not in proj, model.parameters())
         params = [
-            {'params': proj_params, 'lr': args.lr * 4},
+            {'params': proj_params, 'lr': args.lr * 3},
             {'params': rest_params}
         ]
     else:
-        proj = list(map(id, model.text_proj.parameters()))+list(map(id, model.vision_proj.parameters()))
+        proj = list(map(id, model.text_decoder.parameters()))
         proj_params = filter(lambda x: id(x) in proj, model.parameters())
         rest_params = filter(lambda x: id(x) not in proj, model.parameters())
         params = [
@@ -164,7 +164,7 @@ def main(args):
             {'params': rest_params}
         ]
 
-    optimizer = transformers.AdamW(params=params, lr=args.lr, weight_decay=0.05, betas=(0.9, 0.98)) \
+    optimizer = transformers.AdamW(params=params, lr=args.lr, weight_decay=0.05) \
         if not args.deepspeed else None
 
     model_without_ddp = model
