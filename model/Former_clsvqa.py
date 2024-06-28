@@ -307,7 +307,7 @@ class Former_cls(Blip2Base):
         query_feats = F.normalize(
             self.vision_proj(query_output.last_hidden_state), dim=-1
         )
-        answer_feats = self.Qformer(
+        answer_feats = self.Qformer.bert(
             answer_tokens.input_ids,
             attention_mask=answer_tokens.attention_mask,
             return_dict=True,
