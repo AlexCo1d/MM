@@ -52,8 +52,8 @@ def main():
     ret_zs = model(dataloader_rt)
     ret_rt = model(dataloader_zs)
     # save the result
-    np.save(os.path.join(args.data_path, 'result_rt.npy'), ret_rt)
-    np.save(os.path.join(args.data_path, 'result_zs.npy'), ret_zs)
+    np.save(os.path.join('./result_rt.npy'), ret_rt)
+    np.save(os.path.join('./result_zs.npy'), ret_zs)
     if misc.is_main_process():
         _report_metrics(ret_rt, ret_zs, args)
 
