@@ -7,7 +7,7 @@ import torch
 from model import Former_Retrieval
 import Utils.misc as misc
 from Retrieval.retrieval_dataset import retrieval_dataset
-
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 def main():
     parser = argparse.ArgumentParser()
@@ -29,10 +29,10 @@ def main():
 
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
-    dataset = retrieval_dataset(args.data_path, task=args.task)
-
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
-
+    dataset_rt = retrieval_dataset(args.data_path, task='retrieval')
+    dataset_zs = retrieval_dataset(args.data_path, task='zero-shot')
+    dataloader_rt = torch.utils.data.DataLoader(dataset_rt, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
+    dataloader_zs = torch.utils.data.DataLoader(dataset_zs, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
     model = Former_Retrieval.Former_RT(vit_type=args.vit_type)
     model = model.to(device)
     model_without_ddp = model
@@ -49,15 +49,17 @@ def main():
         print('load checkpoint from %s' % args.checkpoint)
         print(msg)
     model.eval()
-    ret = model(dataloader)
+    ret_zs = model(dataloader_rt)
+    ret_rt = model(dataloader_zs)
     # save the result
-    np.save(os.path.join(args.data_path, 'result.npy'), ret)
+    np.save(os.path.join(args.data_path, 'result_rt.npy'), ret_rt)
+    np.save(os.path.join(args.data_path, 'result_zs.npy'), ret_zs)
     if misc.is_main_process():
-        _report_metrics(ret, args)
+        _report_metrics(ret_rt, ret_zs, args)
 
 
 @torch.no_grad()
-def _report_metrics(ret, args):
+def _report_metrics(ret, ret_zs, args):
     # with open(os.path.join(args.data_path, f'candidate.csv')) as f:
     #     candidate = pd.read_csv(f)
     # with open(os.path.join(args.data_path, f'I2IR_query.csv')) as f:
@@ -148,6 +150,22 @@ def _report_metrics(ret, args):
     }
 
     print(eval_result)
+
+    i2t= ret_zs["i2t"]
+    true_labels = np.repeat(np.arange(5), 200)  # 假设有序的标签
+    predicted_labels = np.argmax(i2t, axis=1) // 200
+    accuracy = accuracy_score(true_labels, predicted_labels)
+
+    # 计算每类的精确度、召回率和 F1-Score
+    precision = precision_score(true_labels, predicted_labels, average='macro')
+    recall = recall_score(true_labels, predicted_labels, average='macro')
+    f1 = f1_score(true_labels, predicted_labels, average='macro')
+
+    print("Accuracy:", accuracy)
+    print("Precision:", precision)
+    print("Recall:", recall)
+    print("F1-Score:", f1)
+
     return eval_result
 
 
