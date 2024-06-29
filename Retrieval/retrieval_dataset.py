@@ -52,7 +52,7 @@ class retrieval_dataset_ROCO(Dataset):
 
     def __getitem__(self, idx):
         sample = self.data.iloc[idx]
-        img_path = os.path.join(self.data_path, sample['image_path'])
+        img_path = os.path.join(self.data_path, 'images', sample['image_path'])
         img = Image.open(img_path).convert('RGB')
         report = sample['text']
 
