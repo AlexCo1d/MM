@@ -35,7 +35,7 @@ def main():
         dataloader_zs = torch.utils.data.DataLoader(dataset_zs, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
     else:
         dataset = retrieval_dataset_ROCO(args.data_path)
-        dataloader = torch.utils.data.DataLoader(retrieval_dataset_ROCO, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
     model = Former_Retrieval.Former_RT(vit_type=args.vit_type)
     model = model.to(device)
     model_without_ddp = model
