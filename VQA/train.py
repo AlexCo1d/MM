@@ -108,7 +108,7 @@ def main(args):
     train_dataset, test_dataset, _ = create_dataset(args)
     print('train dataset size: ', len(train_dataset))
     print('test dataset size: ', len(test_dataset))
-    print('answer_list size: ', len(train_dataset.answer_list))
+    print('answer_list size: ', len(test_dataset.answer_list))
 
     if args.distributed:
         num_tasks = utils.get_world_size()
