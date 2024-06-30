@@ -112,7 +112,7 @@ class Former_cls(Blip2Base):
         ).to(image.device)
 
         answer = self.tokenizer(
-            samples["text_output"],
+            [i+self.tokenizer.eos_token for i in samples['text_output']],
             padding='longest',
             return_tensors="pt"
         ).to(image.device)
@@ -175,7 +175,7 @@ class Former_cls(Blip2Base):
             self,
             samples,
             dataloader,
-            k=64
+            k=128
     ):
         image = samples["image"].to(self.device)
         bs = image.size(0)

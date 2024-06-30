@@ -27,9 +27,9 @@ class VQA_Dataset(Dataset):
         self.max_txt_length = max_txt_length
         self.classifier_vqa = answer_list_flag
         answer_list = [pre_answer(self.data[i]['answer']) for i in range(len(self.data))]
-        self.answer_list = list(set(answer_list))
-        if self.mode == 'train':
-            self.answer_label = {answer: i for i, answer in enumerate(self.answer_list)}
+        if self.mode == 'test':
+            self.answer_list = list(set(answer_list))
+            # self.answer_label = {answer: i for i, answer in enumerate(self.answer_list)}
 
 
 
@@ -220,8 +220,6 @@ class VQA2019_Dataset(VQA_Dataset):
         Question = sample['question']
         Answer = sample['answer']
         Answer = pre_answer(Answer)
-        if self.mode == 'train':
-            label = int(self.answer_label[Answer])
         at = sample['answer_type']
         Question = pre_question(Question)
         ##### read image pathes #####
@@ -249,7 +247,6 @@ class VQA2019_Dataset(VQA_Dataset):
                 'image': image,
                 'answer_type': at,
                 'image_name': sample['image_name'],
-                'label': label
             }
         # some dataset don't have qid and answer_type, need to generate.
         if self.mode == 'test':
