@@ -49,7 +49,7 @@ def get_args_parser():
     # parser.add_argument('--model', default='mrm', type=str, metavar='MODEL',
     #                     help='Name of model to train')
 
-    parser.add_argument('--input_size', default=224, type=int,
+    parser.add_argument('--img_size', default=224, type=int,
                         help='images input size')
 
     # parser.add_argument('--mask_ratio', default=0.75, type=float,
@@ -166,7 +166,7 @@ def main(args):
     )
 
     # define the model
-    model = MM_Former(local_contrastive_loss=True, vit_path=args.vit_path if args.resume is None else '',vit_type=args.vit_type,
+    model = MM_Former(img_size=args.img_size,local_contrastive_loss=True, vit_path=args.vit_path if args.resume is None else '',vit_type=args.vit_type,
                       freeze_vit=True if args.vit_type == 'eva_vit' else False, mv=args.mv, distill=args.distill_model)
 
     model.to(device)

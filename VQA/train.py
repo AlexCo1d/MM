@@ -164,7 +164,7 @@ def main(args):
             {'params': rest_params}
         ]
 
-    optimizer = transformers.AdamW(params=params, lr=args.lr, weight_decay=0.05) \
+    optimizer = torch.optim.AdamW(params=params, lr=args.lr, weight_decay=0.05) \
         if not args.deepspeed else None
 
     model_without_ddp = model
