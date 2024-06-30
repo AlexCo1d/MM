@@ -112,6 +112,12 @@ def _report_metrics(ret, ret_zs=None, args=None):
             "t2i_r5": compute_precision_at_k(scores_t2i, classes, k=5),
             "t2i_r10": compute_precision_at_k(scores_t2i, classes, k=10),
             "t2i_r50": compute_precision_at_k(scores_t2i, classes, k=50),
+
+            "i2t_r1'": compute_precision_at_k(scores_t2i.transpose(), classes, k=1),
+            "i2t_r2'": compute_precision_at_k(scores_t2i.transpose(), classes, k=2),
+            "i2t_r5'": compute_precision_at_k(scores_t2i.transpose(), classes, k=5),
+            "i2t_r10'": compute_precision_at_k(scores_t2i.transpose(), classes, k=10),
+
         }
 
         print(eval_result)
