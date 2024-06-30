@@ -341,4 +341,5 @@ def pre_answer(lanswer):
         answer.lower(),
     ).replace(' \t', ' ')
     answer = answer.replace('x ray', 'xray').replace('x-ray', 'xray')
+    answer = answer.replace(' - ', ' ')
     return answer
