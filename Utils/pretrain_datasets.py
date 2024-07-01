@@ -310,7 +310,7 @@ class GaussianBlur(object):
 
 
 def get_pretrain_dataset(args):
-    img_size = 224
+    img_size = args.img_size
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     transform = transforms.Compose([
