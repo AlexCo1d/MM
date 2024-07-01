@@ -78,8 +78,8 @@ class Former_cls(Blip2Base):
         self.distill = distill
 
         config = BertConfig.from_json_file(os.path.join(tokenizer_config, 'config.json'))
-        config.fusion_layer = 0
-        config.num_hidden_layers = 6
+        # config.fusion_layer = 0
+        # config.num_hidden_layers = 6
         self.text_decoder = BertLMHeadModel.from_pretrained(tokenizer_config, config=config)
 
         if self.distill:
