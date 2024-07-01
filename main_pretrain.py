@@ -99,6 +99,8 @@ def get_args_parser():
                         help='path for loading pretrained ViT model')
     parser.add_argument('--vit_type', type=str, default='eva_vit',
                         help='type of ViT model to use')
+    parser.add_argument('--bert_type', type=str, default='bert-base-uncased',
+                        help='type of bert model to use')
     parser.add_argument('--start_epoch', default=-1, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--num_workers', default=10, type=int)
@@ -167,7 +169,7 @@ def main(args):
 
     # define the model
     model = MM_Former(img_size=args.img_size,local_contrastive_loss=True, vit_path=args.vit_path if args.resume is None else '',vit_type=args.vit_type,
-                      freeze_vit=True if args.vit_type == 'eva_vit' else False, mv=args.mv, distill=args.distill_model)
+                      freeze_vit=True if args.vit_type == 'eva_vit' else False, mv=args.mv, distill=args.distill_model, bert=args.bert_type)
 
     model.to(device)
 

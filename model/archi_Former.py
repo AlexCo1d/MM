@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 import time
 from copy import deepcopy
 
@@ -31,12 +32,17 @@ class MM_Former(Blip2Base):
                  vit_precision="fp16",
                  vit_path='',
                  vit_type='eva_vit',
-                 tokenizer_config='./model/submodule/bert/bert-base-uncased',
+                 bert='bert-base-uncased',
                  distill=False, queue_size=65536, mv=False,
                  freeze_vit=True,
                  local_contrastive_loss=False,
                  c_embed_dim=256, num_query_token=32, cross_attention_freq=2, checkpoint=True, **kwargs):
         super().__init__()
+        if not bert.startswith('.'):
+            tokenizer_config = os.path.join('./model/submodule/bert/', bert)
+        else:
+            tokenizer_config = bert
+
         self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
         self.tokenizer.add_special_tokens({"bos_token": "[DEC]"})
         # VIT encoder part

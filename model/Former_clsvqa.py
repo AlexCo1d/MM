@@ -36,7 +36,7 @@ class Former_cls(Blip2Base):
             max_output_txt_len=256,
             vit_type="eva_vit",
             vit_path="",
-            tokenizer_config='../model/submodule/bert/bert-base-uncased',
+            bert='bert-base-uncased',
             qformer_text_input=True,
             instruct=True,
             distill=False
@@ -44,6 +44,7 @@ class Former_cls(Blip2Base):
         super().__init__()
         from transformers import LlamaTokenizer
         from model.submodule.LLM.modeling_llama import LlamaForCausalLM
+        tokenizer_config = os.path.join('../model/submodule/bert/', bert)
 
         self.tokenizer = BertTokenizer.from_pretrained(tokenizer_config)
         self.tokenizer.add_special_tokens({"eos_token": "[SEP]"})

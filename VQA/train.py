@@ -135,7 +135,7 @@ def main(args):
     print("Creating model")
     if args.classifier_vqa:
         model = Former_cls(img_size=args.img_size, vit_type=args.vit_type, freeze_vit=args.freeze_vit,
-                           vit_path=args.vit_path if args.checkpoint is None else '', distill=args.distill_model)
+                           vit_path=args.vit_path if args.checkpoint is None else '', distill=args.distill_model, bert=args.bert_type)
     else:
         model = Former_Llama(img_size=args.img_size, llm_model=args.LLM_path,distill=args.distill_model,
                              vit_path=args.vit_path if args.checkpoint is None else '',
@@ -274,6 +274,8 @@ if __name__ == '__main__':
     parser.add_argument('--vit_path', default='',
                         help='path for loading pretrained ViT model')
     parser.add_argument('--vit_type', default='eva_vit', type=str)
+    parser.add_argument('--bert_type', type=str, default='bert-base-uncased',
+                        help='type of bert model to use')
     parser.add_argument('--img_size', default=224, type=int)
     parser.add_argument('--freeze_vit', action='store_true')
     parser.set_defaults(freeze_vit=False)

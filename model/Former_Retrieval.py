@@ -33,6 +33,7 @@ class Former_RT(MM_Former):
             decoder_embed_dim=768, decoder_depth=4, decoder_num_heads=6,
             mlp_ratio=4., norm_layer=partial(nn.LayerNorm, eps=1e-6), mv=False,
             freeze_vit=True,
+            bert='bert-base-uncased',
             local_contrastive_loss=False,
             c_embed_dim=256, num_query_token=32, cross_attention_freq=2, **kwargs
     ):
@@ -46,7 +47,7 @@ class Former_RT(MM_Former):
             vit_path=vit_path,
             decoder_embed_dim=decoder_embed_dim, decoder_depth=decoder_depth, decoder_num_heads=decoder_num_heads,
             mlp_ratio=mlp_ratio, norm_layer=norm_layer, mv=mv,
-            freeze_vit=freeze_vit, tokenizer_config='../model/submodule/bert/bert-base-uncased',
+            freeze_vit=freeze_vit, bert=f'../model/submodule/bert/{bert}',
             local_contrastive_loss=local_contrastive_loss,
             c_embed_dim=c_embed_dim, num_query_token=num_query_token, cross_attention_freq=cross_attention_freq
         )
